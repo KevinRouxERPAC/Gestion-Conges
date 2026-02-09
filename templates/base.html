@@ -34,16 +34,16 @@
                     <span class="text-xl font-bold tracking-tight">ERPAC - Congés</span>
                     {% if current_user.role == 'rh' %}
                     <a href="{{ url_for('rh.dashboard') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Tableau de bord</a>
-                    <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">ParamÃ©trage</a>
+                    <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Paramétrage</a>
                     {% else %}
-                    <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Mes congÃ©s</a>
+                    <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Mes congés</a>
                     {% endif %}
                 </div>
                 <div class="flex items-center space-x-4">
                     <span class="text-sm">{{ current_user.prenom }} {{ current_user.nom }}
                         <span class="bg-erpac-light text-xs px-2 py-1 rounded-full ml-1">{{ current_user.role|upper }}</span>
                     </span>
-                    <a href="{{ url_for('auth.logout') }}" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition">DÃ©connexion</a>
+                    <a href="{{ url_for('auth.logout') }}" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition">Déconnexion</a>
                 </div>
             </div>
         </div>

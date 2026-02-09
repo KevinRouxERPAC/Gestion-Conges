@@ -1,10 +1,10 @@
-{% extends "base.html" %}
-{% block title %}Mes congÃ©s{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Mes congés{% endblock %}
 
 {% block content %}
 <div class="mb-8">
     <h1 class="text-2xl font-bold text-gray-800">Bonjour {{ current_user.prenom }} !</h1>
-    <p class="text-gray-500 mt-1">Voici le rÃ©capitulatif de vos congÃ©s</p>
+    <p class="text-gray-500 mt-1">Voici le récapitulatif de vos congés</p>
 </div>
 
 <!-- Solde -->
@@ -17,12 +17,12 @@
         <div class="text-sm text-gray-400 mt-1">jour(s) disponible(s)</div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total allouÃ©</div>
+        <div class="text-sm font-medium text-gray-500">Total alloué</div>
         <div class="text-3xl font-bold text-erpac-primary mt-1">{{ solde.total_alloue }}</div>
-        <div class="text-xs text-gray-400 mt-1">CP: {{ solde.jours_conges }} | AnciennetÃ©: {{ solde.jours_anciennete }} | Report: {{ solde.jours_report }}</div>
+        <div class="text-xs text-gray-400 mt-1">CP: {{ solde.jours_conges }} | Ancienneté: {{ solde.jours_anciennete }} | Report: {{ solde.jours_report }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total consommÃ©</div>
+        <div class="text-sm font-medium text-gray-500">Total consommé</div>
         <div class="text-3xl font-bold text-gray-700 mt-1">{{ solde.total_consomme }}</div>
         <div class="text-sm text-gray-400 mt-1">jour(s) pris</div>
     </div>
@@ -31,27 +31,27 @@
 <!-- Progress bar -->
 <div class="bg-white rounded-xl shadow p-6 mb-8">
     <div class="flex justify-between text-sm text-gray-600 mb-2">
-        <span>Consommation des congÃ©s</span>
+        <span>Consommation des congés</span>
         <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
     </div>
     <div class="w-full bg-gray-200 rounded-full h-4">
         {% set pct = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
-        <div class="h-4 rounded-full transition-all duration-500
-             {% if pct > 90 %}bg-red-500{% elif pct > 70 %}bg-orange-400{% else %}bg-erpac-primary{% endif %}"
-             style="width: {{ pct|int }}%"></div>
+        <div id="progress-bar-fill" class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct > 90 else 'bg-orange-400' if pct > 70 else 'bg-erpac-primary' }}"
+             data-width-pct="{{ pct|int }}"></div>
     </div>
 </div>
+<script>var el=document.getElementById('progress-bar-fill');if(el)el.style.width=el.getAttribute('data-width-pct')+'%';</script>
 
 <!-- Conges list -->
 <div class="bg-white rounded-xl shadow overflow-hidden">
     <div class="px-6 py-4 border-b">
-        <h2 class="text-lg font-semibold text-gray-800">Mes congÃ©s</h2>
+        <h2 class="text-lg font-semibold text-gray-800">Mes congés</h2>
     </div>
     {% if conges %}
     <table class="w-full">
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PÃ©riode</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
@@ -83,7 +83,7 @@
         </tbody>
     </table>
     {% else %}
-    <div class="px-6 py-12 text-center text-gray-500">Aucun congÃ© enregistrÃ© pour le moment.</div>
+    <div class="px-6 py-12 text-center text-gray-500">Aucun congé enregistré pour le moment.</div>
     {% endif %}
 </div>
 {% endblock %}
