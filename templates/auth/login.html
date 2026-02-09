@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+
+{% block content %}
+<div class="min-h-[70vh] flex items-center justify-center">
+    <div class="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800">ERPAC</h1>
+            <p class="text-gray-500 mt-2">Gestion des CongÃ©s</p>
+        </div>
+
+        <form method="POST" class="space-y-6">
+            <div>
+                <label for="identifiant" class="block text-sm font-medium text-gray-700 mb-1">Identifiant</label>
+                <input type="text" id="identifiant" name="identifiant" required autofocus
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary transition"
+                       placeholder="Votre identifiant">
+            </div>
+
+            <div>
+                <label for="mot_de_passe" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe</label>
+                <input type="password" id="mot_de_passe" name="mot_de_passe" required
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary transition"
+                       placeholder="Votre mot de passe">
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-erpac-primary hover:bg-erpac-dark text-white font-semibold py-3 px-4 rounded-lg transition shadow-md hover:shadow-lg">
+                Se connecter
+            </button>
+        </form>
+    </div>
+</div>
+{% endblock %}

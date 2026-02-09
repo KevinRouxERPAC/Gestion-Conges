@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord RH{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Tableau de bord RH</h1>
+    <p class="text-gray-500 mt-1">Vue d'ensemble des congÃ©s des salariÃ©s</p>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">Total salariÃ©s</div>
+        <div class="text-3xl font-bold text-erpac-primary mt-1">{{ total_salaries }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">En congÃ© aujourd'hui</div>
+        <div class="text-3xl font-bold text-orange-500 mt-1">{{ total_en_conge }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">Exercice actif</div>
+        <div class="text-lg font-bold text-gray-700 mt-1">
+            {% if parametrage %}
+                {{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}
+            {% else %}
+                <span class="text-red-500">Non configurÃ©</span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Search -->
+<div class="mb-6" x-data="{ search: '' }">
+    <input type="text" x-model="search" placeholder="Rechercher un salariÃ©..."
+           class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+</div>
+
+<!-- Table -->
+<div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
+    <div class="px-6 py-4 border-b">
+        <input type="text" x-model="search" placeholder="Rechercher un salariÃ©..."
+               class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SalariÃ©</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solde restant</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total allouÃ©</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ConsommÃ©</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for data in salaries_data %}
+            <tr class="hover:bg-gray-50 transition"
+                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())">
+                <td class="px-6 py-4">
+                    <div class="font-medium text-gray-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-lg font-bold {% if data.solde.solde_restant <= 5 %}text-red-600{% elif data.solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+                        {{ data.solde.solde_restant }}
+                    </span>
+                    <span class="text-sm text-gray-500">jour(s)</span>
+                </td>
+                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_alloue }}</td>
+                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_consomme }}</td>
+                <td class="px-6 py-4">
+                    {% if data.conges_en_cours > 0 %}
+                        <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">En congÃ©</span>
+                    {% else %}
+                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">PrÃ©sent</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-right space-x-2">
+                    <a href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}"
+                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">DÃ©tails</a>
+                    <a href="{{ url_for('rh.ajouter_conge', user_id=data.user.id) }}"
+                       class="text-green-600 hover:text-green-800 text-sm font-medium">+ CongÃ©</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Mes congÃ©s{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Bonjour {{ current_user.prenom }} !</h1>
+    <p class="text-gray-500 mt-1">Voici le rÃ©capitulatif de vos congÃ©s</p>
+</div>
+
+<!-- Solde -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">Solde restant</div>
+        <div class="text-4xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
+            {{ solde.solde_restant }}
+        </div>
+        <div class="text-sm text-gray-400 mt-1">jour(s) disponible(s)</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">Total allouÃ©</div>
+        <div class="text-3xl font-bold text-erpac-primary mt-1">{{ solde.total_alloue }}</div>
+        <div class="text-xs text-gray-400 mt-1">CP: {{ solde.jours_conges }} | AnciennetÃ©: {{ solde.jours_anciennete }} | Report: {{ solde.jours_report }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-6">
+        <div class="text-sm font-medium text-gray-500">Total consommÃ©</div>
+        <div class="text-3xl font-bold text-gray-700 mt-1">{{ solde.total_consomme }}</div>
+        <div class="text-sm text-gray-400 mt-1">jour(s) pris</div>
+    </div>
+</div>
+
+<!-- Progress bar -->
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <div class="flex justify-between text-sm text-gray-600 mb-2">
+        <span>Consommation des congÃ©s</span>
+        <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
+    </div>
+    <div class="w-full bg-gray-200 rounded-full h-4">
+        {% set pct = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
+        <div class="h-4 rounded-full transition-all duration-500
+             {% if pct > 90 %}bg-red-500{% elif pct > 70 %}bg-orange-400{% else %}bg-erpac-primary{% endif %}"
+             style="width: {{ pct|int }}%"></div>
+    </div>
+</div>
+
+<!-- Conges list -->
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Mes congÃ©s</h2>
+    </div>
+    {% if conges %}
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PÃ©riode</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for conge in conges %}
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 text-sm">
+                    {{ conge.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ conge.date_fin.strftime('%d/%m/%Y') }}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="font-semibold">{{ conge.nb_jours_ouvrables }}</span>
+                    <span class="text-gray-500 text-sm">jour(s)</span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded text-xs font-medium
+                        {% if conge.type_conge == 'CP' %}bg-erpac-100 text-erpac-800
+                        {% elif conge.type_conge == 'RTT' %}bg-purple-100 text-purple-800
+                        {% elif conge.type_conge == 'Maladie' %}bg-red-100 text-red-800
+                        {% elif conge.type_conge == 'Anciennete' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ conge.type_conge }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ conge.commentaire or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-12 text-center text-gray-500">Aucun congÃ© enregistrÃ© pour le moment.</div>
+    {% endif %}
+</div>
+{% endblock %}

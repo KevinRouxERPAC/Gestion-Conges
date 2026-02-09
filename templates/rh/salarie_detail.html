@@ -1,0 +1,126 @@
+﻿{% extends "base.html" %}
+{% block title %}{{ salarie.prenom }} {{ salarie.nom }}{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex items-center justify-between">
+    <div>
+        <a href="{{ url_for('rh.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour au tableau de bord</a>
+        <h1 class="text-2xl font-bold text-gray-800 mt-2">{{ salarie.prenom }} {{ salarie.nom }}</h1>
+        <p class="text-gray-500">{{ salarie.role|upper }}{% if salarie.date_embauche %} &middot; EmbauchÃ©(e) le {{ salarie.date_embauche.strftime('%d/%m/%Y') }}{% endif %}</p>
+    </div>
+    <a href="{{ url_for('rh.ajouter_conge', user_id=salarie.id) }}"
+       class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition shadow">
+        + Ajouter un congÃ©
+    </a>
+</div>
+
+<!-- Solde -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-xl shadow p-5">
+        <div class="text-sm text-gray-500">Solde restant</div>
+        <div class="text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+            {{ solde.solde_restant }} <span class="text-base text-gray-500">jour(s)</span>
+        </div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5">
+        <div class="text-sm text-gray-500">Total allouÃ©</div>
+        <div class="text-2xl font-bold text-erpac-primary">{{ solde.total_alloue }}</div>
+        <div class="text-xs text-gray-400 mt-1">CP: {{ solde.jours_conges }} | Anc: {{ solde.jours_anciennete }} | Report: {{ solde.jours_report }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5">
+        <div class="text-sm text-gray-500">ConsommÃ©</div>
+        <div class="text-2xl font-bold text-gray-700">{{ solde.total_consomme }}</div>
+    </div>
+    <div class="bg-white rounded-xl shadow p-5">
+        <div class="text-sm text-gray-500">Exercice</div>
+        <div class="text-sm font-medium text-gray-700 mt-1">
+            {% if parametrage %}{{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}{% else %}Non configurÃ©{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Allocation form -->
+<div class="bg-white rounded-xl shadow p-6 mb-8" x-data="{ open: false }">
+    <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+        <h2 class="text-lg font-semibold text-gray-800">Modifier l'allocation</h2>
+        <span class="text-gray-400" x-text="open ? 'â–²' : 'â–¼'"></span>
+    </div>
+    <form method="POST" action="{{ url_for('rh.modifier_allocation', user_id=salarie.id) }}"
+          class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4" x-show="open" x-transition>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Jours congÃ©s payÃ©s</label>
+            <input type="number" name="jours_alloues" value="{{ solde.jours_conges }}" min="0"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Jours anciennetÃ©</label>
+            <input type="number" name="jours_anciennete" value="{{ solde.jours_anciennete }}" min="0"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Jours report</label>
+            <input type="number" name="jours_report" value="{{ solde.jours_report }}" min="0"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div class="flex items-end">
+            <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition">
+                Enregistrer
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- Conges list -->
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-lg font-semibold text-gray-800">Historique des congÃ©s</h2>
+    </div>
+    {% if conges %}
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PÃ©riode</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for conge in conges %}
+            <tr class="hover:bg-gray-50 transition">
+                <td class="px-6 py-4 text-sm">
+                    {{ conge.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ conge.date_fin.strftime('%d/%m/%Y') }}
+                </td>
+                <td class="px-6 py-4">
+                    <span class="font-semibold">{{ conge.nb_jours_ouvrables }}</span> <span class="text-gray-500 text-sm">jour(s)</span>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="px-2 py-1 rounded text-xs font-medium
+                        {% if conge.type_conge == 'CP' %}bg-erpac-100 text-erpac-800
+                        {% elif conge.type_conge == 'RTT' %}bg-purple-100 text-purple-800
+                        {% elif conge.type_conge == 'Maladie' %}bg-red-100 text-red-800
+                        {% elif conge.type_conge == 'Anciennete' %}bg-green-100 text-green-800
+                        {% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ conge.type_conge }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">{{ conge.commentaire or '-' }}</td>
+                <td class="px-6 py-4 text-right space-x-2">
+                    <a href="{{ url_for('rh.modifier_conge', conge_id=conge.id) }}"
+                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Modifier</a>
+                    <form method="POST" action="{{ url_for('rh.supprimer_conge', conge_id=conge.id) }}"
+                          class="inline" onsubmit="return confirm('Supprimer ce congÃ© ?')">
+                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Supprimer</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="px-6 py-12 text-center text-gray-500">Aucun congÃ© enregistrÃ©.</div>
+    {% endif %}
+</div>
+{% endblock %}
+
