@@ -1,17 +1,26 @@
-﻿from datetime import datetime
+from datetime import datetime
+from functools import wraps
+
+import bcrypt
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from functools import wraps
+
 from models import db
-from models.user import User
 from models.conge import Conge
-from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.jour_ferie import JourFerie
+from models.parametrage import ParametrageAnnuel, AllocationConge
+from models.user import User
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_suffisant
 from services.jours_feries import get_jours_feries
 
+
 rh_bp = Blueprint("rh", __name__)
+
+
+def hash_password(password: str) -> str:
+    """Hasher un mot de passe pour création / modification côté RH."""
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def rh_required(f):
@@ -19,7 +28,7 @@ def rh_required(f):
     @login_required
     def decorated_function(*args, **kwargs):
         if current_user.role != "rh":
-            flash("AccÃ¨s rÃ©servÃ© aux gestionnaires RH.", "error")
+            flash("Accès réservé aux gestionnaires RH.", "error")
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
     return decorated_function
@@ -45,6 +54,32 @@ def dashboard():
             "conges_en_cours": conges_en_cours,
         })
 
+    # Données pour les graphiques (solde restant par salarié)
+    chart_labels = []
+    chart_soldes_restants = []
+    for item in salaries_data:
+        user = item["user"]
+        solde = item["solde"]
+        chart_labels.append(f"{user.prenom} {user.nom}")
+        chart_soldes_restants.append(solde.get("solde_restant", 0))
+
+    # Données pour le calendrier (tous les congés de l'exercice actif)
+    calendar_events = []
+    if param:
+        conges_exercice = Conge.query.filter(
+            Conge.date_debut <= param.fin_exercice,
+            Conge.date_fin >= param.debut_exercice,
+        ).all()
+        for c in conges_exercice:
+            if c.utilisateur is None:
+                continue
+            calendar_events.append({
+                "start": c.date_debut.isoformat(),
+                "end": c.date_fin.isoformat(),
+                "user": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
+                "type_conge": c.type_conge,
+            })
+
     # Stats
     total_salaries = len(salaries)
     total_en_conge = sum(1 for s in salaries_data if s["conges_en_cours"] > 0)
@@ -55,6 +90,9 @@ def dashboard():
         total_salaries=total_salaries,
         total_en_conge=total_en_conge,
         parametrage=param,
+        chart_labels=chart_labels,
+        chart_soldes_restants=chart_soldes_restants,
+        calendar_events=calendar_events,
     )
 
 
@@ -91,7 +129,7 @@ def ajouter_conge(user_id):
             return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
 
         if date_fin < date_debut:
-            flash("La date de fin doit Ãªtre postÃ©rieure Ã  la date de dÃ©but.", "error")
+            flash("La date de fin doit être postérieure à la date de début.", "error")
             return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
 
         type_conge = request.form.get("type_conge", "CP")
@@ -99,13 +137,13 @@ def ajouter_conge(user_id):
 
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
-            flash("Aucun jour ouvrable dans la pÃ©riode sÃ©lectionnÃ©e.", "error")
+            flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
             return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
 
         chevauchement = detecter_chevauchement(user.id, date_debut, date_fin)
         if chevauchement:
             flash(
-                f"Chevauchement dÃ©tectÃ© avec le congÃ© du {chevauchement.date_debut.strftime('%d/%m/%Y')} "
+                f"Chevauchement détecté avec le congé du {chevauchement.date_debut.strftime('%d/%m/%Y')} "
                 f"au {chevauchement.date_fin.strftime('%d/%m/%Y')}.",
                 "error",
             )
@@ -115,7 +153,7 @@ def ajouter_conge(user_id):
             if not verifier_solde_suffisant(user.id, nb_jours):
                 flash(
                     f"Solde insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
-                    f"{nb_jours} jour(s) demandÃ©(s).",
+                    f"{nb_jours} jour(s) demandé(s).",
                     "error",
                 )
                 return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
@@ -131,7 +169,7 @@ def ajouter_conge(user_id):
         db.session.add(conge)
         db.session.commit()
 
-        flash(f"CongÃ© ajoutÃ© : {nb_jours} jour(s) ouvrable(s).", "success")
+        flash(f"Congé ajouté : {nb_jours} jour(s) ouvrable(s).", "success")
         return redirect(url_for("rh.salarie_detail", user_id=user.id))
 
     return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
@@ -153,7 +191,7 @@ def modifier_conge(conge_id):
             return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
 
         if date_fin < date_debut:
-            flash("La date de fin doit Ãªtre postÃ©rieure Ã  la date de dÃ©but.", "error")
+            flash("La date de fin doit être postérieure à la date de début.", "error")
             return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
 
         type_conge = request.form.get("type_conge", conge.type_conge)
@@ -161,13 +199,13 @@ def modifier_conge(conge_id):
 
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
-            flash("Aucun jour ouvrable dans la pÃ©riode sÃ©lectionnÃ©e.", "error")
+            flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
             return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
 
         chevauchement = detecter_chevauchement(user.id, date_debut, date_fin, conge_id_exclu=conge.id)
         if chevauchement:
             flash(
-                f"Chevauchement dÃ©tectÃ© avec le congÃ© du {chevauchement.date_debut.strftime('%d/%m/%Y')} "
+                f"Chevauchement détecté avec le congé du {chevauchement.date_debut.strftime('%d/%m/%Y')} "
                 f"au {chevauchement.date_fin.strftime('%d/%m/%Y')}.",
                 "error",
             )
@@ -185,7 +223,7 @@ def modifier_conge(conge_id):
         conge.commentaire = commentaire
         db.session.commit()
 
-        flash("CongÃ© modifiÃ© avec succÃ¨s.", "success")
+        flash("Congé modifié avec succès.", "success")
         return redirect(url_for("rh.salarie_detail", user_id=user.id))
 
     return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
@@ -198,7 +236,7 @@ def supprimer_conge(conge_id):
     user_id = conge.user_id
     db.session.delete(conge)
     db.session.commit()
-    flash("CongÃ© supprimÃ©.", "success")
+    flash("Congé supprimé.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
 
@@ -223,7 +261,7 @@ def parametrage():
                 fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
                 jours_defaut = int(request.form["jours_conges_defaut"])
             except (ValueError, KeyError):
-                flash("DonnÃ©es invalides.", "error")
+                flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
 
             if param is None:
@@ -240,7 +278,7 @@ def parametrage():
                 param.jours_conges_defaut = jours_defaut
 
             db.session.commit()
-            flash("ParamÃ©trage enregistrÃ©.", "success")
+            flash("Paramétrage enregistré.", "success")
             return redirect(url_for("rh.parametrage"))
 
         elif action == "charger_feries":
@@ -258,7 +296,7 @@ def parametrage():
                             db.session.add(jf)
                             count += 1
                 db.session.commit()
-                flash(f"{count} jour(s) fÃ©riÃ©(s) ajoutÃ©(s).", "success")
+                flash(f"{count} jour(s) férié(s) ajouté(s).", "success")
             return redirect(url_for("rh.parametrage"))
 
         elif action == "ajouter_ferie":
@@ -266,19 +304,19 @@ def parametrage():
                 date_f = datetime.strptime(request.form["date_ferie"], "%Y-%m-%d").date()
                 libelle = request.form.get("libelle_ferie", "").strip()
                 if not libelle:
-                    libelle = "Jour fÃ©riÃ© personnalisÃ©"
+                    libelle = "Jour férié personnalisé"
             except (ValueError, KeyError):
                 flash("Date invalide.", "error")
                 return redirect(url_for("rh.parametrage"))
 
             existing = JourFerie.query.filter_by(date_ferie=date_f).first()
             if existing:
-                flash("Ce jour fÃ©riÃ© existe dÃ©jÃ .", "warning")
+                flash("Ce jour férié existe déjà.", "warning")
             else:
                 jf = JourFerie(date_ferie=date_f, libelle=libelle, annee=date_f.year, auto_genere=False)
                 db.session.add(jf)
                 db.session.commit()
-                flash("Jour fÃ©riÃ© ajoutÃ©.", "success")
+                flash("Jour férié ajouté.", "success")
             return redirect(url_for("rh.parametrage"))
 
         elif action == "supprimer_ferie":
@@ -288,7 +326,7 @@ def parametrage():
                 if jf:
                     db.session.delete(jf)
                     db.session.commit()
-                    flash("Jour fÃ©riÃ© supprimÃ©.", "success")
+                    flash("Jour férié supprimé.", "success")
             return redirect(url_for("rh.parametrage"))
 
     return render_template("rh/parametrage.html", parametrage=param, jours_feries=jours_feries_list)
@@ -300,7 +338,7 @@ def modifier_allocation(user_id):
     user = User.query.get_or_404(user_id)
     param = get_parametrage_actif()
     if not param:
-        flash("Aucun paramÃ©trage actif. Configurez d'abord le paramÃ©trage annuel.", "error")
+        flash("Aucun paramétrage actif. Configurez d'abord le paramétrage annuel.", "error")
         return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
     allocation = AllocationConge.query.filter_by(user_id=user_id, parametrage_id=param.id).first()
@@ -317,5 +355,112 @@ def modifier_allocation(user_id):
         return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
     db.session.commit()
-    flash("Allocation mise Ã  jour.", "success")
+    flash("Allocation mise à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
+
+
+@rh_bp.route("/salaries")
+@rh_required
+def liste_salaries():
+    """Liste complète des salariés pour gestion RH."""
+    salaries = User.query.order_by(User.nom, User.prenom).all()
+    return render_template("rh/salaries.html", salaries=salaries)
+
+
+@rh_bp.route("/salarie/nouveau", methods=["GET", "POST"])
+@rh_required
+def creer_salarie():
+    """Création d'un nouveau salarié côté RH."""
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        prenom = request.form.get("prenom", "").strip()
+        identifiant = request.form.get("identifiant", "").strip()
+        mot_de_passe = request.form.get("mot_de_passe", "")
+        role = request.form.get("role", "salarie").strip() or "salarie"
+        date_embauche_str = request.form.get("date_embauche", "").strip()
+
+        if not nom or not prenom or not identifiant or not mot_de_passe:
+            flash("Nom, prénom, identifiant et mot de passe sont obligatoires.", "error")
+            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+        existing = User.query.filter_by(identifiant=identifiant).first()
+        if existing:
+            flash("Un utilisateur avec cet identifiant existe déjà.", "error")
+            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+        date_embauche = None
+        if date_embauche_str:
+            try:
+                date_embauche = datetime.strptime(date_embauche_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Date d'embauche invalide.", "error")
+                return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+        user = User(
+            nom=nom,
+            prenom=prenom,
+            identifiant=identifiant,
+            mot_de_passe_hash=hash_password(mot_de_passe),
+            role=role,
+            actif=True,
+            date_embauche=date_embauche,
+        )
+        db.session.add(user)
+        db.session.commit()
+
+        flash("Salarié créé avec succès.", "success")
+        return redirect(url_for("rh.liste_salaries"))
+
+    return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+
+@rh_bp.route("/salarie/<int:user_id>/modifier", methods=["GET", "POST"])
+@rh_required
+def modifier_salarie(user_id):
+    """Modification d'un salarié existant côté RH."""
+    user = User.query.get_or_404(user_id)
+
+    if request.method == "POST":
+        nom = request.form.get("nom", "").strip()
+        prenom = request.form.get("prenom", "").strip()
+        identifiant = request.form.get("identifiant", "").strip()
+        mot_de_passe = request.form.get("mot_de_passe", "")
+        role = request.form.get("role", "salarie").strip() or "salarie"
+        date_embauche_str = request.form.get("date_embauche", "").strip()
+        actif_str = request.form.get("actif", "off")
+
+        if not nom or not prenom or not identifiant:
+            flash("Nom, prénom et identifiant sont obligatoires.", "error")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+
+        existing = User.query.filter(
+            User.identifiant == identifiant,
+            User.id != user.id,
+        ).first()
+        if existing:
+            flash("Un autre utilisateur utilise déjà cet identifiant.", "error")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+
+        date_embauche = None
+        if date_embauche_str:
+            try:
+                date_embauche = datetime.strptime(date_embauche_str, "%Y-%m-%d").date()
+            except ValueError:
+                flash("Date d'embauche invalide.", "error")
+                return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+
+        user.nom = nom
+        user.prenom = prenom
+        user.identifiant = identifiant
+        user.role = role
+        user.date_embauche = date_embauche
+        user.actif = actif_str == "on"
+
+        if mot_de_passe:
+            user.mot_de_passe_hash = hash_password(mot_de_passe)
+
+        db.session.commit()
+        flash("Salarié mis à jour.", "success")
+        return redirect(url_for("rh.liste_salaries"))
+
+    return render_template("rh/salarie_form.html", salarie=user, mode="edit")

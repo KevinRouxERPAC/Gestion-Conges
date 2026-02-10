@@ -1,4 +1,4 @@
-﻿// ERPAC Gestion des CongÃ©s - App JS
+﻿// ERPAC Gestion des Congés - App JS
 document.addEventListener('DOMContentLoaded', function() {
     // Auto-dismiss flash messages after 5 seconds
     const alerts = document.querySelectorAll('[x-data="{ show: true }"]');

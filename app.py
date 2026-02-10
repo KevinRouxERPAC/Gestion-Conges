@@ -1,6 +1,6 @@
-﻿import os
+import os
 from datetime import timedelta
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, Response
 from flask_login import LoginManager
 from config import Config
 from models import db
@@ -17,7 +17,7 @@ def create_app():
     login_manager = LoginManager()
     login_manager.init_app(app)
     login_manager.login_view = "auth.login"
-    login_manager.login_message = "Veuillez vous connecter pour accÃ©der Ã  cette page."
+    login_manager.login_message = "Veuillez vous connecter pour accéder à cette page."
     login_manager.login_message_category = "warning"
 
     @login_manager.user_loader
@@ -38,6 +38,11 @@ def create_app():
     @app.route("/")
     def index():
         return redirect(url_for("auth.login"))
+
+    # Évite le 404 favicon dans la console (requête automatique du navigateur)
+    @app.route("/favicon.ico")
+    def favicon():
+        return Response(status=204)
 
     # Create tables
     with app.app_context():

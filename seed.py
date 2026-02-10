@@ -1,5 +1,5 @@
-﻿"""Script d'initialisation de la base de donnÃ©es.
-CrÃ©e le compte admin RH, les salariÃ©s, le paramÃ©trage annuel et les jours fÃ©riÃ©s.
+﻿"""Script d'initialisation de la base de données.
+Crée le compte admin RH, les salariés, le paramétrage annuel et les jours fériés.
 """
 import sys
 import os
@@ -21,11 +21,11 @@ def seed():
     with app.app_context():
         # Check if already seeded
         if User.query.first():
-            print("La base de donnÃ©es contient dÃ©jÃ  des donnÃ©es.")
-            print("Supprimez le fichier gestion_conges.db pour rÃ©initialiser.")
+            print("La base de données contient déjà des données.")
+            print("Supprimez le fichier gestion_conges.db pour réinitialiser.")
             return
 
-        print("=== Initialisation de la base de donnÃ©es ===")
+        print("=== Initialisation de la base de données ===")
         print()
 
         # 1. Create admin RH account
@@ -38,28 +38,28 @@ def seed():
             actif=True,
         )
         db.session.add(admin)
-        print("[OK] Compte admin RH crÃ©Ã© (identifiant: admin / mot de passe: admin)")
+        print("[OK] Compte admin RH créé (identifiant: admin / mot de passe: admin)")
 
         # 2. Create employees
         salaries = [
             ("BLANC", "Pierre"),
-            ("BOUSSARD", "MichaÃ«l"),
+            ("BOUSSARD", "Michaël"),
             ("BRUERRE", "David"),
             ("DE CARVALHO", "Carlos"),
-            ("DUNOYE", "StÃ©phane"),
-            ("GAUTHE", "SÃ©bastien"),
+            ("DUNOYE", "Stéphane"),
+            ("GAUTHE", "Sébastien"),
             ("GUIROUX", "Pascal"),
             ("JEANNESSON", "Quentin"),
-            ("KOZAK", "FranÃ§ois"),
+            ("KOZAK", "François"),
             ("LAURENT", "David"),
-            ("LOUIS", "SÃ©bastien"),
+            ("LOUIS", "Sébastien"),
             ("MONNOIR", "Jean-Marie"),
-            ("PETILLOT", "VÃ©ronique"),
+            ("PETILLOT", "Véronique"),
             ("PROVOST", "Adrien"),
             ("ROUX", "Isabelle"),
             ("ROUX", "Philippe"),
-            ("ROUX", "KÃ©vin"),
-            ("TURLIER", "StÃ©phane"),
+            ("ROUX", "Kévin"),
+            ("TURLIER", "Stéphane"),
         ]
 
         users_created = []
@@ -84,7 +84,7 @@ def seed():
             db.session.add(user)
             db.session.flush()  # Get the ID
             users_created.append(user)
-            print(f"[OK] SalariÃ© crÃ©Ã© : {prenom} {nom} (identifiant: {identifiant})")
+            print(f"[OK] Salarié créé : {prenom} {nom} (identifiant: {identifiant})")
 
         # 3. Create annual parameters (exercise 2025-2026)
         param = ParametrageAnnuel(
@@ -96,7 +96,7 @@ def seed():
         db.session.add(param)
         db.session.flush()
         print()
-        print(f"[OK] ParamÃ©trage annuel crÃ©Ã© : 01/06/2025 - 31/05/2026 (25 jours par dÃ©faut)")
+        print(f"[OK] Paramétrage annuel créé : 01/06/2025 - 31/05/2026 (25 jours par défaut)")
 
         # 4. Create allocations for each employee from CSV data
         allocations_data = {
@@ -116,7 +116,7 @@ def seed():
             "PROVOST": (9, 0),
             "ROUX_Isabelle": (29, 21),
             "ROUX_Philippe": (0, 0),
-            "ROUX_KÃ©vin": (25, 1),
+            "ROUX_Kévin": (25, 1),
             "TURLIER": (25, 3),
         }
 
@@ -136,7 +136,7 @@ def seed():
             )
             db.session.add(alloc)
 
-        print(f"[OK] Allocations crÃ©Ã©es pour {len(users_created)} salariÃ©s")
+        print(f"[OK] Allocations créées pour {len(users_created)} salariés")
 
         # 5. Load French public holidays for 2025 and 2026
         count = 0
@@ -152,18 +152,18 @@ def seed():
                 db.session.add(jf)
                 count += 1
 
-        print(f"[OK] {count} jours fÃ©riÃ©s chargÃ©s (2025-2026)")
+        print(f"[OK] {count} jours fériés chargés (2025-2026)")
 
         # Commit all
         db.session.commit()
         print()
-        print("=== Initialisation terminÃ©e avec succÃ¨s ! ===")
+        print("=== Initialisation terminée avec succès ! ===")
         print()
-        print("Pour dÃ©marrer l'application :")
+        print("Pour démarrer l'application :")
         print("  python app.py")
         print()
         print("Connexion RH : admin / admin")
-        print("Connexion salariÃ© : (ex: pblanc / changeme)")
+        print("Connexion salarié : (ex: pblanc / changeme)")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Salariés{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex items-center justify-between">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Gestion des salariés</h1>
+        <p class="text-gray-500 mt-1">Créer, modifier et activer/désactiver les comptes salariés.</p>
+    </div>
+    <a href="{{ url_for('rh.creer_salarie') }}"
+       class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg shadow transition">
+        + Nouveau salarié
+    </a>
+</div>
+
+<div class="mb-6" x-data="{ search: '' }">
+    <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
+           class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
+    <div class="px-6 py-4 border-b">
+        <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
+               class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Identifiant</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'embauche</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for salarie in salaries %}
+            <tr class="hover:bg-gray-50 transition"
+                x-show="search === '' || '{{ salarie.nom|lower }} {{ salarie.prenom|lower }} {{ salarie.identifiant|lower }}'.includes(search.toLowerCase())">
+                <td class="px-6 py-4">
+                    <div class="font-medium text-gray-900">{{ salarie.nom }} {{ salarie.prenom }}</div>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                    {{ salarie.identifiant }}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                    <span class="px-2 py-1 rounded-full text-xs font-semibold
+                        {% if salarie.role == 'rh' %}bg-purple-100 text-purple-800
+                        {% else %}bg-erpac-100 text-erpac-800{% endif %}">
+                        {{ salarie.role|upper }}
+                    </span>
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-700">
+                    {% if salarie.date_embauche %}
+                        {{ salarie.date_embauche.strftime('%d/%m/%Y') }}
+                    {% else %}
+                        <span class="text-gray-400">Non renseignée</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4">
+                    {% if salarie.actif %}
+                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Actif</span>
+                    {% else %}
+                        <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-right space-x-2">
+                    <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}"
+                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Détails</a>
+                    <a href="{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}"
+                       class="text-gray-700 hover:text-gray-900 text-sm font-medium">Modifier</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+

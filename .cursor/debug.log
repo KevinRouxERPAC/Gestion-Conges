@@ -1,0 +1,3 @@
+{"id":"log_1770729525243_login_entry","timestamp":1770729525243,"location":"routes/auth.py:login","message":"login route called","data":{"method":"GET","path":"/login"},"runId":"initial","hypothesisId":"H1"}
+{"id":"log_1770729527827_login_entry","timestamp":1770729527827,"location":"routes/auth.py:login","message":"login route called","data":{"method":"GET","path":"/login"},"runId":"initial","hypothesisId":"H1"}
+{"id":"log_1770729533435_login_entry","timestamp":1770729533435,"location":"routes/auth.py:login","message":"login route called","data":{"method":"POST","path":"/login"},"runId":"initial","hypothesisId":"H1"}
