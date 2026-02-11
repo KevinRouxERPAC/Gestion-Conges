@@ -2,16 +2,26 @@
 {% block title %}{{ salarie.prenom }} {{ salarie.nom }}{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex items-center justify-between">
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
     <div>
         <a href="{{ url_for('rh.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour au tableau de bord</a>
         <h1 class="text-2xl font-bold text-gray-800 mt-2">{{ salarie.prenom }} {{ salarie.nom }}</h1>
         <p class="text-gray-500">{{ salarie.role|upper }}{% if salarie.date_embauche %} &middot; Embauché(e) le {{ salarie.date_embauche.strftime('%d/%m/%Y') }}{% endif %}</p>
     </div>
-    <a href="{{ url_for('rh.ajouter_conge', user_id=salarie.id) }}"
-       class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition shadow">
-        + Ajouter un congé
-    </a>
+    <div class="flex flex-wrap items-center gap-2">
+        <a href="{{ url_for('rh.export_salarie_excel', user_id=salarie.id) }}"
+           class="px-3 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition">
+            Export Excel
+        </a>
+        <a href="{{ url_for('rh.export_salarie_pdf', user_id=salarie.id) }}"
+           class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition">
+            Export PDF
+        </a>
+        <a href="{{ url_for('rh.ajouter_conge', user_id=salarie.id) }}"
+           class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition shadow">
+            + Ajouter un congé
+        </a>
+    </div>
 </div>
 
 <!-- Solde -->
@@ -37,6 +47,29 @@
             {% if parametrage %}{{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}{% else %}Non configuré{% endif %}
         </div>
     </div>
+</div>
+
+<!-- Email pour notifications -->
+<div class="bg-white rounded-xl shadow p-6 mb-8" x-data="{ open: false }">
+    <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+        <h2 class="text-lg font-semibold text-gray-800">Email (notifications validation/refus)</h2>
+        <span class="text-gray-400" x-text="open ? '▲' : '▼'"></span>
+    </div>
+    <div class="mt-2 text-sm text-gray-500" x-show="!open" x-transition>
+        {% if salarie.email %}{{ salarie.email }}{% else %}Non renseigné{% endif %}
+    </div>
+    <form method="POST" action="{{ url_for('rh.modifier_email', user_id=salarie.id) }}"
+          class="mt-4 flex flex-wrap items-end gap-4" x-show="open" x-transition>
+        <div class="flex-1 min-w-64">
+            <label class="block text-sm text-gray-600 mb-1">Adresse email</label>
+            <input type="email" name="email" value="{{ salarie.email or '' }}"
+                   placeholder="prenom.nom@entreprise.fr"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition">
+            Enregistrer
+        </button>
+    </form>
 </div>
 
 <!-- Allocation form -->
@@ -82,6 +115,7 @@
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
                 <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
@@ -105,14 +139,35 @@
                         {{ conge.type_conge }}
                     </span>
                 </td>
-                <td class="px-6 py-4 text-sm text-gray-500">{{ conge.commentaire or '-' }}</td>
+                <td class="px-6 py-4">
+                    {% if conge.statut == 'valide' %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
+                    {% elif conge.statut == 'en_attente' %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente</span>
+                    {% elif conge.statut == 'refuse' %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800" title="{{ conge.motif_refus or '' }}">Refusé</span>
+                    {% else %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ conge.statut|default('-') }}</span>
+                    {% endif %}
+                </td>
+                <td class="px-6 py-4 text-sm text-gray-500">
+                    {{ conge.motif_refus if conge.statut == 'refuse' and conge.motif_refus else (conge.commentaire or '-') }}
+                </td>
                 <td class="px-6 py-4 text-right space-x-2">
+                    {% if conge.statut == 'en_attente' %}
+                    <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=conge.id) }}" class="inline">
+                        <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium">Valider</button>
+                    </form>
+                    <a href="{{ url_for('rh.refuser_conge', conge_id=conge.id) }}"
+                       class="text-red-600 hover:text-red-800 text-sm font-medium">Refuser</a>
+                    {% else %}
                     <a href="{{ url_for('rh.modifier_conge', conge_id=conge.id) }}"
                        class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Modifier</a>
                     <form method="POST" action="{{ url_for('rh.supprimer_conge', conge_id=conge.id) }}"
                           class="inline" onsubmit="return confirm('Supprimer ce congé ?')">
                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Supprimer</button>
                     </form>
+                    {% endif %}
                 </td>
             </tr>
             {% endfor %}

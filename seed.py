@@ -1,4 +1,4 @@
-﻿"""Script d'initialisation de la base de données.
+"""Script d'initialisation de la base de données.
 Crée le compte admin RH, les salariés, le paramétrage annuel et les jours fériés.
 """
 import sys
@@ -73,6 +73,8 @@ def seed():
                 counter += 1
                 identifiant = f"{base_id}{counter}"
 
+            # Email pour notifications : prenom.nom@erpac.local (à personnaliser)
+            email_base = f"{prenom.lower().replace(' ', '')}.{nom.lower().replace(' ', '')}@erpac.local"
             user = User(
                 nom=nom,
                 prenom=prenom,
@@ -80,6 +82,7 @@ def seed():
                 mot_de_passe_hash=hash_password("changeme"),
                 role="salarie",
                 actif=True,
+                email=email_base,
             )
             db.session.add(user)
             db.session.flush()  # Get the ID

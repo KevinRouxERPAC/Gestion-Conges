@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from models import db
 
 
@@ -15,5 +15,13 @@ class Conge(db.Model):
     cree_le = db.Column(db.DateTime, default=datetime.utcnow)
     modifie_le = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    # Workflow de validation : valide, en_attente, refuse
+    statut = db.Column(db.String(20), nullable=False, default="valide")
+    valide_par_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    valide_le = db.Column(db.DateTime, nullable=True)
+    motif_refus = db.Column(db.Text, nullable=True)
+
+    valide_par = db.relationship("User", foreign_keys=[valide_par_id])
+
     def __repr__(self):
-        return f"<Conge {self.date_debut} - {self.date_fin} ({self.nb_jours_ouvrables}j)>"
+        return f"<Conge {self.date_debut} - {self.date_fin} ({self.nb_jours_ouvrables}j) [{self.statut}]>"

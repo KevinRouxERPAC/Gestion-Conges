@@ -2,9 +2,15 @@
 {% block title %}Tableau de bord RH{% endblock %}
 
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Tableau de bord RH</h1>
-    <p class="text-gray-500 mt-1">Vue d'ensemble des congés des salariés</p>
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Tableau de bord RH</h1>
+        <p class="text-gray-500 mt-1">Vue d'ensemble des congés des salariés</p>
+    </div>
+    <a href="{{ url_for('rh.export_equipe_excel') }}"
+       class="inline-flex items-center px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition">
+        Export Excel équipe
+    </a>
 </div>
 
 <!-- Stats -->
@@ -27,6 +33,55 @@
             {% endif %}
         </div>
     </div>
+</div>
+
+<!-- Demandes en attente -->
+{% if demandes_attente %}
+<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-amber-900 mb-4">
+        Demandes en attente de validation ({{ demandes_attente|length }})
+    </h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-amber-800 border-b border-amber-200">
+                    <th class="py-2 pr-4">Salarié</th>
+                    <th class="py-2 pr-4">Période</th>
+                    <th class="py-2 pr-4">Type</th>
+                    <th class="py-2 pr-4">Jours</th>
+                    <th class="py-2 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in demandes_attente %}
+                <tr class="border-b border-amber-100">
+                    <td class="py-3">
+                        <a href="{{ url_for('rh.salarie_detail', user_id=c.user_id) }}" class="text-erpac-primary hover:text-erpac-dark font-medium">
+                            {{ c.utilisateur.prenom if c.utilisateur else '-' }} {{ c.utilisateur.nom if c.utilisateur else '' }}
+                        </a>
+                    </td>
+                    <td class="py-3">{{ c.date_debut.strftime('%d/%m/%Y') }} → {{ c.date_fin.strftime('%d/%m/%Y') }}</td>
+                    <td class="py-3">{{ c.type_conge }}</td>
+                    <td class="py-3">{{ c.nb_jours_ouvrables }} j</td>
+                    <td class="py-3 text-right space-x-2">
+                        <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=c.id) }}" class="inline">
+                            <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button>
+                        </form>
+                        <a href="{{ url_for('rh.refuser_conge', conge_id=c.id) }}"
+                           class="text-red-600 hover:text-red-800 font-medium">Refuser</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Calendrier global des congés -->
+<div class="bg-white rounded-xl shadow p-4 md:p-6 mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Calendrier des congés (exercice actif)</h2>
+    <div id="calendar-rh"></div>
 </div>
 
 <!-- Search -->
@@ -86,4 +141,55 @@
         </tbody>
     </table>
 </div>
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/fr.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const eventsData = {{ calendar_events|tojson }};
+    const typeColors = {
+        'CP': '#008C3A',
+        'RTT': '#9333ea',
+        'Maladie': '#ef4444',
+        'Anciennete': '#16a34a',
+        'default': '#6b7280'
+    };
+
+    const calendarEvents = eventsData.map(e => {
+        const endDate = new Date(e.end);
+        endDate.setDate(endDate.getDate() + 1);
+        return {
+            title: `${e.user} - ${e.type_conge}`,
+            start: e.start,
+            end: endDate.toISOString().split('T')[0],
+            backgroundColor: typeColors[e.type_conge] || typeColors['default'],
+            borderColor: typeColors[e.type_conge] || typeColors['default'],
+            extendedProps: { user: e.user, type: e.type_conge }
+        };
+    });
+
+    const calendarEl = document.getElementById('calendar-rh');
+    if (calendarEl) {
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'fr',
+            firstDay: 1,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,listYear'
+            },
+            buttonText: {
+                today: 'Aujourd\'hui',
+            month: 'Mois',
+            year: 'Liste année'
+            },
+            events: calendarEvents,
+            height: 'auto'
+        });
+        calendar.render();
+    }
+});
+</script>
 {% endblock %}

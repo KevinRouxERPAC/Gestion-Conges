@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Calendrier{% endblock %}
+
+{% block content %}
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Calendrier de vos congés</h1>
+        <p class="text-gray-500 mt-1">Vue annuelle avec navigation entre les années</p>
+    </div>
+    <div class="flex items-center gap-2">
+        <a href="{{ url_for('salarie.calendrier', annee=year - 1) }}"
+           class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition">
+            ← {{ year - 1 }}
+        </a>
+        <span class="px-4 py-2 bg-erpac-primary text-white rounded-lg font-bold">{{ year }}</span>
+        <a href="{{ url_for('salarie.calendrier', annee=year + 1) }}"
+           class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition">
+            {{ year + 1 }} →
+        </a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Calendrier -->
+    <div class="lg:col-span-2 bg-white rounded-xl shadow p-4 md:p-6">
+        <div id="calendar-salarie"></div>
+    </div>
+
+    <!-- Historique et légende -->
+    <div class="space-y-6">
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Légende</h2>
+            <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-erpac-primary"></span>
+                    <span>CP - Congés payés</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-purple-500"></span>
+                    <span>RTT</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-red-500"></span>
+                    <span>Maladie</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-green-600"></span>
+                    <span>Ancienneté</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="w-4 h-4 rounded bg-gray-500"></span>
+                    <span>Autre</span>
+                </div>
+                <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
+                    <span class="w-4 h-4 rounded border-2 border-dashed border-amber-500 bg-amber-100"></span>
+                    <span class="text-xs text-gray-500">En attente de validation</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">Historique par année</h2>
+            {% if historique %}
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+                {% for h in historique %}
+                <div class="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                    <a href="{{ url_for('salarie.calendrier', annee=h.annee) }}"
+                       class="font-medium text-erpac-primary hover:text-erpac-dark">
+                        {{ h.annee }}
+                    </a>
+                    <span class="text-gray-600 text-sm">{{ h.total_jours }} jour(s) • {{ h.nb_conges }} période(s)</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 text-sm">Aucun congé enregistré.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/fr.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const eventsData = {{ events|tojson }};
+    const typeColors = {
+        'CP': '#008C3A',
+        'RTT': '#9333ea',
+        'Maladie': '#ef4444',
+        'Anciennete': '#16a34a',
+        'default': '#6b7280'
+    };
+
+    const calendarEvents = eventsData.map(e => {
+        const endDate = new Date(e.end);
+        endDate.setDate(endDate.getDate() + 1);
+        const isEnAttente = e.statut === 'en_attente';
+        const color = typeColors[e.type] || typeColors['default'];
+        return {
+            title: isEnAttente ? `${e.type} - ${e.jours} j (en attente)` : `${e.type} - ${e.jours} jour(s)`,
+            start: e.start,
+            end: endDate.toISOString().split('T')[0],
+            backgroundColor: isEnAttente ? '#fef3c7' : color,
+            borderColor: isEnAttente ? '#f59e0b' : color,
+            textColor: isEnAttente ? '#92400e' : '#fff',
+            extendedProps: { type: e.type, jours: e.jours, statut: e.statut || 'valide' }
+        };
+    });
+
+    const calendarEl = document.getElementById('calendar-salarie');
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'fr',
+        firstDay: 1,
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,listYear'
+        },
+        buttonText: {
+            today: 'Aujourd\'hui',
+            month: 'Mois',
+            year: 'Liste année'
+        },
+        events: calendarEvents,
+        initialDate: '{{ year }}-01-01',
+        height: 'auto',
+        eventClick: function(info) {
+            info.jsEvent.preventDefault();
+        }
+    });
+    calendar.render();
+});
+</script>
+{% endblock %}

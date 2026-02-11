@@ -1,8 +1,8 @@
-from datetime import datetime
+from datetime import datetime, date
 from functools import wraps
 
 import bcrypt
-from flask import Blueprint, render_template, redirect, url_for, request, flash
+from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file
 from flask_login import login_required, current_user
 
 from models import db
@@ -13,7 +13,8 @@ from models.user import User
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_suffisant
 from services.jours_feries import get_jours_feries
-
+from services.email import envoyer_notification_validation, envoyer_notification_refus
+from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 
 rh_bp = Blueprint("rh", __name__)
 
@@ -45,6 +46,7 @@ def dashboard():
         solde_info = calculer_solde(s.id)
         conges_en_cours = Conge.query.filter(
             Conge.user_id == s.id,
+            Conge.statut == "valide",
             Conge.date_debut <= datetime.today().date(),
             Conge.date_fin >= datetime.today().date(),
         ).count()
@@ -67,6 +69,7 @@ def dashboard():
     calendar_events = []
     if param:
         conges_exercice = Conge.query.filter(
+            Conge.statut == "valide",
             Conge.date_debut <= param.fin_exercice,
             Conge.date_fin >= param.debut_exercice,
         ).all()
@@ -79,6 +82,13 @@ def dashboard():
                 "user": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
                 "type_conge": c.type_conge,
             })
+
+    # Demandes en attente de validation
+    demandes_attente = (
+        Conge.query.filter_by(statut="en_attente")
+        .order_by(Conge.cree_le.asc())
+        .all()
+    )
 
     # Stats
     total_salaries = len(salaries)
@@ -93,6 +103,7 @@ def dashboard():
         chart_labels=chart_labels,
         chart_soldes_restants=chart_soldes_restants,
         calendar_events=calendar_events,
+        demandes_attente=demandes_attente,
     )
 
 
@@ -165,6 +176,9 @@ def ajouter_conge(user_id):
             nb_jours_ouvrables=nb_jours,
             type_conge=type_conge,
             commentaire=commentaire,
+            statut="valide",
+            valide_par_id=current_user.id,
+            valide_le=datetime.utcnow(),
         )
         db.session.add(conge)
         db.session.commit()
@@ -238,6 +252,82 @@ def supprimer_conge(conge_id):
     db.session.commit()
     flash("Congé supprimé.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
+
+
+@rh_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
+@rh_required
+def valider_conge(conge_id):
+    """Valider une demande de congé en attente."""
+    conge = Conge.query.get_or_404(conge_id)
+    if conge.statut != "en_attente":
+        flash("Ce congé n'est pas en attente de validation.", "warning")
+        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    if conge.type_conge in ("CP", "Anciennete"):
+        if not verifier_solde_suffisant(conge.user_id, conge.nb_jours_ouvrables):
+            flash("Solde insuffisant pour valider ce congé.", "error")
+            return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    conge.statut = "valide"
+    conge.valide_par_id = current_user.id
+    conge.valide_le = datetime.utcnow()
+    conge.motif_refus = None
+    db.session.commit()
+
+    # Notification email
+    user = conge.utilisateur
+    if user and getattr(user, "email", None) and user.email:
+        envoyer_notification_validation(
+            prenom=user.prenom,
+            email=user.email,
+            date_debut=conge.date_debut,
+            date_fin=conge.date_fin,
+            nb_jours=conge.nb_jours_ouvrables,
+            type_conge=conge.type_conge,
+        )
+
+    flash("Demande de congé validée.", "success")
+    return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+
+@rh_bp.route("/conge/<int:conge_id>/refuser", methods=["GET", "POST"])
+@rh_required
+def refuser_conge(conge_id):
+    """Refuser une demande de congé avec motif obligatoire."""
+    conge = Conge.query.get_or_404(conge_id)
+    if conge.statut != "en_attente":
+        flash("Ce congé n'est pas en attente de validation.", "warning")
+        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    if request.method == "POST":
+        motif = request.form.get("motif_refus", "").strip()
+        if not motif:
+            flash("Le motif de refus est obligatoire.", "error")
+            return render_template("rh/refuser_conge.html", conge=conge)
+
+        conge.statut = "refuse"
+        conge.valide_par_id = current_user.id
+        conge.valide_le = datetime.utcnow()
+        conge.motif_refus = motif
+        db.session.commit()
+
+        # Notification email
+        user = conge.utilisateur
+        if user and getattr(user, "email", None) and user.email:
+            envoyer_notification_refus(
+                prenom=user.prenom,
+                email=user.email,
+                date_debut=conge.date_debut,
+                date_fin=conge.date_fin,
+                nb_jours=conge.nb_jours_ouvrables,
+                type_conge=conge.type_conge,
+                motif=motif,
+            )
+
+        flash("Demande de congé refusée.", "success")
+        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    return render_template("rh/refuser_conge.html", conge=conge)
 
 
 @rh_bp.route("/parametrage", methods=["GET", "POST"])
@@ -332,6 +422,18 @@ def parametrage():
     return render_template("rh/parametrage.html", parametrage=param, jours_feries=jours_feries_list)
 
 
+@rh_bp.route("/salarie/<int:user_id>/email", methods=["POST"])
+@rh_required
+def modifier_email(user_id):
+    """Mise à jour de l'email du salarié pour les notifications."""
+    user = User.query.get_or_404(user_id)
+    email = request.form.get("email", "").strip() or None
+    user.email = email if email else None
+    db.session.commit()
+    flash("Email mis à jour." if email else "Email supprimé.", "success")
+    return redirect(url_for("rh.salarie_detail", user_id=user_id))
+
+
 @rh_bp.route("/salarie/<int:user_id>/allocation", methods=["POST"])
 @rh_required
 def modifier_allocation(user_id):
@@ -365,6 +467,50 @@ def liste_salaries():
     """Liste complète des salariés pour gestion RH."""
     salaries = User.query.order_by(User.nom, User.prenom).all()
     return render_template("rh/salaries.html", salaries=salaries)
+
+
+@rh_bp.route("/export/equipe/excel")
+@rh_required
+def export_equipe_excel():
+    """Export Excel de tous les congés de l'équipe."""
+    param = get_parametrage_actif()
+    salaries = User.query.filter_by(actif=True).order_by(User.nom, User.prenom).all()
+    users_with_conges = []
+    for s in salaries:
+        q = Conge.query.filter_by(user_id=s.id).order_by(Conge.date_debut.desc())
+        if param:
+            q = q.filter(
+                Conge.date_debut <= param.fin_exercice,
+                Conge.date_fin >= param.debut_exercice,
+            )
+        conges = q.all()
+        users_with_conges.append({"user": s, "conges": conges})
+    buffer = export_conges_equipe_excel(users_with_conges)
+    filename = f"conges_equipe_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@rh_bp.route("/salarie/<int:user_id>/export/excel")
+@rh_required
+def export_salarie_excel(user_id):
+    """Export Excel des congés d'un salarié."""
+    user = User.query.get_or_404(user_id)
+    conges = Conge.query.filter_by(user_id=user.id).order_by(Conge.date_debut.desc()).all()
+    buffer = export_conges_excel(conges, user.nom, user.prenom)
+    filename = f"conges_{user.prenom}_{user.nom}_{date.today().strftime('%Y%m%d')}.xlsx"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
+@rh_bp.route("/salarie/<int:user_id>/export/pdf")
+@rh_required
+def export_salarie_pdf(user_id):
+    """Export PDF des congés d'un salarié."""
+    user = User.query.get_or_404(user_id)
+    conges = Conge.query.filter_by(user_id=user.id).order_by(Conge.date_debut.desc()).all()
+    solde_info = calculer_solde(user.id)
+    buffer = export_conges_pdf(conges, solde_info, user.nom, user.prenom)
+    filename = f"conges_{user.prenom}_{user.nom}_{date.today().strftime('%Y%m%d')}.pdf"
+    return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
 
 @rh_bp.route("/salarie/nouveau", methods=["GET", "POST"])

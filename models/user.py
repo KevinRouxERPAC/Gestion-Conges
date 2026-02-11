@@ -1,4 +1,4 @@
-﻿from flask_login import UserMixin
+from flask_login import UserMixin
 from models import db
 
 
@@ -13,8 +13,15 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default="salarie")  # "rh" ou "salarie"
     actif = db.Column(db.Boolean, default=True)
     date_embauche = db.Column(db.Date, nullable=True)
+    email = db.Column(db.String(120), nullable=True)  # pour les notifications
 
-    conges = db.relationship("Conge", backref="utilisateur", lazy=True, cascade="all, delete-orphan")
+    conges = db.relationship(
+        "Conge",
+        foreign_keys="Conge.user_id",
+        backref="utilisateur",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
     allocations = db.relationship("AllocationConge", backref="utilisateur", lazy=True, cascade="all, delete-orphan")
 
     def __repr__(self):

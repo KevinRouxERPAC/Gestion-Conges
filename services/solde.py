@@ -1,4 +1,4 @@
-﻿from models import db
+from models import db
 from models.conge import Conge
 from models.parametrage import ParametrageAnnuel, AllocationConge
 
@@ -39,6 +39,7 @@ def calculer_jours_consommes(user_id, parametrage_id=None):
         Conge.date_debut >= param.debut_exercice,
         Conge.date_fin <= param.fin_exercice,
         Conge.type_conge.in_(["CP", "Anciennete"]),
+        Conge.statut == "valide",
     ).scalar()
 
     return result
@@ -76,7 +77,7 @@ def verifier_solde_suffisant(user_id, nb_jours, conge_id_exclu=None):
     if conge_id_exclu:
         from models.conge import Conge
         conge_exclu = Conge.query.get(conge_id_exclu)
-        if conge_exclu:
+        if conge_exclu and conge_exclu.statut == "valide":
             solde_actuel += conge_exclu.nb_jours_ouvrables
 
     return solde_actuel >= nb_jours

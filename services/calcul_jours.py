@@ -1,4 +1,4 @@
-﻿from datetime import date, timedelta
+from datetime import date, timedelta
 from models import db
 from models.jour_ferie import JourFerie
 from models.conge import Conge
@@ -32,13 +32,14 @@ def compter_jours_ouvrables(date_debut, date_fin):
 
 
 def detecter_chevauchement(user_id, date_debut, date_fin, conge_id_exclu=None):
-    """DÃ©tecte si un congÃ© chevauche un congÃ© existant pour un utilisateur.
-    Retourne le congÃ© en conflit ou None.
+    """Détecte si un congé chevauche un congé existant (validé ou en attente) pour un utilisateur.
+    Retourne le congé en conflit ou None.
     """
     query = Conge.query.filter(
         Conge.user_id == user_id,
         Conge.date_debut <= date_fin,
         Conge.date_fin >= date_debut,
+        Conge.statut.in_(["valide", "en_attente"]),
     )
     if conge_id_exclu:
         query = query.filter(Conge.id != conge_id_exclu)

@@ -47,6 +47,12 @@ def create_app():
     # Create tables
     with app.app_context():
         db.create_all()
+        # Migrations
+        for mig in ("migrate_conges_statut", "migrate_user_email"):
+            try:
+                __import__(mig).migrate()
+            except Exception:
+                pass
 
     return app
 
