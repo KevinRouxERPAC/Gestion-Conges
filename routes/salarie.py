@@ -4,6 +4,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from models import db
 from models.conge import Conge
+from models.user import User
 from services.solde import calculer_solde, get_parametrage_actif
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import verifier_solde_suffisant
@@ -97,25 +98,41 @@ def accueil():
 @login_required
 def calendrier():
     """Calendrier annuel des congés du salarié, avec navigation entre années."""
-    # Année via ?annee=YYYY, sinon année courante
+    # Année via ?annee=YYYY, sinon année courante ; tous=1 pour voir tous les salariés
     try:
         year = int(request.args.get("annee", date.today().year))
     except (TypeError, ValueError):
         year = date.today().year
+    voir_tous = request.args.get("tous") == "1"
 
     start_of_year = date(year, 1, 1)
     end_of_year = date(year, 12, 31)
 
     # Congés de l'année (validés + en attente, pas les refusés)
-    conges_annee = Conge.query.filter(
-        Conge.user_id == current_user.id,
-        Conge.date_debut <= end_of_year,
-        Conge.date_fin >= start_of_year,
-        Conge.statut.in_(["valide", "en_attente"]),
-    ).all()
+    if voir_tous:
+        conges_annee = (
+            Conge.query.join(User, Conge.user_id == User.id)
+            .filter(
+                User.actif == True,
+                Conge.date_debut <= end_of_year,
+                Conge.date_fin >= start_of_year,
+                Conge.statut.in_(["valide", "en_attente"]),
+            )
+            .all()
+        )
+    else:
+        conges_annee = Conge.query.filter(
+            Conge.user_id == current_user.id,
+            Conge.date_debut <= end_of_year,
+            Conge.date_fin >= start_of_year,
+            Conge.statut.in_(["valide", "en_attente"]),
+        ).all()
 
     events = []
     for c in conges_annee:
+        salarie_nom = ""
+        if voir_tous and c.utilisateur:
+            salarie_nom = f"{c.utilisateur.prenom} {c.utilisateur.nom}"
         events.append({
             "start": c.date_debut.isoformat(),
             "end": c.date_fin.isoformat(),
@@ -123,6 +140,7 @@ def calendrier():
             "statut": c.statut,
             "label": f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}",
             "jours": c.nb_jours_ouvrables,
+            "salarie": salarie_nom,
         })
 
     # Historique récapitulatif par année (validés uniquement)
@@ -148,6 +166,7 @@ def calendrier():
         year=year,
         events=events,
         historique=historique,
+        voir_tous=voir_tous,
     )
 
 

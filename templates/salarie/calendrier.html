@@ -6,14 +6,21 @@
     <div>
         <h1 class="text-2xl font-bold text-gray-800">Calendrier de vos congés</h1>
         <p class="text-gray-500 mt-1">Vue annuelle avec navigation entre les années</p>
+        <label class="mt-3 flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="voir-tous" {% if voir_tous %}checked{% endif %}
+                   data-url-moi="{{ url_for('salarie.calendrier', annee=year) }}"
+                   data-url-tous="{{ url_for('salarie.calendrier', annee=year, tous=1) }}"
+                   class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+            <span class="text-sm font-medium text-gray-700">Voir les congés de tout le monde</span>
+        </label>
     </div>
     <div class="flex items-center gap-2">
-        <a href="{{ url_for('salarie.calendrier', annee=year - 1) }}"
+        <a href="{{ url_for('salarie.calendrier', annee=year - 1, tous=1) if voir_tous else url_for('salarie.calendrier', annee=year - 1) }}"
            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition">
             ← {{ year - 1 }}
         </a>
         <span class="px-4 py-2 bg-erpac-primary text-white rounded-lg font-bold">{{ year }}</span>
-        <a href="{{ url_for('salarie.calendrier', annee=year + 1) }}"
+        <a href="{{ url_for('salarie.calendrier', annee=year + 1, tous=1) if voir_tous else url_for('salarie.calendrier', annee=year + 1) }}"
            class="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 font-medium text-gray-700 transition">
             {{ year + 1 }} →
         </a>
@@ -84,6 +91,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/fr.global.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    var cb = document.getElementById('voir-tous');
+    if (cb) {
+        cb.addEventListener('change', function() {
+            window.location.href = this.checked ? this.dataset.urlTous : this.dataset.urlMoi;
+        });
+    }
     const eventsData = {{ events|tojson }};
     const typeColors = {
         'CP': '#008C3A',
@@ -98,8 +111,10 @@ document.addEventListener('DOMContentLoaded', function() {
         endDate.setDate(endDate.getDate() + 1);
         const isEnAttente = e.statut === 'en_attente';
         const color = typeColors[e.type] || typeColors['default'];
+        const baseTitle = isEnAttente ? `${e.type} - ${e.jours} j (en attente)` : `${e.type} - ${e.jours} jour(s)`;
+        const title = e.salarie ? `${e.salarie} – ${baseTitle}` : baseTitle;
         return {
-            title: isEnAttente ? `${e.type} - ${e.jours} j (en attente)` : `${e.type} - ${e.jours} jour(s)`,
+            title: title,
             start: e.start,
             end: endDate.toISOString().split('T')[0],
             backgroundColor: isEnAttente ? '#fef3c7' : color,

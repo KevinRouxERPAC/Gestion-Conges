@@ -84,17 +84,16 @@
     <div id="calendar-rh"></div>
 </div>
 
-<!-- Search -->
-<div class="mb-6" x-data="{ search: '' }">
-    <input type="text" x-model="search" placeholder="Rechercher un salarié..."
-           class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-</div>
-
-<!-- Table -->
+<!-- Salariés actifs et inactifs (une seule barre de recherche) -->
 <div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
     <div class="px-6 py-4 border-b">
         <input type="text" x-model="search" placeholder="Rechercher un salarié..."
                class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
+    </div>
+
+    <!-- Tableau des salariés actifs -->
+    <div class="px-6 py-3 bg-gray-50 border-b">
+        <h2 class="text-sm font-semibold text-gray-700">Salariés actifs</h2>
     </div>
     <table class="w-full">
         <thead class="bg-gray-50">
@@ -109,8 +108,12 @@
         </thead>
         <tbody class="divide-y divide-gray-200">
             {% for data in salaries_data %}
-            <tr class="hover:bg-gray-50 transition"
-                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())">
+            <tr class="hover:bg-gray-50 transition cursor-pointer"
+                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())"
+                role="button"
+                tabindex="0"
+                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
+                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
                 <td class="px-6 py-4">
                     <div class="font-medium text-gray-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
                     <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
@@ -130,12 +133,56 @@
                         <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Présent</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-right space-x-2">
-                    <a href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}"
-                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Détails</a>
+                <td class="px-6 py-4 text-right space-x-2" onclick="event.stopPropagation()">
                     <a href="{{ url_for('rh.ajouter_conge', user_id=data.user.id) }}"
                        class="text-green-600 hover:text-green-800 text-sm font-medium">+ Congé</a>
                 </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Tableau des salariés inactifs -->
+    <div class="px-6 py-3 bg-gray-50 border-b border-t mt-2">
+        <h2 class="text-sm font-semibold text-gray-700">Salariés inactifs</h2>
+    </div>
+    <table class="w-full">
+        <thead class="bg-gray-50">
+            <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solde restant</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total alloué</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consommé</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+            {% for data in salaries_data_inactifs %}
+            <tr class="hover:bg-gray-50 transition cursor-pointer"
+                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())"
+                role="button"
+                tabindex="0"
+                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
+                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
+                <td class="px-6 py-4">
+                    <div class="font-medium text-gray-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
+                </td>
+                <td class="px-6 py-4">
+                    <span class="text-lg font-bold text-gray-500">{{ data.solde.solde_restant }}</span>
+                    <span class="text-sm text-gray-500">jour(s)</span>
+                </td>
+                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_alloue }}</td>
+                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_consomme }}</td>
+                <td class="px-6 py-4">
+                    <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
+                </td>
+                <td class="px-6 py-4 text-right text-gray-400 text-sm">Cliquer pour ouvrir la fiche</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">Aucun salarié inactif.</td>
             </tr>
             {% endfor %}
         </tbody>

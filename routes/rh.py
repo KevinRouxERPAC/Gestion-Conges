@@ -90,6 +90,13 @@ def dashboard():
         .all()
     )
 
+    # Salariés inactifs (pour le tableau en dessous)
+    salaries_inactifs = User.query.filter_by(actif=False).order_by(User.nom).all()
+    salaries_data_inactifs = []
+    for s in salaries_inactifs:
+        solde_info = calculer_solde(s.id)
+        salaries_data_inactifs.append({"user": s, "solde": solde_info})
+
     # Stats
     total_salaries = len(salaries)
     total_en_conge = sum(1 for s in salaries_data if s["conges_en_cours"] > 0)
@@ -97,6 +104,7 @@ def dashboard():
     return render_template(
         "rh/dashboard.html",
         salaries_data=salaries_data,
+        salaries_data_inactifs=salaries_data_inactifs,
         total_salaries=total_salaries,
         total_en_conge=total_en_conge,
         parametrage=param,
@@ -458,6 +466,22 @@ def modifier_allocation(user_id):
 
     db.session.commit()
     flash("Allocation mise à jour.", "success")
+    return redirect(url_for("rh.salarie_detail", user_id=user_id))
+
+
+@rh_bp.route("/salarie/<int:user_id>/statut", methods=["POST"])
+@rh_required
+def modifier_statut_salarie(user_id):
+    """Modification du statut actif/inactif du salarié."""
+    user = User.query.get_or_404(user_id)
+    if user.id == current_user.id:
+        flash("Vous ne pouvez pas modifier votre propre statut.", "error")
+        return redirect(url_for("rh.salarie_detail", user_id=user_id))
+
+    actif_str = request.form.get("actif", "off")
+    user.actif = actif_str == "on"
+    db.session.commit()
+    flash("Statut du salarié mis à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
 

@@ -1,4 +1,4 @@
-﻿# Environnement virtuel Python
+# Environnement virtuel Python
 .venv/
 venv/
 env/
@@ -14,3 +14,6 @@ __pycache__/
 .DS_Store
 
 .cursor/debug.log
+
+# Base de données locale (ne doit pas être versionnée)
+gestion_conges.db

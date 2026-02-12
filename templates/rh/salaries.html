@@ -13,11 +13,6 @@
     </a>
 </div>
 
-<div class="mb-6" x-data="{ search: '' }">
-    <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
-           class="w-full md:w-96 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-</div>
-
 <div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
     <div class="px-6 py-4 border-b">
         <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
@@ -36,8 +31,12 @@
         </thead>
         <tbody class="divide-y divide-gray-200">
             {% for salarie in salaries %}
-            <tr class="hover:bg-gray-50 transition"
-                x-show="search === '' || '{{ salarie.nom|lower }} {{ salarie.prenom|lower }} {{ salarie.identifiant|lower }}'.includes(search.toLowerCase())">
+            <tr class="hover:bg-gray-50 transition cursor-pointer"
+                x-show="search === '' || '{{ salarie.nom|lower }} {{ salarie.prenom|lower }} {{ salarie.identifiant|lower }}'.includes(search.toLowerCase())"
+                role="button"
+                tabindex="0"
+                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'"
+                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'">
                 <td class="px-6 py-4">
                     <div class="font-medium text-gray-900">{{ salarie.nom }} {{ salarie.prenom }}</div>
                 </td>
@@ -65,9 +64,7 @@
                         <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-right space-x-2">
-                    <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}"
-                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Détails</a>
+                <td class="px-6 py-4 text-right space-x-2" onclick="event.stopPropagation()">
                     <a href="{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}"
                        class="text-gray-700 hover:text-gray-900 text-sm font-medium">Modifier</a>
                 </td>

@@ -8,19 +8,23 @@
         <h1 class="text-2xl font-bold text-gray-800 mt-2">{{ salarie.prenom }} {{ salarie.nom }}</h1>
         <p class="text-gray-500">{{ salarie.role|upper }}{% if salarie.date_embauche %} &middot; Embauché(e) le {{ salarie.date_embauche.strftime('%d/%m/%Y') }}{% endif %}</p>
     </div>
-    <div class="flex flex-wrap items-center gap-2">
-        <a href="{{ url_for('rh.export_salarie_excel', user_id=salarie.id) }}"
-           class="px-3 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition">
-            Export Excel
-        </a>
-        <a href="{{ url_for('rh.export_salarie_pdf', user_id=salarie.id) }}"
-           class="px-3 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition">
-            Export PDF
-        </a>
+    <div class="flex flex-row items-center gap-3 md:gap-4 justify-between w-full flex-nowrap">
+        <!-- Bouton principal : à gauche -->
         <a href="{{ url_for('rh.ajouter_conge', user_id=salarie.id) }}"
-           class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition shadow">
+           class="inline-flex items-center justify-center bg-erpac-primary hover:bg-erpac-dark text-white font-semibold text-base md:text-lg py-3 md:py-3.5 px-6 md:px-8 rounded-xl transition shadow-lg whitespace-nowrap shrink-0">
             + Ajouter un congé
         </a>
+        <!-- Boutons d'export : groupés à droite -->
+        <div class="flex items-center gap-2 shrink-0">
+            <a href="{{ url_for('rh.export_salarie_excel', user_id=salarie.id) }}"
+               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
+                Export Excel
+            </a>
+            <a href="{{ url_for('rh.export_salarie_pdf', user_id=salarie.id) }}"
+               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
+                Export PDF
+            </a>
+        </div>
     </div>
 </div>
 
@@ -46,6 +50,34 @@
         <div class="text-sm font-medium text-gray-700 mt-1">
             {% if parametrage %}{{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}{% else %}Non configuré{% endif %}
         </div>
+    </div>
+</div>
+
+<!-- Statut du compte (actif / inactif) -->
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-2">Statut du compte</h2>
+    <div class="flex flex-wrap items-center gap-4">
+        <span class="text-sm text-gray-600">
+            Actuellement :
+            {% if salarie.actif %}
+                <span class="bg-green-100 text-green-800 text-sm font-medium px-2.5 py-0.5 rounded-full">Actif</span>
+            {% else %}
+                <span class="bg-red-100 text-red-800 text-sm font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
+            {% endif %}
+        </span>
+        {% if salarie.id != current_user.id %}
+        <form method="POST" action="{{ url_for('rh.modifier_statut_salarie', user_id=salarie.id) }}" class="flex flex-wrap items-center gap-2">
+            <select name="actif" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary text-sm">
+                <option value="on" {% if salarie.actif %}selected{% endif %}>Actif</option>
+                <option value="off" {% if not salarie.actif %}selected{% endif %}>Inactif</option>
+            </select>
+            <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition text-sm">
+                Enregistrer
+            </button>
+        </form>
+        {% else %}
+        <span class="text-sm text-gray-400">(vous ne pouvez pas modifier votre propre statut)</span>
+        {% endif %}
     </div>
 </div>
 
