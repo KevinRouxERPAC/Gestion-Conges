@@ -67,6 +67,7 @@ def dashboard():
 
     # Données pour le calendrier (tous les congés de l'exercice actif)
     calendar_events = []
+    conges_exercice_rows = []
     if param:
         conges_exercice = Conge.query.filter(
             Conge.statut == "valide",
@@ -76,11 +77,18 @@ def dashboard():
         for c in conges_exercice:
             if c.utilisateur is None:
                 continue
+            label = f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}"
             calendar_events.append({
                 "start": c.date_debut.isoformat(),
                 "end": c.date_fin.isoformat(),
                 "user": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
                 "type_conge": c.type_conge,
+            })
+            conges_exercice_rows.append({
+                "salarie": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
+                "label": label,
+                "jours": c.nb_jours_ouvrables or 0,
+                "type": c.type_conge,
             })
 
     # Demandes en attente de validation
@@ -111,6 +119,7 @@ def dashboard():
         chart_labels=chart_labels,
         chart_soldes_restants=chart_soldes_restants,
         calendar_events=calendar_events,
+        conges_exercice_rows=conges_exercice_rows,
         demandes_attente=demandes_attente,
     )
 

@@ -35,7 +35,11 @@ def demander_conge():
             flash("La date de fin doit être postérieure à la date de début.", "error")
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
-        type_conge = request.form.get("type_conge", "CP")
+        type_conge = request.form.get("type_conge", "").strip()
+        if type_conge not in {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}:
+            flash("Merci de sélectionner un type de congé.", "error")
+            return render_template("salarie/demander_conge.html", solde=solde_info)
+
         commentaire = request.form.get("commentaire", "").strip()
 
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
