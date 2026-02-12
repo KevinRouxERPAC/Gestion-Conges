@@ -17,3 +17,6 @@ __pycache__/
 
 # Base de données locale (ne doit pas être versionnée)
 gestion_conges.db
+
+# Secrets de déploiement (utiliser deploy/gestion-conges.env.example comme modèle)
+deploy/gestion-conges.env

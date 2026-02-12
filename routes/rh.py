@@ -393,7 +393,8 @@ def parametrage():
                 annees = set()
                 annees.add(param.debut_exercice.year)
                 annees.add(param.fin_exercice.year)
-                count = 0
+                count_added = 0
+                count_updated = 0
                 for annee in annees:
                     feries = get_jours_feries(annee)
                     for date_f, libelle in feries:
@@ -401,9 +402,20 @@ def parametrage():
                         if not existing:
                             jf = JourFerie(date_ferie=date_f, libelle=libelle, annee=annee, auto_genere=True)
                             db.session.add(jf)
-                            count += 1
+                            count_added += 1
+                        elif existing.auto_genere:
+                            existing.libelle = libelle
+                            count_updated += 1
                 db.session.commit()
-                flash(f"{count} jour(s) férié(s) ajouté(s).", "success")
+                if count_added or count_updated:
+                    msg = []
+                    if count_added:
+                        msg.append(f"{count_added} jour(s) férié(s) ajouté(s)")
+                    if count_updated:
+                        msg.append(f"{count_updated} libellé(s) mis à jour")
+                    flash(". ".join(msg) + ".", "success")
+                else:
+                    flash("Aucun jour férié à ajouter.", "info")
             return redirect(url_for("rh.parametrage"))
 
         elif action == "ajouter_ferie":

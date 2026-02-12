@@ -1,0 +1,17 @@
+[Unit]
+Description=Gestion Conges - application Flask (Gunicorn)
+After=network.target
+
+[Service]
+Type=notify
+User=freebox
+Group=freebox
+WorkingDirectory=/home/freebox/Gestion-Conges
+Environment="PATH=/home/freebox/Gestion-Conges/venv/bin"
+EnvironmentFile=-/home/freebox/Gestion-Conges/deploy/gestion-conges.env
+ExecStart=/home/freebox/Gestion-Conges/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 --timeout 120 "app:create_app()"
+ExecReload=/bin/kill -s HUP $MAINPID
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,8 +1,8 @@
-﻿from datetime import date, timedelta
+from datetime import date, timedelta
 
 
 def calculer_paques(annee):
-    """Calcul de la date de PÃ¢ques par l'algorithme de Meeus/Jones/Butcher."""
+    """Calcul de la date de Pâques par l'algorithme de Meeus/Jones/Butcher."""
     a = annee % 19
     b = annee // 100
     c = annee % 100
@@ -21,7 +21,7 @@ def calculer_paques(annee):
 
 
 def get_jours_feries(annee):
-    """Retourne la liste des jours fÃ©riÃ©s franÃ§ais pour une annÃ©e donnÃ©e."""
+    """Retourne la liste des jours fériés français pour une année donnée."""
     paques = calculer_paques(annee)
     lundi_paques = paques + timedelta(days=1)
     ascension = paques + timedelta(days=39)
@@ -29,15 +29,15 @@ def get_jours_feries(annee):
 
     feries = [
         (date(annee, 1, 1), "Jour de l'An"),
-        (lundi_paques, "Lundi de PÃ¢ques"),
-        (date(annee, 5, 1), "FÃªte du Travail"),
+        (lundi_paques, "Lundi de Pâques"),
+        (date(annee, 5, 1), "Fête du Travail"),
         (date(annee, 5, 8), "Victoire 1945"),
         (ascension, "Ascension"),
-        (lundi_pentecote, "Lundi de PentecÃ´te"),
-        (date(annee, 7, 14), "FÃªte Nationale"),
+        (lundi_pentecote, "Lundi de Pentecôte"),
+        (date(annee, 7, 14), "Fête Nationale"),
         (date(annee, 8, 15), "Assomption"),
         (date(annee, 11, 1), "Toussaint"),
         (date(annee, 11, 11), "Armistice"),
-        (date(annee, 12, 25), "NoÃ«l"),
+        (date(annee, 12, 25), "Noël"),
     ]
     return feries
