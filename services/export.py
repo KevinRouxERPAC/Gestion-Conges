@@ -1,6 +1,8 @@
 """
 Service d'export Excel et PDF pour les congés.
 """
+# import_salaries: see services/import_salaries.py for sync logic
+
 import io
 from datetime import date
 

@@ -15,6 +15,7 @@ from services.solde import calculer_solde, get_parametrage_actif, verifier_solde
 from services.jours_feries import get_jours_feries
 from services.email import envoyer_notification_validation, envoyer_notification_refus
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
+from services.import_salaries import parse_csv, parse_excel, sync_users
 
 rh_bp = Blueprint("rh", __name__)
 
@@ -512,6 +513,65 @@ def liste_salaries():
     """Liste complète des salariés pour gestion RH."""
     salaries = User.query.order_by(User.nom, User.prenom).all()
     return render_template("rh/salaries.html", salaries=salaries)
+
+
+@rh_bp.route("/mise-a-jour-base", methods=["GET", "POST"])
+@rh_required
+def mise_a_jour_base():
+    """Import CSV/Excel : créer ou mettre à jour les salariés (clé = identifiant)."""
+    if request.method == "POST":
+        fichier = request.files.get("fichier")
+        mot_de_passe_defaut = (request.form.get("mot_de_passe_defaut") or "").strip()
+        if not fichier or not fichier.filename:
+            flash("Veuillez sélectionner un fichier CSV ou Excel.", "error")
+            return redirect(url_for("rh.mise_a_jour_base"))
+        filename_lower = fichier.filename.lower()
+        try:
+            content = fichier.read()
+        except Exception as e:
+            flash("Impossible de lire le fichier: %s" % e, "error")
+            return redirect(url_for("rh.mise_a_jour_base"))
+        if filename_lower.endswith(".csv"):
+            rows = parse_csv(content)
+        elif filename_lower.endswith((".xlsx", ".xls")):
+            try:
+                rows = parse_excel(content)
+            except Exception as e:
+                flash("Fichier Excel invalide: %s" % e, "error")
+                return redirect(url_for("rh.mise_a_jour_base"))
+        else:
+            flash("Format non supporté. Utilisez un fichier .csv, .xlsx ou .xls.", "error")
+            return redirect(url_for("rh.mise_a_jour_base"))
+        if not rows:
+            flash("Aucune ligne valide trouvée. Vérifiez les en-têtes: identifiant, nom, prenom (obligatoires).", "warning")
+            return redirect(url_for("rh.mise_a_jour_base"))
+        try:
+            created, updated, errors = sync_users(rows, mot_de_passe_defaut, hash_password)
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash("Erreur lors de la mise à jour: %s" % e, "error")
+            return redirect(url_for("rh.mise_a_jour_base"))
+        msg = "%d créé(s), %d mis à jour." % (created, updated)
+        if errors:
+            msg += " %d erreur(s): %s" % (len(errors), "; ".join(errors[:5]))
+            if len(errors) > 5:
+                msg += "..."
+        flash(msg, "success" if not errors else "warning")
+        return redirect(url_for("rh.mise_a_jour_base"))
+    return render_template("rh/mise_a_jour_base.html")
+
+
+@rh_bp.route("/mise-a-jour-base/modele-csv")
+@rh_required
+def mise_a_jour_base_modele():
+    """Télécharge un CSV modèle (en-têtes + ligne d'exemple)."""
+    from io import BytesIO
+    buf = BytesIO()
+    buf.write("identifiant;nom;prenom;email;date_embauche;role;actif\n".encode("utf-8-sig"))
+    buf.write("dupont;Dupont;Jean;jean.dupont@erpac.local;2024-01-15;salarie;oui\n".encode("utf-8"))
+    buf.seek(0)
+    return send_file(buf, as_attachment=True, download_name="modele_import_salaries.csv", mimetype="text/csv; charset=utf-8")
 
 
 @rh_bp.route("/export/equipe/excel")

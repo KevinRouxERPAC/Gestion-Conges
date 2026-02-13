@@ -86,6 +86,6 @@ Exemple pour ajouter le SMTP :
 
 ## 7. Dépannage
 
-- **503 / Service indisponible** : vérifier que HttpPlatformHandler est installé, que le chemin dans `web.config` pointe vers le bon `python.exe` du venv, et que le port 5050 n’est pas utilisé par un autre programme.
+- **503 / Service indisponible** : vérifier que HttpPlatformHandler est installé, que le chemin dans `web.config` pointe vers le bon `python.exe` du venv, et que le chemin physique du site dans IIS n’est pas utilisé par un autre programme.
 - **Erreur au démarrage** : consulter `logs\stdout.log` et les journaux des événements Windows (Observateur d’événements).
 - **Droits refusés** : s’assurer que l’identité du pool a les droits sur le dossier du site, sur `logs` et sur le fichier de base de données.

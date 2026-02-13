@@ -17,6 +17,8 @@
                     <span class="text-xl font-bold tracking-tight">ERPAC - Congés</span>
                     {% if current_user.role == 'rh' %}
                     <a href="{{ url_for('rh.dashboard') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Tableau de bord</a>
+                    <a href="{{ url_for('rh.liste_salaries') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Salariés</a>
+                    <a href="{{ url_for('rh.mise_a_jour_base') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Mise à jour base</a>
                     <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Paramétrage</a>
                     {% else %}
                     <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium">Mes congés</a>
