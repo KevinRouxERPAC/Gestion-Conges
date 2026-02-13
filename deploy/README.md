@@ -1,4 +1,11 @@
-# Déploiement Gestion Conges (nginx + Gunicorn)
+# Déploiement Gestion Conges
+
+- **Linux (nginx + Gunicorn)** : instructions ci-dessous.
+- **Windows Server (IIS)** : voir [README-IIS.md](README-IIS.md).
+
+---
+
+# Déploiement Linux (nginx + Gunicorn)
 
 Ce dossier contient les fichiers pour faire tourner l’application derrière nginx avec Gunicorn.
 
