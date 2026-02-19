@@ -9,6 +9,9 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 1800  # 30 minutes en secondes
 
+    # Application en HTTP uniquement (pas de HTTPS, pas de redirection vers HTTPS)
+    PREFERRED_URL_SCHEME = "http"
+
     # SMTP pour les notifications (validation/refus de congés)
     # Exemple : MAIL_SERVER=smtp.gmail.com MAIL_PORT=587 MAIL_USE_TLS=true
     #           MAIL_USERNAME=xxx MAIL_PASSWORD=xxx MAIL_DEFAULT_SENDER=conges@erpac.local

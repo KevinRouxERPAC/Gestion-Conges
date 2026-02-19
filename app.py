@@ -8,6 +8,7 @@ from models import db
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
+    app.config["PREFERRED_URL_SCHEME"] = "http"  # Site en HTTP uniquement, pas de HTTPS
     app.permanent_session_lifetime = timedelta(seconds=app.config["PERMANENT_SESSION_LIFETIME"])
 
     # Init extensions
@@ -43,6 +44,12 @@ def create_app():
     @app.route("/favicon.ico")
     def favicon():
         return Response(status=204)
+
+    # Ne jamais envoyer HSTS : le site est en HTTP uniquement
+    @app.after_request
+    def no_hsts(response):
+        response.headers.pop("Strict-Transport-Security", None)
+        return response
 
     # Create tables
     with app.app_context():
