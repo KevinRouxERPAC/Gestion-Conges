@@ -34,7 +34,7 @@ Ce guide décrit comment héberger l’application sur **Windows Server** avec *
 
 4. Adapter **web.config** à votre chemin d’installation :
    - Ouvrir `web.config` à la racine du projet.
-   - Remplacer **toutes** les occurrences de `C:\inetpub\GestionConges` par le chemin physique réel de votre site (ex. `D:\Apps\GestionConges`).
+   - Remplacer **toutes** les occurrences du chemin (ex. `C:\Sites\Gestion-Conges`) par le chemin physique réel de votre site (ex. `D:\Apps\GestionConges`) : `processPath`, `workingDirectory`, `stdoutLogFile`.
    - Dans la section `<environmentVariables>`, définir une **SECRET_KEY** forte pour la production (et optionnellement les variables SMTP si vous utilisez les e-mails).
 
 ## 3. Configurer le site dans IIS
@@ -84,7 +84,17 @@ Exemple pour ajouter le SMTP :
   ```
   Le script demande un mot de passe. Variables optionnelles : `ADMIN_IDENTIFIANT`, `ADMIN_NOM`, `ADMIN_PRENOM`.
 
-## 7. Dépannage
+## 7. Notifications (in-app et Web Push)
+
+- **Notifications in-app** : toujours actives (liste dans le menu « Notifications »). Aucune configuration supplémentaire.
+- **Web Push (alertes hors du site)** : générer une paire de clés VAPID une fois sur le serveur :
+  ```powershell
+  .\venv\Scripts\python.exe gen_vapid_keys.py
+  ```
+  Les fichiers `vapid_private.pem` et `vapid_public.pem` sont créés à la racine du projet (déjà dans `.gitignore`). L'application les utilise automatiquement ; les utilisateurs peuvent cliquer sur « Activer les alertes » dans la barre de navigation.
+- En **HTTP**, le serveur envoie bien les push, mais le navigateur peut ne pas afficher la notification système quand l'utilisateur n'est pas sur le site. Les notifications restent visibles dans l'app (liste des notifications). Voir `docs/WEB-PUSH-HTTPS.md` pour l'affichage des alertes en dehors du site (HTTPS requis).
+
+## 8. Dépannage
 
 - **503 / Service indisponible** : vérifier que HttpPlatformHandler est installé, que le chemin dans `web.config` pointe vers le bon `python.exe` du venv, et que le chemin physique du site dans IIS n’est pas utilisé par un autre programme.
 - **Erreur au démarrage** : consulter `logs\stdout.log` et les journaux des événements Windows (Observateur d’événements).

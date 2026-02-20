@@ -13,6 +13,11 @@ Pour tester avec deux utilisateurs (RH + salarié) :
 """
 import os
 
+# Sous IIS, le répertoire de travail doit être la racine du projet (DB, config, vapid_private.pem, etc.)
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+if os.getcwd() != _script_dir:
+    os.chdir(_script_dir)
+
 from app import create_app
 from waitress import serve
 
