@@ -13,7 +13,7 @@ from models.user import User
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_suffisant
 from services.jours_feries import get_jours_feries
-from services.email import envoyer_notification_validation, envoyer_notification_refus
+from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 
 rh_bp = Blueprint("rh", __name__)
@@ -291,17 +291,8 @@ def valider_conge(conge_id):
     conge.motif_refus = None
     db.session.commit()
 
-    # Notification email
-    user = conge.utilisateur
-    if user and getattr(user, "email", None) and user.email:
-        envoyer_notification_validation(
-            prenom=user.prenom,
-            email=user.email,
-            date_debut=conge.date_debut,
-            date_fin=conge.date_fin,
-            nb_jours=conge.nb_jours_ouvrables,
-            type_conge=conge.type_conge,
-        )
+    notifier_conge_valide(conge)
+    db.session.commit()
 
     flash("Demande de congé validée.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
@@ -328,18 +319,8 @@ def refuser_conge(conge_id):
         conge.motif_refus = motif
         db.session.commit()
 
-        # Notification email
-        user = conge.utilisateur
-        if user and getattr(user, "email", None) and user.email:
-            envoyer_notification_refus(
-                prenom=user.prenom,
-                email=user.email,
-                date_debut=conge.date_debut,
-                date_fin=conge.date_fin,
-                nb_jours=conge.nb_jours_ouvrables,
-                type_conge=conge.type_conge,
-                motif=motif,
-            )
+        notifier_conge_refuse(conge, motif)
+        db.session.commit()
 
         flash("Demande de congé refusée.", "success")
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
@@ -449,18 +430,6 @@ def parametrage():
             return redirect(url_for("rh.parametrage"))
 
     return render_template("rh/parametrage.html", parametrage=param, jours_feries=jours_feries_list)
-
-
-@rh_bp.route("/salarie/<int:user_id>/email", methods=["POST"])
-@rh_required
-def modifier_email(user_id):
-    """Mise à jour de l'email du salarié pour les notifications."""
-    user = User.query.get_or_404(user_id)
-    email = request.form.get("email", "").strip() or None
-    user.email = email if email else None
-    db.session.commit()
-    flash("Email mis à jour." if email else "Email supprimé.", "success")
-    return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
 
 @rh_bp.route("/salarie/<int:user_id>/allocation", methods=["POST"])
@@ -667,7 +636,6 @@ def modifier_salarie(user_id):
         user.role = role
         user.date_embauche = date_embauche
         user.actif = actif_str == "on"
-
         if mot_de_passe:
             user.mot_de_passe_hash = hash_password(mot_de_passe)
 

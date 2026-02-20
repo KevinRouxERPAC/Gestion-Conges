@@ -76,6 +76,10 @@ def demander_conge():
         db.session.add(conge)
         db.session.commit()
 
+        from services.notifications import notifier_rh_nouvelle_demande
+        notifier_rh_nouvelle_demande(conge)
+        db.session.commit()
+
         flash("Demande de congé envoyée. Elle sera traitée par les RH.", "success")
         return redirect(url_for("salarie.accueil"))
 

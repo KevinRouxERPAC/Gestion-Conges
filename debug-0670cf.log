@@ -1,0 +1,8 @@
+{"sessionId": "0670cf", "location": "notifications.py:notifier_rh_nouvelle_demande", "message": "RH notify", "data": {"rh_count": 2, "rh_ids": [1, 16]}, "hypothesisId": "A,B"}
+{"sessionId": "0670cf", "location": "webpush.py:_vapid_private_key", "message": "vapid key check", "data": {"key_set": false, "used_default_path": true, "path": "C:\\Users\\kevin\\ERPAC\\ERPAC\\Gestion_Conges\\Application\\vapid_private.pem"}, "hypothesisId": "F"}
+{"sessionId": "0670cf", "location": "webpush.py:envoyer_push_user", "message": "entry", "data": {"user_id": 1, "has_vapid": true, "sub_count": 0}, "hypothesisId": "C,E"}
+{"sessionId": "0670cf", "location": "notifications.py:creer_notification", "message": "push called", "data": {"user_id": 1, "titre": "Nouvelle demande de congé"}, "hypothesisId": "B,C"}
+{"sessionId": "0670cf", "location": "webpush.py:_vapid_private_key", "message": "vapid key check", "data": {"key_set": false, "used_default_path": true, "path": "C:\\Users\\kevin\\ERPAC\\ERPAC\\Gestion_Conges\\Application\\vapid_private.pem"}, "hypothesisId": "F"}
+{"sessionId": "0670cf", "location": "webpush.py:envoyer_push_user", "message": "entry", "data": {"user_id": 16, "has_vapid": true, "sub_count": 1}, "hypothesisId": "C,E"}
+{"sessionId": "0670cf", "location": "webpush.py:envoyer_push_user", "message": "push sent", "data": {"user_id": 16, "sub_id": 2}, "hypothesisId": "D"}
+{"sessionId": "0670cf", "location": "notifications.py:creer_notification", "message": "push called", "data": {"user_id": 16, "titre": "Nouvelle demande de congé"}, "hypothesisId": "B,C"}

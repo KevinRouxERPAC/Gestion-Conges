@@ -4,8 +4,10 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 
 class Config:
+    BASE_DIR = BASE_DIR
     SECRET_KEY = os.environ.get("SECRET_KEY", "Gh3InTZ80Q5mYfkmZiVWIVoRewwJ0ISDrsXsqdMjxPk=")
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db")
+    # timeout=15 : SQLite attend jusqu'à 15 s si la base est verrouillée (écritures concurrentes multi-utilisateurs)
+    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 1800  # 30 minutes en secondes
 
@@ -24,3 +26,10 @@ class Config:
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "conges@erpac.local")
     MAIL_SUPPRESS_SEND = os.environ.get("MAIL_SUPPRESS_SEND", "false").lower() == "true"
+
+    # Web Push (notifications hors du site, sans donnée personnelle)
+    # Clés : placer vapid_private.pem dans le répertoire de l'app (ou VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY en env).
+    # Important : pour que la notification s'affiche chez l'utilisateur (même onglet fermé), le site doit être
+    # servi en HTTPS. En HTTP, le serveur peut envoyer le push mais le navigateur ne l'affiche pas (contexte non sécurisé).
+    VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "")
+    VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "")

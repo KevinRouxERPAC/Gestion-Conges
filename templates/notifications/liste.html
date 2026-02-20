@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <a href="{{ url_for('salarie.accueil') if current_user.role == 'salarie' else url_for('rh.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour</a>
+        <h1 class="text-2xl font-bold text-gray-800 mt-2">Notifications</h1>
+        <p class="text-gray-500 text-sm">Vos notifications in-app (validation, refus, nouvelles demandes)</p>
+    </div>
+    {% if notifications %}
+    <form method="POST" action="{{ url_for('notifications.tout_marquer_lues') }}" class="inline">
+        <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-medium py-2 px-4 rounded-lg transition">
+            Tout marquer comme lu
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    {% if not notifications %}
+    <div class="p-12 text-center text-gray-500">
+        <p>Aucune notification.</p>
+    </div>
+    {% else %}
+    <ul class="divide-y divide-gray-200">
+        {% for n in notifications %}
+        <li class="{% if not n.lue %}bg-erpac-50{% endif %} hover:bg-gray-50 transition">
+            <a href="{{ url_for('notifications.voir', notification_id=n.id) }}" class="block p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                <div class="flex-1 min-w-0">
+                    <p class="font-semibold text-gray-800 {% if not n.lue %}text-erpac-dark{% endif %}">{{ n.titre }}</p>
+                    <p class="text-sm text-gray-600 mt-1">{{ n.message }}</p>
+                    <p class="text-xs text-gray-400 mt-2">{{ n.cree_le.strftime('%d/%m/%Y à %H:%M') }}</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="text-sm text-erpac-primary font-medium">
+                        {{ 'Voir le salarié →' if current_user.role == 'rh' and n.conge else ('Voir mes congés →' if n.conge else 'Voir →') }}
+                    </span>
+                    {% if not n.lue %}
+                    <span class="text-xs bg-erpac-primary text-white py-1 px-2 rounded-full">Nouveau</span>
+                    {% endif %}
+                </div>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+</div>
+{% endblock %}

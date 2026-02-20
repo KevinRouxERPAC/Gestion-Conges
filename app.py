@@ -1,6 +1,6 @@
 import os
 from datetime import timedelta
-from flask import Flask, redirect, url_for, Response
+from flask import Flask, redirect, url_for, Response, send_from_directory
 from flask_login import LoginManager
 from config import Config
 from models import db
@@ -31,9 +31,19 @@ def create_app():
     from routes.rh import rh_bp
     from routes.salarie import salarie_bp
 
+    from routes.notifications import notifications_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(rh_bp, url_prefix="/rh")
     app.register_blueprint(salarie_bp, url_prefix="/salarie")
+    app.register_blueprint(notifications_bp, url_prefix="/notifications")
+
+    @app.context_processor
+    def inject_notifications():
+        from flask_login import current_user
+        if current_user.is_authenticated:
+            from services.notifications import compter_non_lues
+            return {"notifications_non_lues": compter_non_lues(current_user.id)}
+        return {"notifications_non_lues": 0}
 
     # Root redirect
     @app.route("/")
@@ -44,6 +54,11 @@ def create_app():
     @app.route("/favicon.ico")
     def favicon():
         return Response(status=204)
+
+    # Service worker à la racine pour que la portée soit / (requis pour Web Push)
+    @app.route("/sw.js")
+    def service_worker():
+        return send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript")
 
     # Ne jamais envoyer HSTS : le site est en HTTP uniquement
     @app.after_request
@@ -66,4 +81,5 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    # threaded=True : permet de traiter plusieurs requêtes simultanées (multi-utilisateurs en dev)
+    app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
