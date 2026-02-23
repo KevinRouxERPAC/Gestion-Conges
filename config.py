@@ -11,8 +11,8 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 1800  # 30 minutes en secondes
 
-    # Application en HTTP uniquement (pas de HTTPS, pas de redirection vers HTTPS)
-    PREFERRED_URL_SCHEME = "http"
+    # Schéma d’URL (http ou https). En HTTPS derrière IIS, mettre PREFERRED_URL_SCHEME=https dans web.config.
+    PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "http")
 
     # SMTP pour les notifications (validation/refus de congés)
     # Exemple : MAIL_SERVER=smtp.gmail.com MAIL_PORT=587 MAIL_USE_TLS=true

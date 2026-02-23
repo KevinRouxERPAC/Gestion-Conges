@@ -9,6 +9,13 @@ from services.notifications import compter_non_lues
 notifications_bp = Blueprint("notifications", __name__)
 
 
+@notifications_bp.route("/count")
+@login_required
+def count():
+    """Compteur JSON pour mise à jour du badge sans recharger la page."""
+    return jsonify({"count": compter_non_lues(current_user.id)})
+
+
 @notifications_bp.route("/")
 @login_required
 def liste():

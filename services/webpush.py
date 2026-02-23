@@ -5,6 +5,23 @@ from flask import current_app
 
 logger = logging.getLogger(__name__)
 
+# Compatibilité cryptography >= 42 : pywebpush passe la courbe en classe au lieu d'instance.
+# On patche generate_private_key pour accepter les deux (évite "curve must be an EllipticCurve instance").
+def _patch_ec_for_pywebpush():
+    import cryptography.hazmat.primitives.asymmetric.ec as _ec
+    if getattr(_ec.generate_private_key, "_erpac_curve_patch", False):
+        return
+    _orig = _ec.generate_private_key
+    def _patched(curve, backend):
+        if isinstance(curve, type):
+            curve = curve()
+        return _orig(curve, backend)
+    _patched._erpac_curve_patch = True
+    _ec.generate_private_key = _patched
+
+
+_patch_ec_for_pywebpush()
+
 
 def _vapid_private_key():
     """Retourne la clé privée VAPID (chemin fichier ou contenu PEM). Si env vide, tente vapid_private.pem dans BASE_DIR."""
@@ -34,9 +51,11 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
     private_key = _vapid_private_key()
     subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not private_key:
+        logger.debug("Web Push: pas de clé VAPID (user_id=%s)", user_id)
         return
 
     if not subscriptions:
+        logger.debug("Web Push: aucun abonnement pour user_id=%s", user_id)
         return
 
     payload = json.dumps({"title": titre, "body": message, "url": url or "/notifications/"})

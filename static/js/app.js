@@ -1,9 +1,5 @@
 // ERPAC Gestion des Congés - App JS
 document.addEventListener('DOMContentLoaded', function() {
-    // Auto-dismiss flash messages after 5 seconds
-    const alerts = document.querySelectorAll('[x-data="{ show: true }"]');
-    // Handled by Alpine.js
-
     // Date validation on forms
     const dateDebut = document.getElementById('date_debut');
     const dateFin = document.getElementById('date_fin');
@@ -20,6 +16,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Web Push : enregistrement du Service Worker et bouton "Activer les alertes"
     if (document.querySelector('.erpac-push-enable')) {
         initWebPush();
+    }
+
+    // Rafraîchissement du badge notifications (toutes les 12 s) pour voir les nouvelles demandes sans recharger
+    var badge = document.getElementById('nav-notif-badge') || document.querySelector('.nav-notif-btn .rounded-full');
+    if (badge && document.querySelector('.nav-notif-btn')) {
+        var prevCount = null;
+        function pollNotif() {
+            fetch('/notifications/count', { credentials: 'same-origin' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var c = data.count || 0;
+                    if (prevCount !== null && c > prevCount) {
+                        var toast = document.createElement('div');
+                        toast.setAttribute('role', 'alert');
+                        toast.style.cssText = 'position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:99999; background:#008C3A; color:#fff; padding:14px 24px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); display:flex; align-items:center; gap:12px; max-width:90%; font-size:15px;';
+                        toast.innerHTML = '<a href="/notifications/" style="color:inherit; text-decoration:underline; font-weight:600;">Nouvelle(s) notification(s) – cliquer pour voir</a><button type="button" style="background:transparent; border:none; color:rgba(255,255,255,0.9); font-size:22px; line-height:1; cursor:pointer; padding:0 0 0 8px;" onclick="this.parentElement.remove()" aria-label="Fermer">&times;</button>';
+                        document.body.appendChild(toast);
+                        setTimeout(function() { if (toast.parentElement) toast.remove(); }, 8000);
+                    }
+                    prevCount = c;
+                    badge.textContent = c > 99 ? '99+' : c;
+                    badge.classList.toggle('hidden', c === 0);
+                })
+                .catch(function() {});
+        }
+        pollNotif();
+        setInterval(pollNotif, 12000);
     }
 });
 

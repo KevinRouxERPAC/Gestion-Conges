@@ -1,7 +1,10 @@
 """Service de notifications in-app + Web Push (hors du site, sans donnée personnelle)."""
+import logging
 from models import db
 from models.notification import Notification
 from models.user import User
+
+logger = logging.getLogger(__name__)
 
 
 def creer_notification(user_id: int, type_notif: str, titre: str, message: str, conge_id: int = None):
@@ -18,8 +21,8 @@ def creer_notification(user_id: int, type_notif: str, titre: str, message: str, 
     try:
         from services.webpush import envoyer_push_user
         envoyer_push_user(user_id, titre, message, url="/notifications/")
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("Web Push non envoyé pour user_id=%s: %s", user_id, e)
 
 
 def notifier_conge_valide(conge):
@@ -58,9 +61,11 @@ def notifier_conge_refuse(conge, motif: str):
 
 def notifier_rh_nouvelle_demande(conge):
     """Notifie tous les utilisateurs RH qu'un salarié a déposé une demande de congé."""
-    rh_users = User.query.filter_by(role="rh", actif=True).all()
+    rh_users = User.query.filter(db.func.lower(User.role) == "rh", User.actif == True).all()
     if not rh_users:
+        logger.warning("notifier_rh_nouvelle_demande: aucun utilisateur RH actif trouvé")
         return
+    logger.info("notifier_rh_nouvelle_demande: envoi à %d RH (conge_id=%s)", len(rh_users), conge.id)
     u = conge.utilisateur
     nom_salarie = f"{u.prenom} {u.nom}" if u else "Un salarié"
     periode = f"{conge.date_debut.strftime('%d/%m/%Y')} - {conge.date_fin.strftime('%d/%m/%Y')}"

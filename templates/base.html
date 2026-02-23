@@ -34,9 +34,7 @@
                             <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
                         </svg>
                         <span class="hidden sm:inline">Notifications</span>
-                        {% if notifications_non_lues|default(0) > 0 %}
-                        <span class="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full">{{ notifications_non_lues if notifications_non_lues <= 99 else '99+' }}</span>
-                        {% endif %}
+                        <span id="nav-notif-badge" class="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full {% if not (notifications_non_lues|default(0) > 0) %}hidden{% endif %}">{{ (notifications_non_lues|default(0)) if (notifications_non_lues|default(0)) <= 99 else '99+' }}</span>
                     </a>
                     <span class="text-sm">{{ current_user.prenom }} {{ current_user.nom }}
                         <span class="bg-erpac-light text-xs px-2 py-1 rounded-full ml-1">{{ current_user.role|upper }}</span>

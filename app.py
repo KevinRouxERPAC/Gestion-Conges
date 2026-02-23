@@ -1,15 +1,42 @@
 import os
+import json
+import time
 from datetime import timedelta
 from flask import Flask, redirect, url_for, Response, send_from_directory
 from flask_login import LoginManager
+from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from models import db
 
+# #region agent log
+def _dlog(msg, hypothesis_id, data=None):
+    entry = json.dumps({"sessionId": "e6ee59", "timestamp": int(time.time() * 1000), "location": "app.py create_app", "message": msg, "hypothesisId": hypothesis_id, "data": data or {}}) + "\n"
+    base = os.path.dirname(os.path.abspath(__file__))
+    for log_dir in [os.path.join(base, "logs"), base]:
+        try:
+            if not os.path.isdir(log_dir) and log_dir != base:
+                os.makedirs(log_dir, exist_ok=True)
+            p = os.path.join(log_dir, "debug-e6ee59.log") if os.path.isdir(log_dir) else os.path.join(base, "logs", "debug-e6ee59.log")
+            if log_dir == base:
+                p = os.path.join(base, "debug-e6ee59.log")
+            else:
+                p = os.path.join(log_dir, "debug-e6ee59.log")
+            with open(p, "a", encoding="utf-8") as f:
+                f.write(entry)
+            break
+        except Exception:
+            continue
+# #endregion
+
 def create_app():
+    # #region agent log
+    _dlog("create_app entry", "H3", {})
+    # #endregion
     app = Flask(__name__)
     app.config.from_object(Config)
-    app.config["PREFERRED_URL_SCHEME"] = "http"  # Site en HTTP uniquement, pas de HTTPS
     app.permanent_session_lifetime = timedelta(seconds=app.config["PERMANENT_SESSION_LIFETIME"])
+    # Derrière IIS (HTTP ou HTTPS) : utiliser X-Forwarded-Proto pour url_for / redirects
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # Init extensions
     db.init_app(app)
@@ -60,13 +87,17 @@ def create_app():
     def service_worker():
         return send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript")
 
-    # Ne jamais envoyer HSTS : le site est en HTTP uniquement
+    # Ne pas ajouter HSTS si le site est en HTTP ; en HTTPS on laisse le serveur (IIS) le gérer
     @app.after_request
     def no_hsts(response):
-        response.headers.pop("Strict-Transport-Security", None)
+        if app.config.get("PREFERRED_URL_SCHEME") != "https":
+            response.headers.pop("Strict-Transport-Security", None)
         return response
 
     # Create tables
+    # #region agent log
+    _dlog("before app_context", "H3", {})
+    # #endregion
     with app.app_context():
         db.create_all()
         # Migrations
@@ -75,7 +106,9 @@ def create_app():
                 __import__(mig).migrate()
             except Exception:
                 pass
-
+    # #region agent log
+    _dlog("create_app returning", "H3", {})
+    # #endregion
     return app
 
 

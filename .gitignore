@@ -3,6 +3,9 @@
 venv/
 env/
 
+# Node (Tailwind)
+node_modules/
+
 # Cache Python
 __pycache__/
 *.py[cod]
@@ -13,7 +16,10 @@ __pycache__/
 .vscode/
 .DS_Store
 
+# Cursor / logs debug
 .cursor/debug.log
+.cursor/plans/
+debug*.log
 
 # Base de données locale (ne doit pas être versionnée)
 gestion_conges.db

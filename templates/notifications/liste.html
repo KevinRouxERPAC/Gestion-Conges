@@ -34,7 +34,7 @@
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="text-sm text-erpac-primary font-medium">
-                        {{ 'Voir le salarié →' if current_user.role == 'rh' and n.conge else ('Voir mes congés →' if n.conge else 'Voir →') }}
+                        {{ 'Voir le salarié →' if current_user.role|lower == 'rh' and n.conge else ('Voir mes congés →' if n.conge else 'Voir →') }}
                     </span>
                     {% if not n.lue %}
                     <span class="text-xs bg-erpac-primary text-white py-1 px-2 rounded-full">Nouveau</span>
