@@ -71,7 +71,7 @@ def vapid_public():
     import os
     key = current_app.config.get("VAPID_PUBLIC_KEY") or ""
     if not key.strip():
-        base_dir = current_app.config.get("BASE_DIR") or os.path.abspath(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+        base_dir = current_app.config.get("BASE_DIR") or os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
         pem_path = os.path.join(base_dir, "vapid_private.pem")
         if os.path.isfile(pem_path):
             try:

@@ -22,6 +22,13 @@ def _patch_ec_for_pywebpush():
 
 _patch_ec_for_pywebpush()
 
+# Import après le patch pour que pywebpush utilise generate_private_key corrigé
+try:
+    from pywebpush import webpush, WebPushException
+except ImportError:
+    webpush = None
+    WebPushException = Exception
+
 
 def _vapid_private_key():
     """Retourne la clé privée VAPID (chemin fichier ou contenu PEM). Si env vide, tente vapid_private.pem dans BASE_DIR."""
@@ -61,9 +68,7 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
     payload = json.dumps({"title": titre, "body": message, "url": url or "/notifications/"})
     vapid_claims = {"sub": "mailto:conges@erpac.local"}
 
-    try:
-        from pywebpush import webpush, WebPushException
-    except ImportError:
+    if webpush is None:
         logger.warning("pywebpush non installé, Web Push désactivé.")
         return
 
