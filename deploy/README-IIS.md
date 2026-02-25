@@ -84,9 +84,11 @@ Exemple pour ajouter le SMTP :
   ```
   Le script demande un mot de passe. Variables optionnelles : `ADMIN_IDENTIFIANT`, `ADMIN_NOM`, `ADMIN_PRENOM`.
 
-## 7. Notifications (in-app et Web Push)
+## 7. Notifications (in-app, Web Push, email RH)
 
 - **Notifications in-app** : toujours actives (liste dans le menu « Notifications »). Aucune configuration supplémentaire.
+- **Conformité RGPD** : aucune adresse email salarié n'est collectée ; les notifications salarié (validation/refus) sont in-app et Web Push uniquement.
+- **Email RH (entreprise)** : configurer `MAIL_RH` (variable d'environnement ou `web.config`) avec l'adresse de la boîte mail RH. Cette adresse reçoit un email à chaque nouvelle demande de congé (SMTP : `MAIL_SERVER`, `MAIL_PORT`, etc.).
 - **Web Push (alertes hors du site)** : générer une paire de clés VAPID une fois sur le serveur :
   ```powershell
   .\venv\Scripts\python.exe gen_vapid_keys.py

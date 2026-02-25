@@ -62,9 +62,10 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
         return
 
     if not subscriptions:
-        logger.debug("Web Push: aucun abonnement pour user_id=%s", user_id)
+        logger.warning("Web Push: aucun abonnement pour user_id=%s (le salarié doit cliquer « Activer les alertes » dans ce navigateur)", user_id)
         return
 
+    logger.info("Web Push: envoi à user_id=%s (%d abonnement(s))", user_id, len(subscriptions))
     payload = json.dumps({"title": titre, "body": message, "url": url or "/notifications/"})
     vapid_claims = {"sub": "mailto:conges@erpac.local"}
 
@@ -80,6 +81,7 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
                 vapid_private_key=private_key,
                 vapid_claims=vapid_claims,
             )
+            logger.info("Web Push: notification envoyée avec succès pour user_id=%s", user_id)
         except WebPushException as e:
             # 410 Gone / 404 = subscription expirée, on peut la supprimer
             if getattr(e, "response", None) and getattr(e.response, "status_code", None) in (410, 404):

@@ -79,7 +79,8 @@ Fichier `config.py` ; surcharge par **variables d'environnement** (ou `web.confi
 |----------|-------------|
 | `SECRET_KEY` | Cle secrete Flask (a remplacer en production) |
 | `PREFERRED_URL_SCHEME` | `http` ou `https` |
-| `MAIL_*` | SMTP pour e-mails (validation/refus de conges) |
+| `MAIL_*` | SMTP (serveur, port, TLS, identifiants) pour l'envoi d'emails RH |
+| `MAIL_RH` | Adresse mail entreprise RH : recoit un email a chaque nouvelle demande de conge (optionnel) |
 | `MAIL_SUPPRESS_SEND` | `true` = ne pas envoyer les e-mails (logs uniquement) |
 | `VAPID_PRIVATE_KEY`, `VAPID_PUBLIC_KEY` | Web Push (ou fichier `vapid_private.pem` a la racine) |
 
@@ -129,6 +130,16 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 
 - **In-app** : liste dans le menu Notifications (validation/refus, etc.), compteur, marquage lu.
 - **Web Push** : clics « Activer les alertes » ; cles VAPID via `gen_vapid_keys.py`. En HTTPS : alertes hors du site ; en HTTP : push envoyes mais affichage systeme limite.
+- **Conformite RGPD** : aucune adresse email salarie n'est collectee. Les notifications salarie (validation/refus) sont uniquement in-app et Web Push (navigateur ouvert). Pas d'email envoye aux salaries.
+- **Email RH (entreprise)** : si `MAIL_RH` est configure, la boite mail RH recoit un email a chaque nouvelle demande de conge (adresse entreprise, pas de donnee personnelle employe).
+
+**Verifier que les Web Push fonctionnent :**
+1. Lancer `python scripts/verifier_webpush.py` : VAPID OK, Cle chargee OK, Endpoint vapid-public OK.
+2. Si besoin, generer les cles : `python gen_vapid_keys.py`.
+3. En tant que salarie : cliquer « Activer les alertes » dans la barre de navigation et accepter les notifications.
+4. Demander un conge (salarie), puis valider ou refuser la demande (compte RH) : une notification in-app et un Web Push doivent etre envoyes au salarie (notification systeme si HTTPS).
+
+**Important** : pour que la notification systeme s'affiche, le navigateur du salarie doit encore tourner (fenetre ouverte, minimisée ou autre onglet). Si vous fermez completement le navigateur, le push est eventuellement envoye par le serveur mais aucun process ne peut l'afficher. Pour tester : laissez le navigateur salarie ouvert sur un autre onglet ou minimise, puis refusez/validez en RH.
 
 ---
 

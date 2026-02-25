@@ -14,14 +14,14 @@
            class="inline-flex items-center justify-center bg-erpac-primary hover:bg-erpac-dark text-white font-semibold text-base md:text-lg py-3 md:py-3.5 px-6 md:px-8 rounded-xl transition shadow-lg whitespace-nowrap shrink-0">
             + Ajouter un congé
         </a>
-        <!-- Boutons d'export : groupés à droite -->
+        <!-- Boutons d'export : groupés à droite (style contrasté pour bonne visibilité) -->
         <div class="flex items-center gap-2 shrink-0">
             <a href="{{ url_for('rh.export_salarie_excel', user_id=salarie.id) }}"
-               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
+               class="inline-flex items-center justify-center px-3 py-2 bg-green-700 hover:bg-green-800 text-white text-xs md:text-sm font-medium rounded-lg transition shadow border border-green-800 whitespace-nowrap">
                 Export Excel
             </a>
             <a href="{{ url_for('rh.export_salarie_pdf', user_id=salarie.id) }}"
-               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
+               class="inline-flex items-center justify-center px-3 py-2 bg-gray-700 hover:bg-gray-800 text-white text-xs md:text-sm font-medium rounded-lg transition shadow border border-gray-800 whitespace-nowrap">
                 Export PDF
             </a>
         </div>

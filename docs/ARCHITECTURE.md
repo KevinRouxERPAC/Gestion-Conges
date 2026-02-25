@@ -6,7 +6,7 @@ Documentation technique pour les développeurs : modèles, flux métier et conve
 
 ### User (`models/user.py`)
 
-- **Champs** : id, nom, prenom, identifiant (unique), mot_de_passe_hash, role (`rh` | `salarie`), actif, date_embauche, email (optionnel, pour notifications).
+- **Champs** : id, nom, prenom, identifiant (unique), mot_de_passe_hash, role (`rh` | `salarie`), actif, date_embauche, email (colonne presente en BDD, non utilisee cote app pour conformite RGPD).
 - **Relations** : conges (liste des Conge), allocations (AllocationConge).
 - **Authentification** : Flask-Login (UserMixin), mots de passe hashés avec bcrypt.
 
@@ -35,8 +35,9 @@ Documentation technique pour les développeurs : modèles, flux métier et conve
 - **calcul_jours** : `compter_jours_ouvrables(date_debut, date_fin)` (hors week-ends et jours fériés), `detecter_chevauchement(user_id, ...)`.
 - **solde** : `get_parametrage_actif()`, `get_allocation(user_id)`, `calculer_jours_consommes()`, `calculer_solde()`, `verifier_solde_suffisant()`.
 - **jours_feries** : chargement/génération des jours fériés français.
-- **notifications** : `creer_notification()`, `notifier_conge_valide()`, `notifier_conge_refuse()` (appellent aussi webpush si abonné).
-- **webpush** : `envoyer_push_user(user_id, titre, message, url)` avec pywebpush et clés VAPID.
+- **notifications** : `creer_notification()`, `notifier_conge_valide()`, `notifier_conge_refuse()` (in-app + webpush si abonne ; pas d'email salarie, RGPD). `notifier_rh_nouvelle_demande()` : in-app + Web Push aux RH + email vers MAIL_RH (boite entreprise) si configure.
+- **webpush** : `envoyer_push_user(user_id, titre, message, url)` avec pywebpush et cles VAPID.
+- **email** : envoi vers MAIL_RH uniquement (nouvelle demande de conge), pas d'email aux salaries.
 
 ## Blueprints et routes principales
 

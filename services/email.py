@@ -143,3 +143,40 @@ L'équipe ERPAC
 </html>
 """
     return send_email(email, subject, body_text, body_html)
+
+
+def envoyer_notification_rh_nouvelle_demande(nom_salarie: str, periode: str, nb_jours: int, type_conge: str):
+    """Envoie un email a la boite RH entreprise (MAIL_RH) pour une nouvelle demande de conge."""
+    to = (current_app.config.get("MAIL_RH") or "").strip()
+    if not to:
+        return False
+    subject = "ERPAC Conges - Nouvelle demande de conge"
+    body_text = f"""Une nouvelle demande de conge a ete deposee.
+
+Salarie : {nom_salarie}
+Periode : {periode}
+Jours : {nb_jours}
+Type : {type_conge}
+
+Connectez-vous a l'application pour valider ou refuser la demande.
+
+Cordialement,
+L'equipe ERPAC
+"""
+    body_html = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Une nouvelle demande de conge a ete deposee.</p>
+    <table style="border-collapse: collapse; margin: 20px 0;">
+        <tr><td style="padding: 5px 15px 5px 0;"><strong>Salarie :</strong></td><td>{nom_salarie}</td></tr>
+        <tr><td style="padding: 5px 15px 5px 0;"><strong>Periode :</strong></td><td>{periode}</td></tr>
+        <tr><td style="padding: 5px 15px 5px 0;"><strong>Jours :</strong></td><td>{nb_jours}</td></tr>
+        <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>
+    </table>
+    <p>Connectez-vous a l'application pour valider ou refuser la demande.</p>
+    <p>Cordialement,<br>L'equipe ERPAC</p>
+</body>
+</html>
+"""
+    return send_email(to, subject, body_text, body_html)

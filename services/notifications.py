@@ -26,7 +26,7 @@ def creer_notification(user_id: int, type_notif: str, titre: str, message: str, 
 
 
 def notifier_conge_valide(conge):
-    """Notifie le salarié que sa demande de congé a été validée."""
+    """Notifie le salarié que sa demande de congé a été validée (in-app + Web Push, sans email pour conformité RGPD)."""
     u = conge.utilisateur
     if not u:
         return
@@ -42,7 +42,7 @@ def notifier_conge_valide(conge):
 
 
 def notifier_conge_refuse(conge, motif: str):
-    """Notifie le salarié que sa demande de congé a été refusée."""
+    """Notifie le salarié que sa demande de congé a été refusée (in-app + Web Push, sans email pour conformité RGPD)."""
     u = conge.utilisateur
     if not u:
         return
@@ -60,7 +60,7 @@ def notifier_conge_refuse(conge, motif: str):
 
 
 def notifier_rh_nouvelle_demande(conge):
-    """Notifie tous les utilisateurs RH qu'un salarié a déposé une demande de congé."""
+    """Notifie tous les utilisateurs RH (in-app + Web Push) et envoie un email à la boîte RH entreprise si MAIL_RH est configuré."""
     rh_users = User.query.filter(db.func.lower(User.role) == "rh", User.actif == True).all()
     if not rh_users:
         logger.warning("notifier_rh_nouvelle_demande: aucun utilisateur RH actif trouvé")
@@ -79,6 +79,19 @@ def notifier_rh_nouvelle_demande(conge):
             message=message,
             conge_id=conge.id,
         )
+    # Email vers la boîte mail entreprise RH (adresse configurée, pas de donnée personnelle employé)
+    try:
+        from flask import current_app
+        if current_app.config.get("MAIL_RH"):
+            from services.email import envoyer_notification_rh_nouvelle_demande
+            envoyer_notification_rh_nouvelle_demande(
+                nom_salarie=nom_salarie,
+                periode=periode,
+                nb_jours=conge.nb_jours_ouvrables,
+                type_conge=conge.type_conge or "CP",
+            )
+    except Exception as e:
+        logger.warning("Email RH (nouvelle demande) non envoyé: %s", e)
 
 
 def compter_non_lues(user_id: int) -> int:

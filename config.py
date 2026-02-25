@@ -26,6 +26,8 @@ class Config:
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD", "")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER", "conges@erpac.local")
     MAIL_SUPPRESS_SEND = os.environ.get("MAIL_SUPPRESS_SEND", "false").lower() == "true"
+    # Adresse mail entreprise RH : reçoit un email à chaque nouvelle demande de congé (optionnel)
+    MAIL_RH = os.environ.get("MAIL_RH", "").strip() or None
 
     # Web Push (notifications hors du site, sans donnée personnelle)
     # Clés : placer vapid_private.pem dans le répertoire de l'app (ou VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY en env).

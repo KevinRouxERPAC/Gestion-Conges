@@ -644,3 +644,4 @@ def modifier_salarie(user_id):
         return redirect(url_for("rh.liste_salaries"))
 
     return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+
