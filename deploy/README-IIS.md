@@ -98,6 +98,7 @@ Exemple pour ajouter le SMTP :
 
 ## 8. Dépannage
 
+- **Certificat HTTPS (conges.erpac.com)** : si les utilisateurs voient « Connexion non sécurisée » ou si l’antivirus bloque alors que le certificat est valide (\*.erpac.com, CA ERPAC-SRV18150RD1-CA), il faut que la **CA soit installée en racine de confiance** sur chaque poste (ou déployée via GPO). Voir **deploy/CERTIFICAT-HTTPS-INTRANET.md**.
 - **503 / Service indisponible** : vérifier que HttpPlatformHandler est installé, que le chemin dans `web.config` pointe vers le bon `python.exe` du venv, et que le chemin physique du site dans IIS n’est pas utilisé par un autre programme.
 - **Erreur au démarrage** : consulter `logs\stdout.log` et les journaux des événements Windows (Observateur d’événements).
 - **Droits refusés** : s’assurer que l’identité du pool a les droits sur le dossier du site, sur `logs` et sur le fichier de base de données.

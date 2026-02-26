@@ -9,6 +9,7 @@ Index de la documentation du projet.
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture technique : modeles SQLAlchemy, services metier, blueprints, conventions (proxy, sessions, Web Push). |
 | [VERIFIER-WEBPUSH.md](VERIFIER-WEBPUSH.md) | Guide pour verifier que les notifications Web Push fonctionnent (cles VAPID, activation, test). |
+| [HTTPS-LOCAL-KASPERSKY.md](HTTPS-LOCAL-KASPERSKY.md) | HTTPS en local, certificat et contournement blocage Kaspersky. |
 
 
 ## Voir aussi
