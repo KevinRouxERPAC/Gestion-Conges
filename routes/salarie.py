@@ -16,7 +16,7 @@ salarie_bp = Blueprint("salarie", __name__)
 @salarie_bp.route("/demander-conge", methods=["GET", "POST"])
 @login_required
 def demander_conge():
-    """Le salarié soumet une demande de congé (statut en_attente)."""
+    """Le salarié soumet une demande de congé (validation 2 niveaux : responsable puis RH)."""
     if current_user.role == "rh":
         flash("Les RH ajoutent les congés directement depuis le profil du salarié.", "info")
         return redirect(url_for("rh.dashboard"))
@@ -64,6 +64,8 @@ def demander_conge():
                 )
                 return render_template("salarie/demander_conge.html", solde=solde_info)
 
+        # Validation 2 niveaux : si le salarié a un responsable, en attente responsable sinon directement en attente RH
+        statut_initial = "en_attente_responsable" if current_user.responsable_id else "en_attente_rh"
         conge = Conge(
             user_id=current_user.id,
             date_debut=date_debut,
@@ -71,16 +73,22 @@ def demander_conge():
             nb_jours_ouvrables=nb_jours,
             type_conge=type_conge,
             commentaire=commentaire,
-            statut="en_attente",
+            statut=statut_initial,
         )
         db.session.add(conge)
         db.session.commit()
 
-        from services.notifications import notifier_rh_nouvelle_demande
-        notifier_rh_nouvelle_demande(conge)
+        from services.notifications import notifier_responsable_nouvelle_demande, notifier_rh_nouvelle_demande
+        if current_user.responsable_id:
+            notifier_responsable_nouvelle_demande(conge)
+        else:
+            notifier_rh_nouvelle_demande(conge)
         db.session.commit()
 
-        flash("Demande de congé envoyée. Elle sera traitée par les RH.", "success")
+        if current_user.responsable_id:
+            flash("Demande de congé envoyée à votre responsable. Après sa validation, elle sera transmise aux RH.", "success")
+        else:
+            flash("Demande de congé envoyée. Elle sera traitée par les RH.", "success")
         return redirect(url_for("salarie.accueil"))
 
     return render_template("salarie/demander_conge.html", solde=solde_info)
@@ -124,7 +132,7 @@ def calendrier():
                 User.actif == True,
                 Conge.date_debut <= end_of_year,
                 Conge.date_fin >= start_of_year,
-                Conge.statut.in_(["valide", "en_attente"]),
+                Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
             )
             .all()
         )
@@ -133,7 +141,7 @@ def calendrier():
             Conge.user_id == current_user.id,
             Conge.date_debut <= end_of_year,
             Conge.date_fin >= start_of_year,
-            Conge.statut.in_(["valide", "en_attente"]),
+            Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
         ).all()
 
     events = []

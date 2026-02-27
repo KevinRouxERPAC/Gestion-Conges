@@ -151,8 +151,10 @@
                 <td class="px-6 py-4">
                     {% if conge.statut == 'valide' %}
                     <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
-                    {% elif conge.statut == 'en_attente' %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente</span>
+                    {% elif conge.statut == 'en_attente_responsable' %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente responsable</span>
+                    {% elif conge.statut == 'en_attente_rh' %}
+                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente RH</span>
                     {% elif conge.statut == 'refuse' %}
                     <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800" title="{{ conge.motif_refus or '' }}">Refusé</span>
                     {% else %}
@@ -163,7 +165,7 @@
                     {{ conge.motif_refus if conge.statut == 'refuse' and conge.motif_refus else (conge.commentaire or '-') }}
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
-                    {% if conge.statut == 'en_attente' %}
+                    {% if conge.statut == 'en_attente_rh' %}
                     <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=conge.id) }}" class="inline">
                         <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium">Valider</button>
                     </form>

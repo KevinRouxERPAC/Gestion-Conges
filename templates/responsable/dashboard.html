@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}Tableau de bord Responsable{% endblock %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-800">Tableau de bord Responsable</h1>
+    <p class="text-gray-500 mt-1">Validation des demandes de conges (niveau 1)</p>
+</div>
+{% if demandes_attente %}
+<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-amber-900 mb-4">Demandes en attente ({{ demandes_attente|length }})</h2>
+    <table class="w-full text-sm">
+        <thead><tr class="text-left text-amber-800 border-b border-amber-200">
+            <th class="py-2 pr-4">Salarie</th><th class="py-2 pr-4">Periode</th><th class="py-2 pr-4">Type</th><th class="py-2 pr-4">Jours</th><th class="py-2 text-right">Actions</th>
+        </tr></thead>
+        <tbody>
+        {% for c in demandes_attente %}
+        <tr class="border-b border-amber-100">
+            <td class="py-3">{{ c.utilisateur.prenom if c.utilisateur else "-" }} {{ c.utilisateur.nom if c.utilisateur else "" }}</td>
+            <td class="py-3">{{ c.date_debut.strftime("%d/%m/%Y") }} -> {{ c.date_fin.strftime("%d/%m/%Y") }}</td>
+            <td class="py-3">{{ c.type_conge }}</td>
+            <td class="py-3">{{ c.nb_jours_ouvrables }} j</td>
+            <td class="py-3 text-right space-x-2">
+                <form method="POST" action="{{ url_for("responsable.valider_conge", conge_id=c.id) }}" class="inline"><button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button></form>
+                <a href="{{ url_for("responsable.refuser_conge", conge_id=c.id) }}" class="text-red-600 hover:text-red-800 font-medium">Refuser</a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-6 mb-8"><p class="text-gray-500">Aucune demande en attente.</p></div>
+{% endif %}
+<div class="bg-white rounded-xl shadow p-6">
+    <h2 class="text-lg font-semibold text-gray-800 mb-2">Vos subordonnes</h2>
+    {% if subordonnes %}
+    <ul class="space-y-1 text-sm">{% for s in subordonnes %}<li>{{ s.prenom }} {{ s.nom }}{% if not s.actif %} (inactif){% endif %}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="text-gray-500">Aucun subordonne assigne.</p>
+    {% endif %}
+</div>
+{% endblock %}

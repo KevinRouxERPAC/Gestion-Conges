@@ -57,11 +57,13 @@ def create_app():
     from routes.auth import auth_bp
     from routes.rh import rh_bp
     from routes.salarie import salarie_bp
+    from routes.responsable import responsable_bp
 
     from routes.notifications import notifications_bp
     app.register_blueprint(auth_bp)
     app.register_blueprint(rh_bp, url_prefix="/rh")
     app.register_blueprint(salarie_bp, url_prefix="/salarie")
+    app.register_blueprint(responsable_bp, url_prefix="/responsable")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
 
     @app.context_processor
@@ -101,7 +103,7 @@ def create_app():
     with app.app_context():
         db.create_all()
         # Migrations
-        for mig in ("migrate_conges_statut", "migrate_user_email"):
+        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux"):
             try:
                 __import__(mig).migrate()
             except Exception:

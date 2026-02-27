@@ -91,9 +91,9 @@ def dashboard():
                 "type": c.type_conge,
             })
 
-    # Demandes en attente de validation
+    # Demandes en attente de validation RH (niveau 2, après validation responsable)
     demandes_attente = (
-        Conge.query.filter_by(statut="en_attente")
+        Conge.query.filter_by(statut="en_attente_rh")
         .order_by(Conge.cree_le.asc())
         .all()
     )
@@ -276,8 +276,8 @@ def supprimer_conge(conge_id):
 def valider_conge(conge_id):
     """Valider une demande de congé en attente."""
     conge = Conge.query.get_or_404(conge_id)
-    if conge.statut != "en_attente":
-        flash("Ce congé n'est pas en attente de validation.", "warning")
+    if conge.statut != "en_attente_rh":
+        flash("Ce congé n'est pas en attente de validation RH.", "warning")
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     if conge.type_conge in ("CP", "Anciennete"):
@@ -301,10 +301,10 @@ def valider_conge(conge_id):
 @rh_bp.route("/conge/<int:conge_id>/refuser", methods=["GET", "POST"])
 @rh_required
 def refuser_conge(conge_id):
-    """Refuser une demande de congé avec motif obligatoire."""
+    """Refuser une demande de congé avec motif obligatoire (validation niveau 2 - RH)."""
     conge = Conge.query.get_or_404(conge_id)
-    if conge.statut != "en_attente":
-        flash("Ce congé n'est pas en attente de validation.", "warning")
+    if conge.statut != "en_attente_rh":
+        flash("Ce congé n'est pas en attente de validation RH.", "warning")
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     if request.method == "POST":
@@ -569,6 +569,7 @@ def creer_salarie():
                 flash("Date d'embauche invalide.", "error")
                 return render_template("rh/salarie_form.html", salarie=None, mode="create")
 
+        r_id = request.form.get("responsable_id", "").strip()
         user = User(
             nom=nom,
             prenom=prenom,
@@ -577,6 +578,7 @@ def creer_salarie():
             role=role,
             actif=True,
             date_embauche=date_embauche,
+            responsable_id=int(r_id) if r_id else None,
         )
         db.session.add(user)
         db.session.commit()
@@ -586,7 +588,8 @@ def creer_salarie():
 
     # #region agent log
     try:
-        out = render_template("rh/salarie_form.html", salarie=None, mode="create")
+        responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
+        out = render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=responsables)
         _debug_log({"message": "render_template success", "hypothesisId": "A,C,E"})
         return out
     except Exception as e:
@@ -600,6 +603,7 @@ def creer_salarie():
 def modifier_salarie(user_id):
     """Modification d'un salarié existant côté RH."""
     user = User.query.get_or_404(user_id)
+    responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
 
     if request.method == "POST":
         nom = request.form.get("nom", "").strip()
@@ -612,7 +616,7 @@ def modifier_salarie(user_id):
 
         if not nom or not prenom or not identifiant:
             flash("Nom, prénom et identifiant sont obligatoires.", "error")
-            return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
         existing = User.query.filter(
             User.identifiant == identifiant,
@@ -620,7 +624,7 @@ def modifier_salarie(user_id):
         ).first()
         if existing:
             flash("Un autre utilisateur utilise déjà cet identifiant.", "error")
-            return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
         date_embauche = None
         if date_embauche_str:
@@ -628,7 +632,7 @@ def modifier_salarie(user_id):
                 date_embauche = datetime.strptime(date_embauche_str, "%Y-%m-%d").date()
             except ValueError:
                 flash("Date d'embauche invalide.", "error")
-                return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+                return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
         user.nom = nom
         user.prenom = prenom
@@ -638,10 +642,11 @@ def modifier_salarie(user_id):
         user.actif = actif_str == "on"
         if mot_de_passe:
             user.mot_de_passe_hash = hash_password(mot_de_passe)
-
+        r_id = request.form.get("responsable_id", "").strip()
+        user.responsable_id = int(r_id) if r_id else None
         db.session.commit()
         flash("Salarié mis à jour.", "success")
         return redirect(url_for("rh.liste_salaries"))
 
-    return render_template("rh/salarie_form.html", salarie=user, mode="edit")
+    return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 

@@ -15,12 +15,15 @@ class Conge(db.Model):
     cree_le = db.Column(db.DateTime, default=datetime.utcnow)
     modifie_le = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # Workflow de validation : valide, en_attente, refuse
-    statut = db.Column(db.String(20), nullable=False, default="valide")
-    valide_par_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    # Workflow validation 2 niveaux : en_attente_responsable → en_attente_rh → valide | refuse
+    statut = db.Column(db.String(30), nullable=False, default="valide")  # en_attente_responsable, en_attente_rh, valide, refuse
+    valide_par_responsable_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+    valide_par_responsable_le = db.Column(db.DateTime, nullable=True)
+    valide_par_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # RH (validation niveau 2)
     valide_le = db.Column(db.DateTime, nullable=True)
     motif_refus = db.Column(db.Text, nullable=True)
 
+    valide_par_responsable = db.relationship("User", foreign_keys=[valide_par_responsable_id])
     valide_par = db.relationship("User", foreign_keys=[valide_par_id])
 
     def __repr__(self):

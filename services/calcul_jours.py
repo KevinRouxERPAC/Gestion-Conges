@@ -39,7 +39,7 @@ def detecter_chevauchement(user_id, date_debut, date_fin, conge_id_exclu=None):
         Conge.user_id == user_id,
         Conge.date_debut <= date_fin,
         Conge.date_fin >= date_debut,
-        Conge.statut.in_(["valide", "en_attente"]),
+        Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
     )
     if conge_id_exclu:
         query = query.filter(Conge.id != conge_id_exclu)
