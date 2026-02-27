@@ -24,7 +24,7 @@ Si un element est `MANQUANT` ou `NON` :
 
 1. **Generer les cles VAPID** (si `vapid_private.pem` est manquant) :
    ```bash
-   python gen_vapid_keys.py
+   python scripts/gen_vapid_keys.py
    ```
 2. **Verifier les dependances** : `pywebpush` et `py_vapid` (ou `vapid`) doivent etre installes (`pip install -r requirements.txt`).
 

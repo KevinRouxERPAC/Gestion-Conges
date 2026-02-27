@@ -20,8 +20,6 @@ def login():
     if current_user.is_authenticated:
         if current_user.role == "rh":
             return redirect(url_for("rh.dashboard"))
-        if current_user.role == "responsable":
-            return redirect(url_for("responsable.dashboard"))
         return redirect(url_for("salarie.accueil"))
 
     if request.method == "POST":
@@ -36,8 +34,6 @@ def login():
             flash("Connexion réussie.", "success")
             if user.role == "rh":
                 return redirect(url_for("rh.dashboard"))
-            if user.role == "responsable":
-                return redirect(url_for("responsable.dashboard"))
             return redirect(url_for("salarie.accueil"))
         else:
             flash("Identifiant ou mot de passe incorrect.", "error")

@@ -27,6 +27,9 @@
     </div>
 </div>
 
+{% set conges_valides = conges|selectattr('statut', 'equalto', 'valide')|list %}
+{% set total_cp_pris = conges_valides|selectattr('type_conge', 'equalto', 'CP')|map(attribute='nb_jours_ouvrables')|sum %}
+{% set total_anc_pris = conges_valides|selectattr('type_conge', 'equalto', 'Anciennete')|map(attribute='nb_jours_ouvrables')|sum %}
 <!-- Solde -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div class="bg-white rounded-xl shadow p-6">
@@ -34,7 +37,7 @@
         <div class="text-4xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
             {{ solde.solde_restant }}
         </div>
-        <div class="text-sm text-gray-400 mt-1">jour(s) disponible(s)</div>
+        <div class="text-xs text-gray-400 mt-1">Alloué: {{ solde.total_alloue }} − Consommé: {{ solde.total_consomme }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
         <div class="text-sm font-medium text-gray-500">Total alloué</div>
@@ -44,7 +47,7 @@
     <div class="bg-white rounded-xl shadow p-6">
         <div class="text-sm font-medium text-gray-500">Total consommé</div>
         <div class="text-3xl font-bold text-gray-700 mt-1">{{ solde.total_consomme }}</div>
-        <div class="text-sm text-gray-400 mt-1">jour(s) pris</div>
+        <div class="text-xs text-gray-400 mt-1">CP: {{ total_cp_pris }} | Ancienneté: {{ total_anc_pris }}</div>
     </div>
 </div>
 

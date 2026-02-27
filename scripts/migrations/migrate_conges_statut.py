@@ -1,11 +1,12 @@
 """
 Migration : ajout du workflow de validation aux congés (statut, valide_par_id, valide_le, motif_refus).
-S'exécute automatiquement au démarrage de l'app, ou manuellement : python migrate_conges_statut.py
+S'exécute automatiquement au démarrage de l'app, ou manuellement : python scripts/migrations/migrate_conges_statut.py
 """
 import sqlite3
 import os
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# Racine du projet (parent de scripts/migrations)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "gestion_conges.db")
 
 

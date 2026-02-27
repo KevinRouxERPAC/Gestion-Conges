@@ -102,7 +102,11 @@ def create_app():
     # #endregion
     with app.app_context():
         db.create_all()
-        # Migrations
+        # Migrations (scripts/migrations/)
+        import sys
+        _migrations_dir = os.path.join(os.path.dirname(__file__), "scripts", "migrations")
+        if _migrations_dir not in sys.path:
+            sys.path.insert(0, _migrations_dir)
         for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux"):
             try:
                 __import__(mig).migrate()

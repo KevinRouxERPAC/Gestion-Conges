@@ -6,7 +6,8 @@ Migration : validation a 2 niveaux (responsable puis RH).
 import sqlite3
 import os
 
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+# Racine du projet (parent de scripts/migrations)
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 DB_PATH = os.path.join(BASE_DIR, "gestion_conges.db")
 
 
