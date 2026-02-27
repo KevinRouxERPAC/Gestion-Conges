@@ -67,6 +67,7 @@
         </span>
         {% if salarie.id != current_user.id %}
         <form method="POST" action="{{ url_for('rh.modifier_statut_salarie', user_id=salarie.id) }}" class="flex flex-wrap items-center gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <select name="actif" class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary text-sm">
                 <option value="on" {% if salarie.actif %}selected{% endif %}>Actif</option>
                 <option value="off" {% if not salarie.actif %}selected{% endif %}>Inactif</option>
@@ -89,6 +90,7 @@
     </div>
     <form method="POST" action="{{ url_for('rh.modifier_allocation', user_id=salarie.id) }}"
           class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4" x-show="open" x-transition>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
             <label class="block text-sm text-gray-600 mb-1">Jours congés payés</label>
             <input type="number" name="jours_alloues" value="{{ solde.jours_conges }}" min="0"
@@ -167,6 +169,7 @@
                 <td class="px-6 py-4 text-right space-x-2">
                     {% if conge.statut == 'en_attente_rh' %}
                     <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=conge.id) }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium">Valider</button>
                     </form>
                     <a href="{{ url_for('rh.refuser_conge', conge_id=conge.id) }}"
@@ -176,6 +179,7 @@
                        class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Modifier</a>
                     <form method="POST" action="{{ url_for('rh.supprimer_conge', conge_id=conge.id) }}"
                           class="inline" onsubmit="return confirm('Supprimer ce congé ?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Supprimer</button>
                     </form>
                     {% endif %}

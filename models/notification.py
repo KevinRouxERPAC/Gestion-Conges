@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from models import db
 
 
@@ -12,7 +12,7 @@ class Notification(db.Model):
     titre = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
     lue = db.Column(db.Boolean, default=False, nullable=False)
-    cree_le = db.Column(db.DateTime, default=datetime.utcnow)
+    cree_le = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     conge_id = db.Column(db.Integer, db.ForeignKey("conges.id"), nullable=True)
 
     utilisateur = db.relationship("User", backref=db.backref("notifications", lazy="dynamic"))

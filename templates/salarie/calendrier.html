@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Calendrier{% endblock %}
+{% block title %}Calendrier des congés{% endblock %}
 
 {% block content %}
 <div class="mb-8 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -66,14 +66,16 @@
                                     {% elif e.type == 'Maladie' %}bg-red-100 text-red-800
                                     {% elif e.type == 'Anciennete' %}bg-green-100 text-green-800
                                     {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                    {{ e.type }}
+                                    {{ 'Congés' if e.type in ['CP', 'Anciennete'] else e.type }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">
                                 {% if e.statut == 'valide' or not e.statut %}
                                 <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
-                                {% elif e.statut == 'en_attente' %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente</span>
+                                {% elif e.statut == 'en_attente_responsable' %}
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">En attente responsable</span>
+                                {% elif e.statut == 'en_attente_rh' %}
+                                <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente RH</span>
                                 {% elif e.statut == 'refuse' %}
                                 <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">Refusé</span>
                                 {% else %}
@@ -140,9 +142,9 @@
     </div>
 </div>
 
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/fr.global.min.js"></script>
+
+<script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
 <script type="application/json" id="calendar-events-data">{{ events|tojson }}</script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -162,12 +164,15 @@ document.addEventListener('DOMContentLoaded', function() {
         'default': '#6b7280'
     };
 
+    const getDisplayType = (type) => (type === 'CP' || type === 'Anciennete') ? 'Congés' : type;
+
     const calendarEvents = eventsData.map(e => {
         const endDate = new Date(e.end);
         endDate.setDate(endDate.getDate() + 1);
-        const isEnAttente = e.statut === 'en_attente';
+        const isEnAttente = e.statut === 'en_attente_responsable' || e.statut === 'en_attente_rh';
         const color = typeColors[e.type] || typeColors['default'];
-        const baseTitle = isEnAttente ? `${e.type} - ${e.jours} j (en attente)` : `${e.type} - ${e.jours} jour(s)`;
+        const displayType = getDisplayType(e.type);
+        const baseTitle = isEnAttente ? `${displayType} - ${e.jours} j (en attente)` : `${displayType} - ${e.jours} jour(s)`;
         const title = e.salarie ? `${e.salarie} – ${baseTitle}` : baseTitle;
         return {
             title: title,

@@ -1,5 +1,5 @@
 # Blueprint Responsable - validation niveau 1
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import wraps
 from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
@@ -40,7 +40,7 @@ def valider_conge(conge_id):
         return redirect(url_for("responsable.dashboard"))
     conge.statut = "en_attente_rh"
     conge.valide_par_responsable_id = current_user.id
-    conge.valide_par_responsable_le = datetime.utcnow()
+    conge.valide_par_responsable_le = datetime.now(timezone.utc)()
     db.session.commit()
     notifier_rh_demande_transmise(conge)
     db.session.commit()
@@ -65,9 +65,9 @@ def refuser_conge(conge_id):
             return render_template("responsable/refuser_conge.html", conge=conge)
         conge.statut = "refuse"
         conge.valide_par_responsable_id = current_user.id
-        conge.valide_par_responsable_le = datetime.utcnow()
+        conge.valide_par_responsable_le = datetime.now(timezone.utc)()
         conge.valide_par_id = current_user.id
-        conge.valide_le = datetime.utcnow()
+        conge.valide_le = datetime.now(timezone.utc)()
         conge.motif_refus = motif
         db.session.commit()
         notifier_conge_refuse(conge, motif)

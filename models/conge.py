@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from models import db
 
 
@@ -12,8 +12,8 @@ class Conge(db.Model):
     nb_jours_ouvrables = db.Column(db.Integer, nullable=False)
     type_conge = db.Column(db.String(50), nullable=False, default="CP")  # CP, RTT, Sans solde, Maladie, Anciennete
     commentaire = db.Column(db.Text, nullable=True)
-    cree_le = db.Column(db.DateTime, default=datetime.utcnow)
-    modifie_le = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    cree_le = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    modifie_le = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
 
     # Workflow validation 2 niveaux : en_attente_responsable → en_attente_rh → valide | refuse
     statut = db.Column(db.String(30), nullable=False, default="valide")  # en_attente_responsable, en_attente_rh, valide, refuse

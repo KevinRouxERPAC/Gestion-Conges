@@ -1,4 +1,4 @@
-﻿/* Custom styles for ERPAC Gestion des Congés */
+/* Custom styles for ERPAC Gestion des Congés */
 /* Couleurs officielles ERPAC (site kevinrouxerpac.github.io / repo KevinRouxERPAC/KevinRouxERPAC.github.io) */
 :root {
   --erpac-primary: #008C3A;
@@ -14,9 +14,9 @@
     }
 }
 
-/* Smooth transitions */
-* {
-    transition-property: background-color, border-color, color, fill, stroke;
+/* Transitions on interactive elements only */
+a, button, input, select, textarea, [role="button"] {
+    transition-property: background-color, border-color, color, box-shadow;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }

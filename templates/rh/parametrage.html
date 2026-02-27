@@ -11,6 +11,7 @@
 <div class="bg-white rounded-xl shadow p-6 mb-8">
     <h2 class="text-lg font-semibold text-gray-800 mb-4">Exercice fiscal</h2>
     <form method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_parametrage">
         <div>
             <label class="block text-sm text-gray-600 mb-1">Début de l'exercice</label>
@@ -43,6 +44,7 @@
     <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-800">Jours fériés</h2>
         <form method="POST" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="charger_feries">
             <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
                 Charger les jours fériés français
@@ -52,6 +54,7 @@
 
     <!-- Add custom holiday -->
     <form method="POST" class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="ajouter_ferie">
         <div>
             <label class="block text-xs text-gray-500 mb-1">Date</label>
@@ -86,6 +89,7 @@
                 <td class="px-4 py-2 text-sm text-gray-500">{{ 'Automatique' if jf.auto_genere else 'Manuel' }}</td>
                 <td class="px-4 py-2 text-right">
                     <form method="POST" class="inline" onsubmit="return confirm('Supprimer ce jour férié ?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="supprimer_ferie">
                         <input type="hidden" name="ferie_id" value="{{ jf.id }}">
                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Supprimer</button>

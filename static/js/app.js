@@ -1,4 +1,9 @@
 // ERPAC Gestion des Congés - App JS
+
+function getCSRFToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? meta.getAttribute('content') : '';
+}
 document.addEventListener('DOMContentLoaded', function() {
     // Date validation on forms
     const dateDebut = document.getElementById('date_debut');
@@ -12,6 +17,20 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+
+    // Anti double-soumission : désactive le bouton après le premier clic
+    document.querySelectorAll('form').forEach(function(form) {
+        form.addEventListener('submit', function() {
+            var btns = form.querySelectorAll('button[type="submit"], input[type="submit"]');
+            btns.forEach(function(btn) {
+                btn.disabled = true;
+                btn.classList.add('opacity-50', 'cursor-not-allowed');
+            });
+            setTimeout(function() {
+                btns.forEach(function(btn) { btn.disabled = false; btn.classList.remove('opacity-50', 'cursor-not-allowed'); });
+            }, 5000);
+        });
+    });
 
     // Web Push : enregistrement du Service Worker et bouton "Activer les alertes"
     if (document.querySelector('.erpac-push-enable')) {
@@ -127,7 +146,7 @@ function doSubscribe(reg, btn) {
             };
             return fetch('/notifications/push-subscribe', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCSRFToken() },
                 body: JSON.stringify(body),
                 credentials: 'same-origin'
             }).then(function(res) {

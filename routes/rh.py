@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, timezone, date
 from functools import wraps
 
 import bcrypt
@@ -18,11 +18,9 @@ from services.export import export_conges_excel, export_conges_equipe_excel, exp
 
 rh_bp = Blueprint("rh", __name__)
 
-
 def hash_password(password: str) -> str:
     """Hasher un mot de passe pour création / modification côté RH."""
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
 
 def rh_required(f):
     @wraps(f)
@@ -33,7 +31,6 @@ def rh_required(f):
             return redirect(url_for("auth.login"))
         return f(*args, **kwargs)
     return decorated_function
-
 
 @rh_bp.route("/dashboard")
 @rh_required
@@ -123,7 +120,6 @@ def dashboard():
         demandes_attente=demandes_attente,
     )
 
-
 @rh_bp.route("/salarie/<int:user_id>")
 @rh_required
 def salarie_detail(user_id):
@@ -140,7 +136,6 @@ def salarie_detail(user_id):
         conges=conges,
         parametrage=param,
     )
-
 
 @rh_bp.route("/salarie/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
 @rh_required
@@ -195,7 +190,7 @@ def ajouter_conge(user_id):
             commentaire=commentaire,
             statut="valide",
             valide_par_id=current_user.id,
-            valide_le=datetime.utcnow(),
+            valide_le=datetime.now(timezone.utc)(),
         )
         db.session.add(conge)
         db.session.commit()
@@ -204,7 +199,6 @@ def ajouter_conge(user_id):
         return redirect(url_for("rh.salarie_detail", user_id=user.id))
 
     return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
-
 
 @rh_bp.route("/conge/<int:conge_id>/modifier", methods=["GET", "POST"])
 @rh_required
@@ -259,7 +253,6 @@ def modifier_conge(conge_id):
 
     return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
 
-
 @rh_bp.route("/conge/<int:conge_id>/supprimer", methods=["POST"])
 @rh_required
 def supprimer_conge(conge_id):
@@ -269,7 +262,6 @@ def supprimer_conge(conge_id):
     db.session.commit()
     flash("Congé supprimé.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
-
 
 @rh_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
 @rh_required
@@ -287,7 +279,7 @@ def valider_conge(conge_id):
 
     conge.statut = "valide"
     conge.valide_par_id = current_user.id
-    conge.valide_le = datetime.utcnow()
+    conge.valide_le = datetime.now(timezone.utc)()
     conge.motif_refus = None
     db.session.commit()
 
@@ -296,7 +288,6 @@ def valider_conge(conge_id):
 
     flash("Demande de congé validée.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
-
 
 @rh_bp.route("/conge/<int:conge_id>/refuser", methods=["GET", "POST"])
 @rh_required
@@ -315,7 +306,7 @@ def refuser_conge(conge_id):
 
         conge.statut = "refuse"
         conge.valide_par_id = current_user.id
-        conge.valide_le = datetime.utcnow()
+        conge.valide_le = datetime.now(timezone.utc)()
         conge.motif_refus = motif
         db.session.commit()
 
@@ -326,7 +317,6 @@ def refuser_conge(conge_id):
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     return render_template("rh/refuser_conge.html", conge=conge)
-
 
 @rh_bp.route("/parametrage", methods=["GET", "POST"])
 @rh_required
@@ -431,7 +421,6 @@ def parametrage():
 
     return render_template("rh/parametrage.html", parametrage=param, jours_feries=jours_feries_list)
 
-
 @rh_bp.route("/salarie/<int:user_id>/allocation", methods=["POST"])
 @rh_required
 def modifier_allocation(user_id):
@@ -458,7 +447,6 @@ def modifier_allocation(user_id):
     flash("Allocation mise à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
-
 @rh_bp.route("/salarie/<int:user_id>/statut", methods=["POST"])
 @rh_required
 def modifier_statut_salarie(user_id):
@@ -474,14 +462,12 @@ def modifier_statut_salarie(user_id):
     flash("Statut du salarié mis à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
-
 @rh_bp.route("/salaries")
 @rh_required
 def liste_salaries():
     """Liste complète des salariés pour gestion RH."""
     salaries = User.query.order_by(User.nom, User.prenom).all()
     return render_template("rh/salaries.html", salaries=salaries)
-
 
 @rh_bp.route("/export/equipe/excel")
 @rh_required
@@ -503,7 +489,6 @@ def export_equipe_excel():
     filename = f"conges_equipe_{date.today().strftime('%Y%m%d')}.xlsx"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-
 @rh_bp.route("/salarie/<int:user_id>/export/excel")
 @rh_required
 def export_salarie_excel(user_id):
@@ -513,7 +498,6 @@ def export_salarie_excel(user_id):
     buffer = export_conges_excel(conges, user.nom, user.prenom)
     filename = f"conges_{user.prenom}_{user.nom}_{date.today().strftime('%Y%m%d')}.xlsx"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
 
 @rh_bp.route("/salarie/<int:user_id>/export/pdf")
 @rh_required
@@ -526,24 +510,10 @@ def export_salarie_pdf(user_id):
     filename = f"conges_{user.prenom}_{user.nom}_{date.today().strftime('%Y%m%d')}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
-
-def _debug_log(payload):
-    import json
-    log_entry = {"timestamp": __import__("time").time() * 1000, "location": "routes/rh.py:creer_salarie", **payload}
-    try:
-        with open(r"c:\Sites\Gestion-Conges\.cursor\debug.log", "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_entry, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-
-
 @rh_bp.route("/salarie/nouveau", methods=["GET", "POST"])
 @rh_required
 def creer_salarie():
     """Création d'un nouveau salarié côté RH."""
-    # #region agent log
-    _debug_log({"message": "creer_salarie entered", "data": {"method": request.method}, "hypothesisId": "B,D"})
-    # #endregion
     if request.method == "POST":
         nom = request.form.get("nom", "").strip()
         prenom = request.form.get("prenom", "").strip()
@@ -586,16 +556,8 @@ def creer_salarie():
         flash("Salarié créé avec succès.", "success")
         return redirect(url_for("rh.liste_salaries"))
 
-    # #region agent log
-    try:
-        responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
-        out = render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=responsables)
-        _debug_log({"message": "render_template success", "hypothesisId": "A,C,E"})
-        return out
-    except Exception as e:
-        _debug_log({"message": "render_template exception", "data": {"type": type(e).__name__, "str": str(e)}, "hypothesisId": "A,C,E"})
-        raise
-    # #endregion
+    responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
+    return render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=responsables)
 
 
 @rh_bp.route("/salarie/<int:user_id>/modifier", methods=["GET", "POST"])

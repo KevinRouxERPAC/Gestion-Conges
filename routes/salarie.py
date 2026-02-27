@@ -36,7 +36,7 @@ def demander_conge():
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         type_conge = request.form.get("type_conge", "").strip()
-        if type_conge not in {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}:
+        if type_conge not in {"CP", "RTT", "Sans solde"}:
             flash("Merci de sélectionner un type de congé.", "error")
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
@@ -109,6 +109,22 @@ def accueil():
         parametrage=param,
     )
 
+
+
+@salarie_bp.route("/conge/<int:conge_id>/annuler", methods=["POST"])
+@login_required
+def annuler_conge(conge_id):
+    conge = Conge.query.get_or_404(conge_id)
+    if conge.user_id != current_user.id:
+        flash("Vous ne pouvez annuler que vos propres demandes.", "error")
+        return redirect(url_for("salarie.accueil"))
+    if conge.statut not in ("en_attente_responsable", "en_attente_rh"):
+        flash("Seules les demandes en attente peuvent être annulées.", "warning")
+        return redirect(url_for("salarie.accueil"))
+    conge.statut = "annule"
+    db.session.commit()
+    flash("Demande de congé annulée.", "success")
+    return redirect(url_for("salarie.accueil"))
 
 @salarie_bp.route("/calendrier")
 @login_required

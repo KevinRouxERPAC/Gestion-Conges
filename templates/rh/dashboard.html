@@ -65,6 +65,7 @@
                     <td class="py-3">{{ c.nb_jours_ouvrables }} j</td>
                     <td class="py-3 text-right space-x-2">
                         <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=c.id) }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button>
                         </form>
                         <a href="{{ url_for('rh.refuser_conge', conge_id=c.id) }}"
@@ -259,9 +260,9 @@
     </table>
 </div>
 
-<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/fr.global.min.js"></script>
+
+<script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
+<script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const eventsData = {{ calendar_events|tojson }};

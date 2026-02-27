@@ -1,12 +1,12 @@
 Flask==3.1.0
 Flask-Login==0.6.3
+Flask-WTF==1.2.2
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.36
 bcrypt==4.2.1
 python-dateutil==2.9.0
 openpyxl==3.1.2
 reportlab==4.2.5
-gunicorn==23.0.0
 waitress==3.0.0
 pywebpush==1.14.0
 py-vapid==1.9.0

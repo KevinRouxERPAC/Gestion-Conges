@@ -5,7 +5,12 @@ BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 class Config:
     BASE_DIR = BASE_DIR
-    SECRET_KEY = os.environ.get("SECRET_KEY", "Gh3InTZ80Q5mYfkmZiVWIVoRewwJ0ISDrsXsqdMjxPk=")
+    SECRET_KEY = os.environ.get("SECRET_KEY", "")
+    if not SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY non défini. Définissez la variable d'environnement SECRET_KEY "
+            "(ex: dans web.config ou .env). Générez-en une avec : python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        )
     # timeout=15 : SQLite attend jusqu'à 15 s si la base est verrouillée (écritures concurrentes multi-utilisateurs)
     SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
     SQLALCHEMY_TRACK_MODIFICATIONS = False

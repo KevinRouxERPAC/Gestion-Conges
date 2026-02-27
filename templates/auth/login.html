@@ -10,6 +10,7 @@
         </div>
 
         <form method="POST" class="space-y-6">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div>
                 <label for="identifiant" class="block text-sm font-medium text-gray-700 mb-1">Identifiant</label>
                 <input type="text" id="identifiant" name="identifiant" required autofocus

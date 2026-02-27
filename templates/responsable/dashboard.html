@@ -20,7 +20,8 @@
             <td class="py-3">{{ c.type_conge }}</td>
             <td class="py-3">{{ c.nb_jours_ouvrables }} j</td>
             <td class="py-3 text-right space-x-2">
-                <form method="POST" action="{{ url_for("responsable.valider_conge", conge_id=c.id) }}" class="inline"><button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button></form>
+                <form method="POST" action="{{ url_for("responsable.valider_conge", conge_id=c.id) }}" class="inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button></form>
                 <a href="{{ url_for("responsable.refuser_conge", conge_id=c.id) }}" class="text-red-600 hover:text-red-800 font-medium">Refuser</a>
             </td>
         </tr>
