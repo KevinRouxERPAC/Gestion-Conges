@@ -11,7 +11,13 @@ from models.jour_ferie import JourFerie
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.user import User
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
-from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_suffisant
+from services.solde import (
+    calculer_solde,
+    get_parametrage_actif,
+    verifier_solde_suffisant,
+    verifier_solde_rtt_suffisant,
+    generer_allocations_pour_parametrage,
+)
 from services.jours_feries import get_jours_feries
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
@@ -172,14 +178,35 @@ def ajouter_conge(user_id):
             )
             return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
 
+        nb_heures_rtt = None
+
         if type_conge in ("CP", "Anciennete"):
             if not verifier_solde_suffisant(user.id, nb_jours):
                 flash(
-                    f"Solde insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
+                    f"Solde CP insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
                     f"{nb_jours} jour(s) demandé(s).",
                     "error",
                 )
                 return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
+        elif type_conge == "RTT":
+            try:
+                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
+            except ValueError:
+                nb_heures_rtt_val = 0
+            if nb_heures_rtt_val <= 0:
+                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
+                return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
+
+            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val):
+                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+                flash(
+                    f"Solde RTT insuffisant. {solde_rtt} heure(s) restant(s), "
+                    f"{nb_heures_rtt_val} heure(s) demandé(s).",
+                    "error",
+                )
+                return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info)
+
+            nb_heures_rtt = nb_heures_rtt_val
 
         conge = Conge(
             user_id=user.id,
@@ -190,7 +217,8 @@ def ajouter_conge(user_id):
             commentaire=commentaire,
             statut="valide",
             valide_par_id=current_user.id,
-            valide_le=datetime.now(timezone.utc)(),
+            valide_le=datetime.now(timezone.utc),
+            nb_heures_rtt=nb_heures_rtt,
         )
         db.session.add(conge)
         db.session.commit()
@@ -236,16 +264,39 @@ def modifier_conge(conge_id):
             )
             return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
 
+        nb_heures_rtt = conge.nb_heures_rtt
+
         if type_conge in ("CP", "Anciennete"):
             if not verifier_solde_suffisant(user.id, nb_jours, conge_id_exclu=conge.id):
-                flash("Solde insuffisant pour cette modification.", "error")
+                flash("Solde CP insuffisant pour cette modification.", "error")
                 return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
+            nb_heures_rtt = None
+        elif type_conge == "RTT":
+            try:
+                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", str(conge.nb_heures_rtt or 0)))
+            except ValueError:
+                nb_heures_rtt_val = 0
+            if nb_heures_rtt_val <= 0:
+                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
+                return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
+
+            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val, conge_id_exclu=conge.id):
+                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+                flash(
+                    f"Solde RTT insuffisant pour cette modification. {solde_rtt} heure(s) restant(s), "
+                    f"{nb_heures_rtt_val} heure(s) demandé(s).",
+                    "error",
+                )
+                return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info)
+
+            nb_heures_rtt = nb_heures_rtt_val
 
         conge.date_debut = date_debut
         conge.date_fin = date_fin
         conge.nb_jours_ouvrables = nb_jours
         conge.type_conge = type_conge
         conge.commentaire = commentaire
+        conge.nb_heures_rtt = nb_heures_rtt
         db.session.commit()
 
         flash("Congé modifié avec succès.", "success")
@@ -274,12 +325,16 @@ def valider_conge(conge_id):
 
     if conge.type_conge in ("CP", "Anciennete"):
         if not verifier_solde_suffisant(conge.user_id, conge.nb_jours_ouvrables):
-            flash("Solde insuffisant pour valider ce congé.", "error")
+            flash("Solde CP insuffisant pour valider ce congé.", "error")
+            return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+    elif conge.type_conge == "RTT":
+        if not verifier_solde_rtt_suffisant(conge.user_id, conge.nb_heures_rtt or 0):
+            flash("Solde RTT insuffisant pour valider ce congé.", "error")
             return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     conge.statut = "valide"
     conge.valide_par_id = current_user.id
-    conge.valide_le = datetime.now(timezone.utc)()
+    conge.valide_le = datetime.now(timezone.utc)
     conge.motif_refus = None
     db.session.commit()
 
@@ -306,7 +361,7 @@ def refuser_conge(conge_id):
 
         conge.statut = "refuse"
         conge.valide_par_id = current_user.id
-        conge.valide_le = datetime.now(timezone.utc)()
+        conge.valide_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
         db.session.commit()
 
@@ -338,6 +393,7 @@ def parametrage():
                 debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
                 fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
                 jours_defaut = int(request.form["jours_conges_defaut"])
+                rtt_heures_defaut = int(request.form["rtt_heures_defaut"])
             except (ValueError, KeyError):
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
@@ -347,6 +403,7 @@ def parametrage():
                     debut_exercice=debut,
                     fin_exercice=fin,
                     jours_conges_defaut=jours_defaut,
+                    rtt_heures_defaut=rtt_heures_defaut,
                     actif=True,
                 )
                 db.session.add(param)
@@ -354,9 +411,17 @@ def parametrage():
                 param.debut_exercice = debut
                 param.fin_exercice = fin
                 param.jours_conges_defaut = jours_defaut
+                param.rtt_heures_defaut = rtt_heures_defaut
 
             db.session.commit()
             flash("Paramétrage enregistré.", "success")
+            return redirect(url_for("rh.parametrage"))
+        elif action == "generer_allocations":
+            if not param:
+                flash("Aucun paramétrage actif. Configurez d'abord l'exercice.", "error")
+                return redirect(url_for("rh.parametrage"))
+            generer_allocations_pour_parametrage(param)
+            flash("Allocations CP et RTT générées/mises à jour pour tous les salariés actifs.", "success")
             return redirect(url_for("rh.parametrage"))
 
         elif action == "charger_feries":
@@ -439,6 +504,8 @@ def modifier_allocation(user_id):
         allocation.jours_alloues = int(request.form.get("jours_alloues", param.jours_conges_defaut))
         allocation.jours_anciennete = int(request.form.get("jours_anciennete", 0))
         allocation.jours_report = int(request.form.get("jours_report", 0))
+        allocation.rtt_heures_allouees = int(request.form.get("rtt_heures_allouees", param.rtt_heures_defaut))
+        allocation.rtt_heures_reportees = int(request.form.get("rtt_heures_reportees", 0))
     except ValueError:
         flash("Valeurs invalides.", "error")
         return redirect(url_for("rh.salarie_detail", user_id=user_id))

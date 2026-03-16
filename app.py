@@ -78,7 +78,7 @@ def create_app():
         _migrations_dir = os.path.join(os.path.dirname(__file__), "scripts", "migrations")
         if _migrations_dir not in sys.path:
             sys.path.insert(0, _migrations_dir)
-        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux"):
+        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux", "migrate_rtt_columns"):
             try:
                 __import__(mig).migrate()
             except Exception:

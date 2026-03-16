@@ -31,18 +31,18 @@
 <!-- Solde -->
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
     <div class="bg-white rounded-xl shadow p-5">
-        <div class="text-sm text-gray-500">Solde restant</div>
+        <div class="text-sm text-gray-500">Solde CP restant</div>
         <div class="text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
             {{ solde.solde_restant }} <span class="text-base text-gray-500">jour(s)</span>
         </div>
     </div>
     <div class="bg-white rounded-xl shadow p-5">
-        <div class="text-sm text-gray-500">Total alloué</div>
+        <div class="text-sm text-gray-500">Total CP alloué</div>
         <div class="text-2xl font-bold text-erpac-primary">{{ solde.total_alloue }}</div>
         <div class="text-xs text-gray-400 mt-1">CP: {{ solde.jours_conges }} | Anc: {{ solde.jours_anciennete }} | Report: {{ solde.jours_report }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-5">
-        <div class="text-sm text-gray-500">Consommé</div>
+        <div class="text-sm text-gray-500">CP consommés</div>
         <div class="text-2xl font-bold text-gray-700">{{ solde.total_consomme }}</div>
     </div>
     <div class="bg-white rounded-xl shadow p-5">
@@ -50,6 +50,11 @@
         <div class="text-sm font-medium text-gray-700 mt-1">
             {% if parametrage %}{{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}{% else %}Non configuré{% endif %}
         </div>
+        {% if solde.rtt_total_alloue is defined %}
+        <div class="text-xs text-gray-500 mt-2">
+            RTT allouées : {{ solde.rtt_total_alloue }} h · RTT consommées : {{ solde.rtt_total_consomme }} h · RTT restantes : {{ solde.rtt_solde_restant }} h
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -89,7 +94,7 @@
         <span class="text-gray-400" x-text="open ? '▲' : '▼'"></span>
     </div>
     <form method="POST" action="{{ url_for('rh.modifier_allocation', user_id=salarie.id) }}"
-          class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4" x-show="open" x-transition>
+          class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4" x-show="open" x-transition>
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div>
             <label class="block text-sm text-gray-600 mb-1">Jours congés payés</label>
@@ -104,6 +109,16 @@
         <div>
             <label class="block text-sm text-gray-600 mb-1">Jours report</label>
             <input type="number" name="jours_report" value="{{ solde.jours_report }}" min="0"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Heures RTT allouées</label>
+            <input type="number" name="rtt_heures_allouees" value="{{ solde.rtt_total_alloue }}" min="0"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Heures RTT reportées</label>
+            <input type="number" name="rtt_heures_reportees" value="{{ solde.get('rtt_heures_reportees', 0) }}" min="0"
                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
         </div>
         <div class="flex items-end">

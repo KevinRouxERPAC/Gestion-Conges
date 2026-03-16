@@ -30,23 +30,26 @@
 {% set conges_valides = conges|selectattr('statut', 'equalto', 'valide')|list %}
 {% set total_cp_pris = conges_valides|selectattr('type_conge', 'equalto', 'CP')|map(attribute='nb_jours_ouvrables')|sum %}
 {% set total_anc_pris = conges_valides|selectattr('type_conge', 'equalto', 'Anciennete')|map(attribute='nb_jours_ouvrables')|sum %}
-{% set total_rtt_pris = conges_valides|selectattr('type_conge', 'equalto', 'RTT')|map(attribute='nb_jours_ouvrables')|sum %}
+{# RTT en heures : on agrège nb_heures_rtt plutôt que nb_jours_ouvrables #}
+{% set total_rtt_pris = conges_valides|selectattr('type_conge', 'equalto', 'RTT')|map(attribute='nb_heures_rtt')|sum %}
 {% set cp_restants = solde.jours_conges - total_cp_pris %}
 {% set anc_restants = solde.jours_anciennete - total_anc_pris %}
 <!-- Solde -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Solde restant</div>
+        <div class="text-sm font-medium text-gray-500">Solde CP restant</div>
         <div class="text-4xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
             {{ solde.solde_restant }}
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Congés restants (CP / ancienneté) : {{ solde.solde_restant }}
-            | RTT pris: {{ total_rtt_pris }}
+            {% if solde.rtt_total_alloue is defined %}
+                | RTT restant: {{ solde.rtt_solde_restant }} h · RTT pris: {{ total_rtt_pris|default(0) }} h
+            {% endif %}
         </div>
     </div>
     <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total de congés alloués</div>
+        <div class="text-sm font-medium text-gray-500">Total de congés CP alloués</div>
         <div class="text-3xl font-bold text-erpac-primary mt-1">{{ solde.total_alloue }}</div>
         <div class="text-xs text-gray-400 mt-1">
             Congés (CP / ancienneté / report) : {{ solde.jours_conges + solde.jours_anciennete + solde.jours_report }}

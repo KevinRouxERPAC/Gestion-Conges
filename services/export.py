@@ -49,7 +49,7 @@ def export_conges_excel(conges, user_nom="", user_prenom=""):
     ws["A1"].font = Font(bold=True, size=14)
     ws.append([])
 
-    headers = ["Date début", "Date fin", "Jours ouvrables", "Type", "Statut"]
+    headers = ["Date début", "Date fin", "Jours ouvrables", "Heures RTT", "Type", "Statut"]
     ws.append(headers)
     _style_header_xlsx(ws, ws.max_row)
 
@@ -58,11 +58,12 @@ def export_conges_excel(conges, user_nom="", user_prenom=""):
             c.date_debut.strftime("%d/%m/%Y"),
             c.date_fin.strftime("%d/%m/%Y"),
             c.nb_jours_ouvrables,
+            getattr(c, "nb_heures_rtt", None) or "",
             c.type_conge,
             getattr(c, "statut", "valide") or "valide",
         ])
 
-    for col in range(1, 6):
+    for col in range(1, 7):
         ws.column_dimensions[get_column_letter(col)].width = 18
 
     buffer = io.BytesIO()
@@ -87,7 +88,7 @@ def export_conges_equipe_excel(users_with_conges):
     ws.append([f"Export du {date.today().strftime('%d/%m/%Y')}"])
     ws.append([])
 
-    headers = ["Salarié", "Date début", "Date fin", "Jours", "Type", "Statut"]
+    headers = ["Salarié", "Date début", "Date fin", "Jours", "Heures RTT", "Type", "Statut"]
     ws.append(headers)
     _style_header_xlsx(ws, ws.max_row)
 
@@ -101,11 +102,12 @@ def export_conges_equipe_excel(users_with_conges):
                 c.date_debut.strftime("%d/%m/%Y"),
                 c.date_fin.strftime("%d/%m/%Y"),
                 c.nb_jours_ouvrables,
+                getattr(c, "nb_heures_rtt", None) or "",
                 c.type_conge,
                 getattr(c, "statut", "valide") or "valide",
             ])
 
-    for col in range(1, 7):
+    for col in range(1, 8):
         ws.column_dimensions[get_column_letter(col)].width = 18
 
     buffer = io.BytesIO()
@@ -147,10 +149,15 @@ def export_conges_pdf(conges, solde_info, user_nom="", user_prenom=""):
     if solde_info:
         elements.append(Paragraph("<b>Solde</b>", styles["Heading2"]))
         solde_data = [
-            ["Total alloué", str(solde_info.get("total_alloue", 0))],
-            ["Total consommé", str(solde_info.get("total_consomme", 0))],
-            ["Solde restant", str(solde_info.get("solde_restant", 0))],
+            ["Total CP alloué (jours)", str(solde_info.get("total_alloue", 0))],
+            ["CP consommés (jours)", str(solde_info.get("total_consomme", 0))],
+            ["CP restants (jours)", str(solde_info.get("solde_restant", 0))],
         ]
+        # Ajouter éventuellement les RTT si présents
+        if "rtt_total_alloue" in solde_info:
+            solde_data.append(["RTT allouées (heures)", str(solde_info.get("rtt_total_alloue", 0))])
+            solde_data.append(["RTT consommées (heures)", str(solde_info.get("rtt_total_consomme", 0))])
+            solde_data.append(["RTT restantes (heures)", str(solde_info.get("rtt_solde_restant", 0))])
         t_solde = Table(solde_data, colWidths=[6 * cm, 4 * cm])
         t_solde.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f3f4f6")),
@@ -165,15 +172,16 @@ def export_conges_pdf(conges, solde_info, user_nom="", user_prenom=""):
     elements.append(Spacer(1, 0.2 * cm))
 
     if conges:
-        data = [["Période", "Jours", "Type", "Statut"]]
+        data = [["Période", "Jours", "Heures RTT", "Type", "Statut"]]
         for c in conges:
             data.append([
                 f"{c.date_debut.strftime('%d/%m/%Y')} - {c.date_fin.strftime('%d/%m/%Y')}",
                 str(c.nb_jours_ouvrables),
+                str(getattr(c, "nb_heures_rtt", None) or ""),
                 c.type_conge,
                 getattr(c, "statut", "valide") or "valide",
             ])
-        t = Table(data, colWidths=[6 * cm, 3 * cm, 4 * cm, 3 * cm])
+        t = Table(data, colWidths=[6 * cm, 2.5 * cm, 2.5 * cm, 3 * cm, 3 * cm])
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#008C3A")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),

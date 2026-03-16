@@ -1,11 +1,17 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}Modifier le congé{% endblock %}
 
 {% block content %}
 <div class="mb-6">
     <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour au profil</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Modifier le congé</h1>
-    <p class="text-gray-500">Pour {{ salarie.prenom }} {{ salarie.nom }} &middot; Solde restant : <strong>{{ solde.solde_restant }}</strong> jour(s)</p>
+    <p class="text-gray-500">
+        Pour {{ salarie.prenom }} {{ salarie.nom }}
+        &middot; Solde CP : <strong>{{ solde.solde_restant }}</strong> jour(s)
+        {% if solde.rtt_total_alloue is defined %}
+            &middot; Solde RTT : <strong>{{ solde.rtt_solde_restant }}</strong> heure(s)
+        {% endif %}
+    </p>
 </div>
 
 <div class="bg-white rounded-xl shadow p-8 max-w-2xl">
@@ -36,6 +42,19 @@
                 <option value="Sans solde" {% if conge.type_conge == 'Sans solde' %}selected{% endif %}>Sans solde</option>
                 <option value="Maladie" {% if conge.type_conge == 'Maladie' %}selected{% endif %}>Maladie</option>
             </select>
+        </div>
+
+        <div>
+            <label for="nb_heures_rtt" class="block text-sm font-medium text-gray-700 mb-1">
+                Heures RTT (si RTT)
+            </label>
+            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="1"
+                   value="{{ conge.nb_heures_rtt or '' }}"
+                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
+                   placeholder="Nombre d'heures RTT (ex : 2)">
+            <p class="text-xs text-gray-400 mt-1">
+                Utilisé uniquement pour les RTT (en heures).
+            </p>
         </div>
 
         <div>

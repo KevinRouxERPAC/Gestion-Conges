@@ -11,6 +11,8 @@ class Conge(db.Model):
     date_fin = db.Column(db.Date, nullable=False)
     nb_jours_ouvrables = db.Column(db.Integer, nullable=False)
     type_conge = db.Column(db.String(50), nullable=False, default="CP")  # CP, RTT, Sans solde, Maladie, Anciennete
+    # Pour RTT uniquement : nombre d'heures consommées (sinon NULL)
+    nb_heures_rtt = db.Column(db.Integer, nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
     cree_le = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     modifie_le = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))

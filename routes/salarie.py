@@ -5,7 +5,7 @@ from flask_login import login_required, current_user
 from models import db
 from models.conge import Conge
 from models.user import User
-from services.solde import calculer_solde, get_parametrage_actif
+from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_rtt_suffisant
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import verifier_solde_suffisant
 from services.export import export_conges_excel, export_conges_pdf
@@ -36,12 +36,14 @@ def demander_conge():
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         type_conge = request.form.get("type_conge", "").strip()
-        if type_conge not in {"CP", "RTT", "Sans solde"}:
+        if type_conge not in {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}:
             flash("Merci de sélectionner un type de congé.", "error")
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         commentaire = request.form.get("commentaire", "").strip()
 
+        # Calcul jours ouvrables pour tous les types (utile pour calendrier),
+        # mais le solde ne sera débité en jours que pour CP / Ancienneté.
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
             flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
@@ -56,13 +58,35 @@ def demander_conge():
             )
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
+        nb_heures_rtt = None
+
+        # Contrôle de solde selon le type
         if type_conge in ("CP", "Anciennete"):
             if not verifier_solde_suffisant(current_user.id, nb_jours):
                 flash(
-                    f"Solde insuffisant. Reste {solde_info['solde_restant']} jour(s), vous en demandez {nb_jours}.",
+                    f"Solde CP insuffisant. Reste {solde_info['solde_restant']} jour(s), vous en demandez {nb_jours}.",
                     "error",
                 )
                 return render_template("salarie/demander_conge.html", solde=solde_info)
+        elif type_conge == "RTT":
+            # RTT en heures : lecture et contrôle du solde dédié
+            try:
+                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
+            except ValueError:
+                nb_heures_rtt_val = 0
+            if nb_heures_rtt_val <= 0:
+                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
+                return render_template("salarie/demander_conge.html", solde=solde_info)
+
+            if not verifier_solde_rtt_suffisant(current_user.id, nb_heures_rtt_val):
+                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+                flash(
+                    f"Solde RTT insuffisant. Reste {solde_rtt} heure(s), vous en demandez {nb_heures_rtt_val}.",
+                    "error",
+                )
+                return render_template("salarie/demander_conge.html", solde=solde_info)
+
+            nb_heures_rtt = nb_heures_rtt_val
 
         # Validation 2 niveaux : si le salarié a un responsable, en attente responsable sinon directement en attente RH
         statut_initial = "en_attente_responsable" if current_user.responsable_id else "en_attente_rh"
@@ -74,6 +98,7 @@ def demander_conge():
             type_conge=type_conge,
             commentaire=commentaire,
             statut=statut_initial,
+            nb_heures_rtt=nb_heures_rtt,
         )
         db.session.add(conge)
         db.session.commit()
