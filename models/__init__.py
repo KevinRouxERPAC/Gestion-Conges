@@ -8,3 +8,9 @@ from models.notification import Notification
 from models.push_subscription import PushSubscription
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.jour_ferie import JourFerie
+from models.conge_exceptionnel_type import CongeExceptionnelType
+
+from models.heures_payees import HeuresPayees
+
+from models.interessement_periode import InteressementPeriode
+from models.interessement_regle import InteressementRegle

@@ -1,0 +1,204 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.5, pytest-8.3.4, pluggy-1.6.0 -- C:\Program Files\Python313\python.exe
+cachedir: .pytest_cache
+rootdir: C:\Sites\Gestion-Conges
+collecting ... collected 60 items
+
+tests/test_auth_et_roles.py::TestAuthentification::test_login_identifiant_invalide PASSED [  1%]
+tests/test_auth_et_roles.py::TestAuthentification::test_login_rh_redirige_dashboard_rh PASSED [  3%]
+tests/test_auth_et_roles.py::TestAuthentification::test_login_responsable_redirige_dashboard_responsable PASSED [  5%]
+tests/test_auth_et_roles.py::TestAuthentification::test_login_salarie_redirige_accueil PASSED [  6%]
+tests/test_auth_et_roles.py::TestAccesRoles::test_salarie_ne_peut_pas_acceder_rh PASSED [  8%]
+tests/test_auth_et_roles.py::TestAccesRoles::test_salarie_ne_peut_pas_acceder_responsable PASSED [ 10%]
+tests/test_auth_et_roles.py::TestAccesRoles::test_rh_peut_acceder_dashboard PASSED [ 11%]
+tests/test_auth_et_roles.py::TestAccesRoles::test_responsable_peut_acceder_dashboard PASSED [ 13%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_semaine_complete PASSED [ 15%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_inclut_weekend PASSED [ 16%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_un_seul_jour_ouvre PASSED [ 18%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_un_jour_weekend PASSED [ 20%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_date_fin_avant_debut PASSED [ 21%]
+tests/test_calcul_jours.py::TestCompterJoursOuvrables::test_jour_ferie_exclu PASSED [ 23%]
+tests/test_calcul_jours.py::TestDetecterChevauchement::test_pas_de_chevauchement PASSED [ 25%]
+tests/test_calcul_jours.py::TestDetecterChevauchement::test_chevauchement_detecte PASSED [ 26%]
+tests/test_calcul_jours.py::TestDetecterChevauchement::test_chevauchement_exclusion_conge PASSED [ 28%]
+tests/test_calcul_jours.py::TestDetecterChevauchement::test_conge_refuse_pas_chevauche PASSED [ 30%]
+tests/test_responsable.py::TestDashboardResponsable::test_dashboard_contient_calendrier PASSED [ 31%]
+tests/test_responsable.py::TestDashboardResponsable::test_dashboard_liste_subordonnes PASSED [ 33%]
+tests/test_responsable.py::TestAjoutCongeParResponsable::test_ajouter_conge_pour_subordonne FAILED [ 35%]
+tests/test_responsable.py::TestAjoutCongeParResponsable::test_ajouter_rtt_pour_subordonne FAILED [ 36%]
+tests/test_responsable.py::TestAjoutCongeParResponsable::test_ne_peut_pas_ajouter_pour_non_subordonne FAILED [ 38%]
+tests/test_responsable.py::TestAjoutCongeParResponsable::test_solde_insuffisant_bloque FAILED [ 40%]
+tests/test_rh.py::TestGestionUtilisateurs::test_creer_salarie PASSED     [ 41%]
+tests/test_rh.py::TestGestionUtilisateurs::test_modifier_salarie PASSED  [ 43%]
+tests/test_rh.py::TestGestionUtilisateurs::test_desactiver_salarie PASSED [ 45%]
+tests/test_rh.py::TestAjoutCongeRH::test_ajouter_conge_cp PASSED         [ 46%]
+tests/test_rh.py::TestAjoutCongeRH::test_ajouter_conge_rtt_heures PASSED [ 48%]
+tests/test_rh.py::TestAjoutCongeRH::test_ajouter_conge_solde_insuffisant PASSED [ 50%]
+tests/test_rh.py::TestModificationAllocation::test_modifier_allocation_cp_et_rtt PASSED [ 51%]
+tests/test_rh.py::TestValidationCongeRH::test_validation_verifie_solde PASSED [ 53%]
+tests/test_solde.py::TestCalculSoldeCP::test_solde_sans_allocation PASSED [ 55%]
+tests/test_solde.py::TestCalculSoldeCP::test_solde_avec_allocation PASSED [ 56%]
+tests/test_solde.py::TestCalculSoldeCP::test_solde_apres_conge_valide PASSED [ 58%]
+tests/test_solde.py::TestCalculSoldeCP::test_anciennete_debite_solde_cp PASSED [ 60%]
+tests/test_solde.py::TestCalculSoldeCP::test_sans_solde_pas_debit PASSED [ 61%]
+tests/test_solde.py::TestCalculSoldeCP::test_maladie_pas_debit PASSED    [ 63%]
+tests/test_solde.py::TestCalculSoldeCP::test_conge_refuse_pas_comptabilise PASSED [ 65%]
+tests/test_solde.py::TestCalculSoldeRTT::test_solde_rtt_avec_allocation PASSED [ 66%]
+tests/test_solde.py::TestCalculSoldeRTT::test_rtt_consomme PASSED        [ 68%]
+tests/test_solde.py::TestCalculSoldeRTT::test_rtt_consomme_tout_solde PASSED [ 70%]
+tests/test_solde.py::TestCalculSoldeRTT::test_rtt_ne_debite_pas_cp PASSED [ 71%]
+tests/test_solde.py::TestVerificationSolde::test_solde_cp_suffisant PASSED [ 73%]
+tests/test_solde.py::TestVerificationSolde::test_solde_cp_insuffisant PASSED [ 75%]
+tests/test_solde.py::TestVerificationSolde::test_solde_rtt_suffisant PASSED [ 76%]
+tests/test_solde.py::TestVerificationSolde::test_solde_rtt_insuffisant PASSED [ 78%]
+tests/test_solde.py::TestVerificationSolde::test_solde_cp_avec_exclusion_conge PASSED [ 80%]
+tests/test_solde.py::TestVerificationSolde::test_solde_cp_exactement_egal_total_alloue PASSED [ 81%]
+tests/test_solde.py::TestVerificationSolde::test_solde_rtt_exactement_egal_total_alloue PASSED [ 83%]
+tests/test_solde.py::TestGenerationAllocations::test_generer_allocations PASSED [ 85%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_demande_conge_statut_initial PASSED [ 86%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_responsable_valide_passe_en_attente_rh PASSED [ 88%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_responsable_refuse_avec_motif PASSED [ 90%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_responsable_refuse_sans_motif_echoue PASSED [ 91%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_rh_valide_conge PASSED [ 93%]
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_rh_refuse_conge_avec_motif PASSED [ 95%]
+tests/test_workflow.py::TestWorkflowSansResponsable::test_demande_directe_rh PASSED [ 96%]
+tests/test_workflow.py::TestAnnulationConge::test_salarie_annule_demande_en_attente PASSED [ 98%]
+tests/test_workflow.py::TestAnnulationConge::test_salarie_ne_peut_annuler_valide PASSED [100%]
+
+================================== FAILURES ===================================
+_______ TestAjoutCongeParResponsable.test_ajouter_conge_pour_subordonne _______
+
+self = <tests.test_responsable.TestAjoutCongeParResponsable object at 0x0000029ECF1AA710>
+client = <FlaskClient <Flask 'app'>>
+db_session = <SQLAlchemy sqlite:///C:\Sites\Gestion-Conges\gestion_conges.db?timeout=15>
+users = {'responsable': <User Resp Chef (responsable)>, 'rh': <User RH Admin (rh)>, 'salarie': <User Jean Dupont (salarie)>, 'salarie_sans_resp': <User Paul Martin (salarie)>}
+parametrage = <Parametrage 2026-01-01 - 2026-12-31>
+allocations = {'salarie': <Allocation user=3 jours=27 rtt_heures=14>, 'salarie_sans_resp': <Allocation user=4 jours=27 rtt_heures=14>}
+
+    def test_ajouter_conge_pour_subordonne(self, client, db_session, users, parametrage, allocations):
+        """Le responsable peut crÚer un congÚ pour un subordonnÚ."""
+        login(client, "resp1", "resp123")
+        resp = client.post(
+            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            data={
+                "date_debut": "2026-06-01",
+                "date_fin": "2026-06-05",
+                "type_conge": "CP",
+                "commentaire": "PosÚ par le responsable",
+            },
+            follow_redirects=True,
+        )
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+
+tests\test_responsable.py:39: AssertionError
+________ TestAjoutCongeParResponsable.test_ajouter_rtt_pour_subordonne ________
+
+self = <tests.test_responsable.TestAjoutCongeParResponsable object at 0x0000029ECF1AA850>
+client = <FlaskClient <Flask 'app'>>
+db_session = <SQLAlchemy sqlite:///C:\Sites\Gestion-Conges\gestion_conges.db?timeout=15>
+users = {'responsable': <User Resp Chef (responsable)>, 'rh': <User RH Admin (rh)>, 'salarie': <User Jean Dupont (salarie)>, 'salarie_sans_resp': <User Paul Martin (salarie)>}
+parametrage = <Parametrage 2026-01-01 - 2026-12-31>
+allocations = {'salarie': <Allocation user=3 jours=27 rtt_heures=14>, 'salarie_sans_resp': <Allocation user=4 jours=27 rtt_heures=14>}
+
+    def test_ajouter_rtt_pour_subordonne(self, client, db_session, users, parametrage, allocations):
+        """Le responsable peut crÚer un RTT (heures) pour un subordonnÚ."""
+        login(client, "resp1", "resp123")
+        resp = client.post(
+            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            data={
+                "date_debut": "2026-05-04",
+                "date_fin": "2026-05-04",
+                "type_conge": "RTT",
+                "nb_heures_rtt": "4",
+            },
+            follow_redirects=True,
+        )
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+
+tests\test_responsable.py:59: AssertionError
+__ TestAjoutCongeParResponsable.test_ne_peut_pas_ajouter_pour_non_subordonne __
+
+self = <tests.test_responsable.TestAjoutCongeParResponsable object at 0x0000029ECF199BA0>
+client = <FlaskClient <Flask 'app'>>
+db_session = <SQLAlchemy sqlite:///C:\Sites\Gestion-Conges\gestion_conges.db?timeout=15>
+users = {'responsable': <User Resp Chef (responsable)>, 'rh': <User RH Admin (rh)>, 'salarie': <User Jean Dupont (salarie)>, 'salarie_sans_resp': <User Paul Martin (salarie)>}
+parametrage = <Parametrage 2026-01-01 - 2026-12-31>
+allocations = {'salarie': <Allocation user=3 jours=27 rtt_heures=14>, 'salarie_sans_resp': <Allocation user=4 jours=27 rtt_heures=14>}
+
+    def test_ne_peut_pas_ajouter_pour_non_subordonne(self, client, db_session, users, parametrage, allocations):
+        """Le responsable ne peut pas ajouter un congÚ pour un salariÚ qui n'est pas son subordonnÚ."""
+        login(client, "resp1", "resp123")
+        resp = client.get(
+            f"/responsable/subordonn%C3%A9/{users['salarie_sans_resp'].id}/conge/ajouter",
+            follow_redirects=True,
+        )
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+
+tests\test_responsable.py:72: AssertionError
+_________ TestAjoutCongeParResponsable.test_solde_insuffisant_bloque __________
+
+self = <tests.test_responsable.TestAjoutCongeParResponsable object at 0x0000029ECF199CD0>
+client = <FlaskClient <Flask 'app'>>
+db_session = <SQLAlchemy sqlite:///C:\Sites\Gestion-Conges\gestion_conges.db?timeout=15>
+users = {'responsable': <User Resp Chef (responsable)>, 'rh': <User RH Admin (rh)>, 'salarie': <User Jean Dupont (salarie)>, 'salarie_sans_resp': <User Paul Martin (salarie)>}
+parametrage = <Parametrage 2026-01-01 - 2026-12-31>
+allocations = {'salarie': <Allocation user=3 jours=27 rtt_heures=14>, 'salarie_sans_resp': <Allocation user=4 jours=27 rtt_heures=14>}
+
+    def test_solde_insuffisant_bloque(self, client, db_session, users, parametrage, allocations):
+        """Ajout refusÚ si solde CP insuffisant."""
+        login(client, "resp1", "resp123")
+        resp = client.post(
+            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            data={
+                "date_debut": "2026-01-05",
+                "date_fin": "2026-02-28",
+                "type_conge": "CP",
+            },
+            follow_redirects=True,
+        )
+>       assert resp.status_code == 200
+E       assert 404 == 200
+E        +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+
+tests\test_responsable.py:87: AssertionError
+============================== warnings summary ===============================
+tests/test_auth_et_roles.py::TestAuthentification::test_login_identifiant_invalide
+  C:\Program Files\Python313\Lib\site-packages\reportlab\lib\rl_safe_eval.py:12: DeprecationWarning: ast.NameConstant is deprecated and will be removed in Python 3.14; use ast.Constant instead
+    haveNameConstant = hasattr(ast,'NameConstant')
+
+tests/test_rh.py: 12 warnings
+tests/test_workflow.py: 9 warnings
+  C:\Program Files\Python313\Lib\site-packages\flask_sqlalchemy\query.py:30: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    rv = self.get(ident)
+
+tests/test_rh.py: 42 warnings
+tests/test_solde.py: 36 warnings
+tests/test_workflow.py: 38 warnings
+  C:\Sites\Gestion-Conges\services\solde.py:28: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    return ParametrageAnnuel.query.get(parametrage_id)
+
+tests/test_solde.py::TestVerificationSolde::test_solde_cp_avec_exclusion_conge
+  C:\Sites\Gestion-Conges\services\solde.py:115: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    conge_exclu = Conge.query.get(conge_id_exclu)
+
+tests/test_workflow.py::TestWorkflowAvecResponsable::test_demande_conge_statut_initial
+  C:\Program Files\Python313\Lib\site-packages\requests\__init__.py:113: RequestsDependencyWarning: urllib3 (2.6.3) or chardet (7.2.0)/charset_normalizer (3.4.6) doesn't match a supported version!
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/test_responsable.py::TestAjoutCongeParResponsable::test_ajouter_conge_pour_subordonne - assert 404 == 200
+ +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+FAILED tests/test_responsable.py::TestAjoutCongeParResponsable::test_ajouter_rtt_pour_subordonne - assert 404 == 200
+ +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+FAILED tests/test_responsable.py::TestAjoutCongeParResponsable::test_ne_peut_pas_ajouter_pour_non_subordonne - assert 404 == 200
+ +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+FAILED tests/test_responsable.py::TestAjoutCongeParResponsable::test_solde_insuffisant_bloque - assert 404 == 200
+ +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+============ 4 failed, 56 passed, 140 warnings in 72.18s (0:01:12) ============

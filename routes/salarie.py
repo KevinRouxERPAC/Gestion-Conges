@@ -5,10 +5,11 @@ from flask_login import login_required, current_user
 from models import db
 from models.conge import Conge
 from models.user import User
-from services.solde import calculer_solde, get_parametrage_actif, verifier_solde_rtt_suffisant
+from models.heures_payees import HeuresPayees
+from services.solde import calculer_solde, get_allocation, get_parametrage_actif, verifier_solde_rtt_suffisant, verifier_solde_suffisant
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
-from services.solde import verifier_solde_suffisant
 from services.export import export_conges_excel, export_conges_pdf
+from services.heures_rtt import calculer_rtt_depuis_heures
 
 salarie_bp = Blueprint("salarie", __name__)
 
@@ -36,14 +37,14 @@ def demander_conge():
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         type_conge = request.form.get("type_conge", "").strip()
-        if type_conge not in {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}:
+        
+        types_standards = {"CP", "RTT", "Sans solde"}
+        if type_conge not in types_standards:
             flash("Merci de sélectionner un type de congé.", "error")
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         commentaire = request.form.get("commentaire", "").strip()
 
-        # Calcul jours ouvrables pour tous les types (utile pour calendrier),
-        # mais le solde ne sera débité en jours que pour CP / Ancienneté.
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
             flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
@@ -59,17 +60,17 @@ def demander_conge():
             return render_template("salarie/demander_conge.html", solde=solde_info)
 
         nb_heures_rtt = None
+        nb_heures_exceptionnelles = None
 
-        # Contrôle de solde selon le type
-        if type_conge in ("CP", "Anciennete"):
+        if type_conge == "CP":
             if not verifier_solde_suffisant(current_user.id, nb_jours):
                 flash(
                     f"Solde CP insuffisant. Reste {solde_info['solde_restant']} jour(s), vous en demandez {nb_jours}.",
                     "error",
                 )
                 return render_template("salarie/demander_conge.html", solde=solde_info)
+
         elif type_conge == "RTT":
-            # RTT en heures : lecture et contrôle du solde dédié
             try:
                 nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
             except ValueError:
@@ -87,8 +88,6 @@ def demander_conge():
                 return render_template("salarie/demander_conge.html", solde=solde_info)
 
             nb_heures_rtt = nb_heures_rtt_val
-
-        # Validation 2 niveaux : si le salarié a un responsable, en attente responsable sinon directement en attente RH
         statut_initial = "en_attente_responsable" if current_user.responsable_id else "en_attente_rh"
         conge = Conge(
             user_id=current_user.id,
@@ -99,6 +98,7 @@ def demander_conge():
             commentaire=commentaire,
             statut=statut_initial,
             nb_heures_rtt=nb_heures_rtt,
+            nb_heures_exceptionnelles=nb_heures_exceptionnelles,
         )
         db.session.add(conge)
         db.session.commit()
@@ -161,6 +161,9 @@ def calendrier():
     except (TypeError, ValueError):
         year = date.today().year
     voir_tous = request.args.get("tous") == "1"
+    if voir_tous and current_user.role not in ("salarie", "responsable"):
+        voir_tous = False
+        flash("Option 'tout le monde' réservée aux salariés et responsables.", "warning")
 
     start_of_year = date(year, 1, 1)
     end_of_year = date(year, 12, 31)
@@ -197,6 +200,7 @@ def calendrier():
             "statut": c.statut,
             "label": f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}",
             "jours": c.nb_jours_ouvrables,
+            "heures_rtt": c.nb_heures_rtt,
             "salarie": salarie_nom,
         })
 
@@ -250,3 +254,59 @@ def export_pdf():
     buffer = export_conges_pdf(conges, solde_info, current_user.nom, current_user.prenom)
     filename = f"mes_conges_{current_user.prenom}_{current_user.nom}_{date.today().strftime('%Y%m%d')}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
+
+
+@salarie_bp.route("/heures")
+@login_required
+def heures():
+    """Lecture des heures saisies (RH) sur l'exercice actif."""
+    param = get_parametrage_actif()
+    allocation = None
+    if param:
+        allocation = get_allocation(current_user.id, parametrage_id=param.id)
+
+    heures_rows = []
+    total_payees = 0
+    total_trajet = 0
+    total_travaillees = 0
+
+    if param:
+        start_key = param.debut_exercice.year * 100 + param.debut_exercice.month
+        end_key = param.fin_exercice.year * 100 + param.fin_exercice.month
+        key_expr = (HeuresPayees.annee * 100) + HeuresPayees.mois
+
+        heures_rows = (
+            HeuresPayees.query
+            .filter(HeuresPayees.user_id == current_user.id)
+            .filter(key_expr >= start_key)
+            .filter(key_expr <= end_key)
+            .order_by(HeuresPayees.annee.desc(), HeuresPayees.mois.desc())
+            .all()
+        )
+
+        total_payees = sum((r.heures_payees or 0) for r in heures_rows)
+        total_trajet = sum((r.heures_trajet or 0) for r in heures_rows)
+        total_travaillees = sum((r.heures_travaillees or 0) for r in heures_rows)
+
+    rtt_calc = None
+    if param and getattr(param, "rtt_calc_mode", "fixe") == "heures":
+        try:
+            rtt_calc = calculer_rtt_depuis_heures(current_user.id, param)
+        except Exception:
+            rtt_calc = None
+
+    return render_template(
+        "salarie/heures.html",
+        parametrage=param,
+        allocation=allocation,
+        heures_rows=heures_rows,
+        total_payees=total_payees,
+        total_trajet=total_trajet,
+        total_travaillees=total_travaillees,
+        rtt_calc=rtt_calc,
+    )
+
+
+
+
+

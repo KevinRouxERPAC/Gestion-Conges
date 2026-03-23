@@ -47,6 +47,11 @@ def create_app():
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
 
     @app.context_processor
+    def inject_now():
+        from datetime import datetime as _dt
+        return {"now": _dt.now}
+
+    @app.context_processor
     def inject_notifications():
         from flask_login import current_user
         if current_user.is_authenticated:
@@ -78,11 +83,12 @@ def create_app():
         _migrations_dir = os.path.join(os.path.dirname(__file__), "scripts", "migrations")
         if _migrations_dir not in sys.path:
             sys.path.insert(0, _migrations_dir)
-        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux", "migrate_rtt_columns"):
+        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux", "migrate_rtt_columns", "migrate_conges_exceptionnels", "migrate_heures_payees", "migrate_rtt_calc_heures", "migrate_interessement"):
             try:
                 __import__(mig).migrate()
-            except Exception:
-                pass
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).warning("Migration %s echouee: %s", mig, e)
 
     return app
 
@@ -90,3 +96,5 @@ def create_app():
 if __name__ == "__main__":
     app = create_app()
     app.run(debug=True, host="0.0.0.0", port=5000, threaded=True)
+
+

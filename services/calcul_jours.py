@@ -1,5 +1,4 @@
 from datetime import date, timedelta
-from models import db
 from models.jour_ferie import JourFerie
 from models.conge import Conge
 

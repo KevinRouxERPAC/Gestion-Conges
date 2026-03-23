@@ -1,4 +1,5 @@
 import bcrypt
+from services.auth_utils import hash_password, check_password
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db
@@ -6,13 +7,6 @@ from models.user import User
 
 auth_bp = Blueprint("auth", __name__)
 
-
-def hash_password(password):
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
-
-
-def check_password(password, hashed):
-    return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])

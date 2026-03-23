@@ -12,7 +12,7 @@ class PushSubscription(db.Model):
     endpoint = db.Column(db.Text, nullable=False)
     p256dh = db.Column(db.String(255), nullable=False)  # clé publique client
     auth = db.Column(db.String(255), nullable=False)
-    cree_le = db.Column(db.DateTime, default=datetime.now(timezone.utc))
+    cree_le = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     utilisateur = db.relationship("User", backref=db.backref("push_subscriptions", lazy="dynamic", cascade="all, delete-orphan"))
 

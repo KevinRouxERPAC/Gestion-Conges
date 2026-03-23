@@ -7,10 +7,26 @@
         <h1 class="text-2xl font-bold text-gray-800">Tableau de bord RH</h1>
         <p class="text-gray-500 mt-1">Vue d'ensemble des congés des salariés</p>
     </div>
-    <a href="{{ url_for('rh.export_equipe_excel') }}"
-       class="inline-flex items-center px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition shadow border border-green-800">
-        Export Excel équipe
-    </a>
+    <div class="erpac-toolbar">
+        <div class="erpac-toolbar-group">
+            <a href="{{ url_for('rh.export_equipe_excel') }}" class="erpac-btn">Export Excel équipe</a>
+            <a href="{{ url_for('rh.interessement') }}" class="erpac-btn">Intéressement</a>
+        </div>
+
+        <div class="erpac-toolbar-card">
+            <form action="{{ url_for('rh.export_compta') }}" method="get" class="erpac-toolbar-group">
+                <label class="erpac-toolbar-label">Export comptable</label>
+                <input type="date" name="date" value="{{ today.isoformat() }}" class="erpac-date-input" />
+                <button type="submit" class="erpac-btn erpac-btn--sm">Télécharger</button>
+            </form>
+            <div class="erpac-toolbar-group">
+                {% if compta_31_03 and compta_30_09 %}
+                    <a href="{{ url_for('rh.export_compta', date=compta_31_03.isoformat()) }}" class="erpac-quick-link">31/03</a>
+                    <a href="{{ url_for('rh.export_compta', date=compta_30_09.isoformat()) }}" class="erpac-quick-link">30/09</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Stats -->
@@ -180,7 +196,7 @@
         <tbody class="divide-y divide-gray-200">
             {% for data in salaries_data %}
             <tr class="hover:bg-gray-50 transition cursor-pointer"
-                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())"
+                x-show="search === '' || {{ (data.user.nom ~ ' ' ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())"
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
@@ -236,7 +252,7 @@
         <tbody class="divide-y divide-gray-200">
             {% for data in salaries_data_inactifs %}
             <tr class="hover:bg-gray-50 transition cursor-pointer"
-                x-show="search === '' || '{{ data.user.nom|lower }} {{ data.user.prenom|lower }}'.includes(search.toLowerCase())"
+                x-show="search === '' || {{ (data.user.nom ~ ' ' ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())"
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
@@ -320,3 +336,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
+
+
+
+

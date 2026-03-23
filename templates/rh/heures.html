@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Heures / RTT{% endblock %}
+
+{% block content %}
+<div class="mb-8">
+  <h1 class="text-2xl font-bold text-gray-800">Heures / RTT</h1>
+  <p class="text-gray-500 mt-1">Saisie mensuelle des heures (trajet / travaillées / payées) et recalcul RTT selon le paramétrage.</p>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+  <form method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Mois</label>
+      <input type="number" name="mois" min="1" max="12" value="{{ mois }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+    </div>
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Année</label>
+      <input type="number" name="annee" min="2000" max="2100" value="{{ annee }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+    </div>
+    <div class="flex items-end">
+      <button type="submit" class="bg-gray-900 hover:bg-black text-white font-medium py-2 px-4 rounded-lg transition">Afficher</button>
+    </div>
+    <div class="ml-auto text-sm text-gray-500">
+      <div>Exercice actif : <span class="font-medium">{{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}</span></div>
+      <div>Mode RTT : <span class="font-medium">{{ parametrage.rtt_calc_mode }}</span></div>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white rounded-xl shadow overflow-hidden">
+  <div class="px-6 py-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <h2 class="text-lg font-semibold text-gray-800">Saisie - {{ "%02d"|format(mois) }}/{{ annee }}</h2>
+    <div class="text-xs text-gray-500">Astuce: laissez vide une ligne pour ne pas la modifier.</div>
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="mois" value="{{ mois }}">
+    <input type="hidden" name="annee" value="{{ annee }}">
+
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures payées</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures trajet</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures travaillées</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200">
+          {% for s in salaries %}
+          {% set row = heures_by_user.get(s.id) %}
+          <tr class="hover:bg-gray-50">
+            <td class="px-6 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
+            <td class="px-6 py-3">
+              <input type="number" min="0" name="u{{ s.id }}_heures_payees" value="{{ row.heures_payees if row else "" }}" class="w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
+            </td>
+            <td class="px-6 py-3">
+              <input type="number" min="0" name="u{{ s.id }}_heures_trajet" value="{{ row.heures_trajet if row else "" }}" class="w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
+            </td>
+            <td class="px-6 py-3">
+              <input type="number" min="0" name="u{{ s.id }}_heures_travaillees" value="{{ row.heures_travaillees if row else "" }}" class="w-40 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="px-6 py-4 border-t bg-white flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+      <div class="text-sm text-gray-500">
+        Recalcul RTT: met à jour <span class="font-medium">rtt_heures_allouees</span> selon la règle (si mode = <span class="font-medium">heures</span>).
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" name="action" value="save" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer</button>
+        <button type="submit" name="action" value="save_recalc" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer et recalculer RTT</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

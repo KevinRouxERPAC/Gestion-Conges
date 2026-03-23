@@ -45,7 +45,7 @@ def export_conges_excel(conges, user_nom="", user_prenom=""):
 
     titre = f"Congés - {user_prenom} {user_nom}" if user_nom else "Congés"
     ws.append([titre])
-    ws.merge_cells("A1:E1")
+    ws.merge_cells("A1:F1")
     ws["A1"].font = Font(bold=True, size=14)
     ws.append([])
 

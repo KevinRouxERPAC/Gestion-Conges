@@ -10,7 +10,7 @@
 <!-- Parametrage exercice -->
 <div class="bg-white rounded-xl shadow p-6 mb-8">
     <h2 class="text-lg font-semibold text-gray-800 mb-4">Exercice fiscal</h2>
-    <form method="POST" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+    <form method="POST" class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_parametrage">
         <div>
@@ -35,6 +35,26 @@
             <label class="block text-sm text-gray-600 mb-1">Heures RTT par défaut</label>
             <input type="number" name="rtt_heures_defaut" min="0" required
                    value="{{ parametrage.rtt_heures_defaut if parametrage else 0 }}"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Mode RTT</label>
+            <select name="rtt_calc_mode" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                {% set mode = (parametrage.rtt_calc_mode if parametrage and parametrage.rtt_calc_mode else 'fixe') %}
+                <option value="fixe" {% if mode == 'fixe' %}selected{% endif %}>Fixe (heures par défaut)</option>
+                <option value="heures" {% if mode == 'heures' %}selected{% endif %}>Calculé depuis heures</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Référence heures (annuel)</label>
+            <input type="number" name="rtt_heures_reference" min="0"
+                   value="{{ parametrage.rtt_heures_reference if parametrage else 0 }}"
+                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        </div>
+        <div>
+            <label class="block text-sm text-gray-600 mb-1">Coef. surplus → RTT</label>
+            <input type="number" name="rtt_coef_surplus" min="0" step="0.01"
+                   value="{{ parametrage.rtt_coef_surplus if parametrage else 0 }}"
                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
         </div>
         <div>
@@ -119,3 +139,6 @@
     {% endif %}
 </div>
 {% endblock %}
+
+
+

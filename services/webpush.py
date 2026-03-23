@@ -56,11 +56,11 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
     from models.push_subscription import PushSubscription
 
     private_key = _vapid_private_key()
-    subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not private_key:
         logger.debug("Web Push: pas de clé VAPID (user_id=%s)", user_id)
         return
 
+    subscriptions = PushSubscription.query.filter_by(user_id=user_id).all()
     if not subscriptions:
         logger.warning("Web Push: aucun abonnement pour user_id=%s (le salarié doit cliquer « Activer les alertes » dans ce navigateur)", user_id)
         return
@@ -87,7 +87,7 @@ def envoyer_push_user(user_id: int, titre: str, message: str, url: str = None):
             if getattr(e, "response", None) and getattr(e.response, "status_code", None) in (410, 404):
                 from models import db
                 db.session.delete(sub)
-                db.session.commit()
+                db.session.flush()
                 logger.info("Abonnement push expiré supprimé pour user_id=%s", user_id)
             else:
                 logger.exception("Erreur Web Push user_id=%s: %s", user_id, e)

@@ -32,7 +32,7 @@
         <tbody class="divide-y divide-gray-200">
             {% for salarie in salaries %}
             <tr class="hover:bg-gray-50 transition cursor-pointer"
-                x-show="search === '' || '{{ salarie.nom|lower }} {{ salarie.prenom|lower }} {{ salarie.identifiant|lower }}'.includes(search.toLowerCase())"
+                x-show="search === '' || {{ (salarie.nom ~ ' ' ~ salarie.prenom ~ ' ' ~ salarie.identifiant)|lower|tojson }}.includes(search.toLowerCase())"
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'"

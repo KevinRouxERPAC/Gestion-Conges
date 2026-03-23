@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Types de congés exceptionnels{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+  <div>
+    <a href="{{ url_for('rh.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour au tableau de bord</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-2">Types de congés exceptionnels</h1>
+    <p class="text-gray-500 mt-1">Paramétrage RH des congés exceptionnels (jours ou heures, plafond annuel optionnel).</p>
+  </div>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+  <h2 class="text-lg font-semibold text-gray-800 mb-4">Ajouter un type</h2>
+  <form method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="create">
+
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Code</label>
+      <input type="text" name="code" required placeholder="MARIAGE" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+      <p class="text-xs text-gray-400 mt-1">Sans espaces. Utilisé dans EXC:&lt;code&gt;.</p>
+    </div>
+
+    <div class="md:col-span-2">
+      <label class="block text-sm text-gray-600 mb-1">Libellé</label>
+      <input type="text" name="libelle" required placeholder="Mariage" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+    </div>
+
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Unité</label>
+      <select name="unite" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+        <option value="jours">Jours</option>
+        <option value="heures">Heures</option>
+      </select>
+    </div>
+
+    <div>
+      <label class="block text-sm text-gray-600 mb-1">Plafond annuel</label>
+      <input type="number" name="plafond_annuel" min="1" placeholder="(optionnel)" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+    </div>
+
+    <div>
+      <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition w-full">Ajouter</button>
+    </div>
+  </form>
+</div>
+
+<div class="bg-white rounded-xl shadow p-6">
+  <h2 class="text-lg font-semibold text-gray-800 mb-4">Liste</h2>
+
+  {% if types %}
+  <div class="overflow-x-auto">
+    <table class="w-full text-sm">
+      <thead class="bg-gray-50">
+        <tr>
+          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Libellé</th>
+          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Unité</th>
+          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Plafond</th>
+          <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+          <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        {% for t in types %}
+        <tr class="hover:bg-gray-50">
+          <td class="px-4 py-3 font-mono">{{ t.code }}</td>
+          <td class="px-4 py-3">
+            <form method="POST" class="flex gap-2">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="update">
+              <input type="hidden" name="type_id" value="{{ t.id }}">
+              <input type="text" name="libelle" value="{{ t.libelle }}" class="w-full px-3 py-2 border rounded-lg text-sm">
+              <select name="unite" class="px-3 py-2 border rounded-lg text-sm">
+                <option value="jours" {% if t.unite == 'jours' %}selected{% endif %}>jours</option>
+                <option value="heures" {% if t.unite == 'heures' %}selected{% endif %}>heures</option>
+              </select>
+              <input type="number" name="plafond_annuel" min="1" value="{{ t.plafond_annuel or '' }}" placeholder="-" class="w-32 px-3 py-2 border rounded-lg text-sm">
+              <button type="submit" class="text-erpac-primary hover:text-erpac-dark font-medium">Enregistrer</button>
+            </form>
+          </td>
+          <td class="px-4 py-3">{{ t.unite }}</td>
+          <td class="px-4 py-3">{% if t.plafond_annuel %}{{ t.plafond_annuel }}{% else %}-{% endif %}</td>
+          <td class="px-4 py-3">{% if t.actif %}<span class="text-green-700 font-medium">Actif</span>{% else %}<span class="text-gray-500">Inactif</span>{% endif %}</td>
+          <td class="px-4 py-3 text-right">
+            <form method="POST" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="toggle">
+              <input type="hidden" name="type_id" value="{{ t.id }}">
+              <button type="submit" class="text-sm {% if t.actif %}text-red-600 hover:text-red-800{% else %}text-green-600 hover:text-green-800{% endif %}">
+                {% if t.actif %}Désactiver{% else %}Activer{% endif %}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-gray-500">Aucun type configuré.</p>
+  {% endif %}
+</div>
+{% endblock %}

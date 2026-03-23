@@ -13,9 +13,10 @@ class Conge(db.Model):
     type_conge = db.Column(db.String(50), nullable=False, default="CP")  # CP, RTT, Sans solde, Maladie, Anciennete
     # Pour RTT uniquement : nombre d'heures consommées (sinon NULL)
     nb_heures_rtt = db.Column(db.Integer, nullable=True)
+    nb_heures_exceptionnelles = db.Column(db.Integer, nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
-    cree_le = db.Column(db.DateTime, default=datetime.now(timezone.utc))
-    modifie_le = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+    cree_le = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+    modifie_le = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     # Workflow validation 2 niveaux : en_attente_responsable → en_attente_rh → valide | refuse
     statut = db.Column(db.String(30), nullable=False, default="valide")  # en_attente_responsable, en_attente_rh, valide, refuse

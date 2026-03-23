@@ -3,6 +3,7 @@ Service d'envoi d'emails pour les notifications (validation/refus de congés).
 Utilise smtplib (sans dépendance externe).
 """
 import smtplib
+from html import escape
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from flask import current_app
@@ -49,6 +50,7 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str = Non
         )
         return True
 
+    server = None
     try:
         if config["use_ssl"]:
             server = smtplib.SMTP_SSL(config["server"], config["port"])
@@ -61,12 +63,17 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str = Non
             server.login(config["username"], config["password"])
 
         server.sendmail(config["default_sender"], [to_email], msg.as_string())
-        server.quit()
         current_app.logger.info(f"Email envoyé à {to_email}: {subject}")
         return True
     except Exception as e:
         current_app.logger.warning(f"Échec envoi email à {to_email}: {e}")
         return False
+    finally:
+        if server:
+            try:
+                server.quit()
+            except Exception:
+                pass
 
 
 def envoyer_notification_validation(prenom: str, email: str, date_debut, date_fin, nb_jours: int, type_conge: str):
@@ -90,7 +97,7 @@ L'équipe ERPAC
 <!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Bonjour {prenom},</p>
+    <p>Bonjour {escape(prenom)},</p>
     <p>Votre demande de congé a été <strong style="color: #008C3A;">validée</strong> par les RH.</p>
     <table style="border-collapse: collapse; margin: 20px 0;">
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Période :</strong></td><td>{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}</td></tr>
@@ -128,7 +135,7 @@ L'équipe ERPAC
 <!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Bonjour {prenom},</p>
+    <p>Bonjour {escape(prenom)},</p>
     <p>Votre demande de congé a été <strong style="color: #dc2626;">refusée</strong> par les RH.</p>
     <table style="border-collapse: collapse; margin: 20px 0;">
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Période :</strong></td><td>{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}</td></tr>
@@ -136,7 +143,7 @@ L'équipe ERPAC
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>
     </table>
     <p><strong>Motif du refus :</strong></p>
-    <p style="background: #fef2f2; padding: 10px; border-left: 4px solid #dc2626;">{motif}</p>
+    <p style="background: #fef2f2; padding: 10px; border-left: 4px solid #dc2626;">{escape(motif)}</p>
     <p>Pour toute question, contactez les ressources humaines.</p>
     <p>Cordialement,<br>L'équipe ERPAC</p>
 </body>
@@ -169,7 +176,7 @@ L'equipe ERPAC
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <p>Une nouvelle demande de conge a ete deposee.</p>
     <table style="border-collapse: collapse; margin: 20px 0;">
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Salarie :</strong></td><td>{nom_salarie}</td></tr>
+        <tr><td style="padding: 5px 15px 5px 0;"><strong>Salarie :</strong></td><td>{escape(nom_salarie)}</td></tr>
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Periode :</strong></td><td>{periode}</td></tr>
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Jours :</strong></td><td>{nb_jours}</td></tr>
         <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>

@@ -99,7 +99,7 @@ def push_subscribe():
     if not data or "endpoint" not in data or "keys" not in data:
         return jsonify({"ok": False, "error": "Données d'abonnement invalides"}), 400
     keys = data.get("keys") or {}
-    p256dh = keys.get("p256dh") or keys.get("p256dh")
+    p256dh = keys.get("p256dh")
     auth = keys.get("auth")
     if not p256dh or not auth:
         return jsonify({"ok": False, "error": "Clés p256dh et auth requises"}), 400

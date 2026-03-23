@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Règles d’intéressement - {{ periode.libelle }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{{ url_for('rh.interessement') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour aux périodes</a>
+    <h1 class="text-2xl font-bold text-gray-800 mt-2">Règles d’intéressement</h1>
+    <p class="text-gray-500">
+        Période : <strong>{{ periode.libelle }}</strong>
+        &middot; {{ periode.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ periode.date_fin.strftime('%d/%m/%Y') }}
+        &middot; Base : {{ periode.base_points }} pts &middot; Plancher : {{ periode.plancher_points }} pts
+    </p>
+</div>
+
+<!-- Ajouter une règle -->
+<div class="bg-white rounded-xl shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Ajouter une règle</h2>
+    <form method="POST" class="flex flex-col sm:flex-row gap-4 items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="add_regle">
+        <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type d’absence</label>
+            <select name="type_absence" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                <option value="">-- Sélectionner --</option>
+                {% for tc in types_conge_disponibles %}
+                <option value="{{ tc }}">{{ tc }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="w-48">
+            <label class="block text-sm font-medium text-gray-700 mb-1">Points / jour (malus)</label>
+            <input type="number" name="points_par_jour" step="0.1" value="0" required
+                   class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+        </div>
+        <button type="submit"
+                class="px-4 py-2 bg-erpac-primary hover:bg-erpac-dark text-white text-sm font-medium rounded-lg transition">
+            Ajouter
+        </button>
+    </form>
+</div>
+
+<!-- Liste des règles existantes -->
+{% if regles %}
+<div class="bg-white rounded-xl shadow overflow-hidden">
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="update_regles">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type d’absence</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Points / jour</th>
+                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for r in regles %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 font-medium text-gray-900">{{ r.type_absence }}</td>
+                    <td class="px-6 py-4">
+                        <input type="number" name="ppj_{{ r.id }}" step="0.1" value="{{ r.points_par_jour }}"
+                               class="w-32 px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <button type="submit" form="del_{{ r.id }}" class="text-red-600 hover:text-red-800 text-sm font-medium">Supprimer</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <div class="px-6 py-4 bg-gray-50 border-t">
+            <button type="submit"
+                    class="px-4 py-2 bg-erpac-primary hover:bg-erpac-dark text-white text-sm font-medium rounded-lg transition">
+                Enregistrer les modifications
+            </button>
+        </div>
+    </form>
+
+    {% for r in regles %}
+    <form id="del_{{ r.id }}" method="POST" class="hidden" onsubmit="return confirm('Supprimer cette règle ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="delete_regle">
+        <input type="hidden" name="regle_id" value="{{ r.id }}">
+    </form>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-xl shadow p-8 text-center text-gray-500">
+    Aucune règle configurée pour cette période.
+</div>
+{% endif %}
+
+<div class="mt-6">
+    <a href="{{ url_for('rh.export_interessement', periode_id=periode.id) }}"
+       class="inline-flex items-center px-4 py-2 bg-green-700 hover:bg-green-800 text-white text-sm font-medium rounded-lg transition shadow">
+        Exporter le calcul (Excel)
+    </a>
+</div>
+{% endblock %}

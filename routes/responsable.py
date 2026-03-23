@@ -25,6 +25,7 @@ def responsable_required(f):
 @responsable_bp.route("/dashboard")
 @responsable_required
 def dashboard():
+    solde_info = calculer_solde(current_user.id)
     subordonnes_actifs = [u for u in current_user.subordonnes if u.actif]
     subordonne_ids = [u.id for u in subordonnes_actifs]
     demandes_attente = (
@@ -56,8 +57,9 @@ def dashboard():
 
     return render_template(
         "responsable/dashboard.html",
+        solde=solde_info,
         demandes_attente=demandes_attente,
-        subordonnes=current_user.subordonnes,
+        subordonnes=subordonnes_actifs,
         calendar_events=calendar_events,
     )
 
@@ -100,8 +102,6 @@ def refuser_conge(conge_id):
         conge.statut = "refuse"
         conge.valide_par_responsable_id = current_user.id
         conge.valide_par_responsable_le = datetime.now(timezone.utc)
-        conge.valide_par_id = current_user.id
-        conge.valide_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
         db.session.commit()
         notifier_conge_refuse(conge, motif)
@@ -111,6 +111,7 @@ def refuser_conge(conge_id):
     return render_template("responsable/refuser_conge.html", conge=conge)
 
 
+@responsable_bp.route("/subordonne/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
 @responsable_bp.route("/subordonné/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
 @responsable_required
 def ajouter_conge_subordonne(user_id):
@@ -122,25 +123,47 @@ def ajouter_conge_subordonne(user_id):
 
     solde_info = calculer_solde(user.id)
 
+    from services.conges_exceptionnels import (
+        get_types_exceptionnels,
+        parse_code,
+        get_type_exceptionnel,
+        verifier_plafond,
+    )
+    types_exceptionnels = get_types_exceptionnels(actifs_only=True)
+
     if request.method == "POST":
         try:
             date_debut = datetime.strptime(request.form["date_debut"], "%Y-%m-%d").date()
             date_fin = datetime.strptime(request.form["date_fin"], "%Y-%m-%d").date()
         except (ValueError, KeyError):
             flash("Dates invalides.", "error")
-            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
         if date_fin < date_debut:
             flash("La date de fin doit être postérieure à la date de début.", "error")
-            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
         type_conge = request.form.get("type_conge", "CP")
+        exc_code = parse_code(type_conge)
+        exc_type = None
+
+        types_standards = {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}
+        if type_conge not in types_standards and not exc_code:
+            flash("Merci de sélectionner un type de congé valide.", "error")
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+
+        if exc_code:
+            exc_type = get_type_exceptionnel(exc_code)
+            if not exc_type or not exc_type.actif:
+                flash("Type de congé exceptionnel invalide.", "error")
+                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+
         commentaire = request.form.get("commentaire", "").strip()
 
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
             flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
-            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
         chevauchement = detecter_chevauchement(user.id, date_debut, date_fin)
         if chevauchement:
@@ -149,8 +172,9 @@ def ajouter_conge_subordonne(user_id):
                 f"au {chevauchement.date_fin.strftime('%d/%m/%Y')}.",
                 "error",
             )
-            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
+        nb_heures_exceptionnelles = None
         nb_heures_rtt = None
 
         if type_conge in ("CP", "Anciennete"):
@@ -160,7 +184,7 @@ def ajouter_conge_subordonne(user_id):
                     f"{nb_jours} jour(s) demandé(s).",
                     "error",
                 )
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
         elif type_conge == "RTT":
             try:
                 nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
@@ -168,7 +192,7 @@ def ajouter_conge_subordonne(user_id):
                 nb_heures_rtt_val = 0
             if nb_heures_rtt_val <= 0:
                 flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
             if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val):
                 solde_rtt = solde_info.get("rtt_solde_restant", 0)
                 flash(
@@ -176,8 +200,25 @@ def ajouter_conge_subordonne(user_id):
                     f"{nb_heures_rtt_val} heure(s) demandée(s).",
                     "error",
                 )
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
             nb_heures_rtt = nb_heures_rtt_val
+        elif exc_code and exc_type:
+            nb_heures_exceptionnelles = None
+            if exc_type.unite == "heures":
+                try:
+                    nb_heures_exceptionnelles = int(request.form.get("nb_heures_exceptionnelles", "0"))
+                except ValueError:
+                    nb_heures_exceptionnelles = 0
+                if nb_heures_exceptionnelles <= 0:
+                    flash("Merci de saisir un nombre d'heures valide.", "error")
+                    return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+                quantite = nb_heures_exceptionnelles
+            else:
+                quantite = nb_jours
+
+            if not verifier_plafond(user.id, exc_type, quantite):
+                flash(f"Plafond dépassé pour le congé exceptionnel « {exc_type.libelle} ».", "error")
+                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
         conge = Conge(
             user_id=user.id,
@@ -190,6 +231,7 @@ def ajouter_conge_subordonne(user_id):
             valide_par_responsable_id=current_user.id,
             valide_par_responsable_le=datetime.now(timezone.utc),
             nb_heures_rtt=nb_heures_rtt,
+            nb_heures_exceptionnelles=nb_heures_exceptionnelles if exc_code else None,
         )
         db.session.add(conge)
         db.session.commit()
@@ -200,4 +242,4 @@ def ajouter_conge_subordonne(user_id):
         flash(f"Congé créé pour {user.prenom} {user.nom} et transmis aux RH.", "success")
         return redirect(url_for("responsable.dashboard"))
 
-    return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info)
+    return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)

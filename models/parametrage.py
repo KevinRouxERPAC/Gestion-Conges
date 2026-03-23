@@ -10,6 +10,13 @@ class ParametrageAnnuel(db.Model):
     jours_conges_defaut = db.Column(db.Integer, nullable=False, default=25)
     # Nombre d'heures RTT allouées par défaut pour l'exercice (0 si non utilisé)
     rtt_heures_defaut = db.Column(db.Integer, nullable=False, default=0)
+
+    # Lot 4 - Calcul RTT depuis heures (optionnel)
+    # Mode: 'fixe' -> rtt_heures_defaut ; 'heures' -> calcul basé sur heures_travaillees
+    rtt_calc_mode = db.Column(db.String(10), nullable=False, default="fixe")
+    rtt_heures_reference = db.Column(db.Integer, nullable=False, default=0)
+    rtt_coef_surplus = db.Column(db.Float, nullable=False, default=0.0)
+
     actif = db.Column(db.Boolean, default=True)
 
     allocations = db.relationship("AllocationConge", backref="parametrage", lazy=True, cascade="all, delete-orphan")

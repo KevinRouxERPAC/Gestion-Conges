@@ -21,13 +21,16 @@
                         <a href="{{ url_for('rh.dashboard') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Tableau de bord</a>
                         <a href="{{ url_for('rh.liste_salaries') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Salariés</a>
                         <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Paramétrage</a>
+                        <a href="{{ url_for('rh.heures') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Heures / RTT</a>
                         {% elif current_user.role == 'responsable' %}
                         <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes congés</a>
                         <a href="{{ url_for('salarie.calendrier') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Calendrier</a>
+                        <a href="{{ url_for('salarie.heures') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes heures</a>
                         <a href="{{ url_for('responsable.dashboard') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Tableau de bord</a>
                         {% else %}
                         <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes congés</a>
                         <a href="{{ url_for('salarie.calendrier') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Calendrier</a>
+                        <a href="{{ url_for('salarie.heures') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes heures</a>
                         {% endif %}
                     </div>
                 </div>
@@ -62,13 +65,16 @@
                 <a href="{{ url_for('rh.dashboard') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Tableau de bord</a>
                 <a href="{{ url_for('rh.liste_salaries') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Salariés</a>
                 <a href="{{ url_for('rh.parametrage') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Paramétrage</a>
+                <a href="{{ url_for('rh.heures') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Heures / RTT</a>
                 {% elif current_user.role == 'responsable' %}
                 <a href="{{ url_for('salarie.accueil') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes congés</a>
                 <a href="{{ url_for('salarie.calendrier') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Calendrier</a>
+                <a href="{{ url_for('salarie.heures') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes heures</a>
                 <a href="{{ url_for('responsable.dashboard') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Tableau de bord</a>
                 {% else %}
                 <a href="{{ url_for('salarie.accueil') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes congés</a>
                 <a href="{{ url_for('salarie.calendrier') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Calendrier</a>
+                <a href="{{ url_for('salarie.heures') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes heures</a>
                 {% endif %}
                 <div class="border-t border-erpac-light/30 pt-3 mt-3">
                     <a href="{{ url_for('notifications.liste') }}" class="nav-notif-btn flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors" aria-label="Notifications">
@@ -121,3 +127,5 @@
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 </body>
 </html>
+
+

@@ -5,8 +5,8 @@ Cle: identifiant. Creation si absent, mise a jour si present.
 import csv
 import io
 import re
+import unicodedata
 from datetime import datetime
-from typing import Callable
 
 from openpyxl import load_workbook
 
@@ -66,8 +66,7 @@ def _normalize_ident(s):
     if not s:
         return ""
     s = str(s).strip().lower()
-    for old, new in (("e", "e"), ("e", "e"), ("a", "a"), ("u", "u"), ("i", "i"), ("o", "o"), ("c", "c")):
-        s = s.replace(old, new)
+    s = ''.join(c for c in unicodedata.normalize('NFD', s) if unicodedata.category(c) != 'Mn')
     s = re.sub(r"[^a-z0-9]+", "_", s).strip("_")
     return s or "user"
 
@@ -156,12 +155,13 @@ def parse_excel(content):
     """Parse la premiere feuille Excel. Meme structure que parse_csv."""
     wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
     ws = wb.active
-    rows_iter = ws.iter_rows(values_only=True)
-    try:
-        first_row = next(rows_iter)
-    except StopIteration:
+    all_rows = [list(r) for r in ws.iter_rows(values_only=True)]
+    if not all_rows:
         return []
-    headers = [str(h).strip() if h is not None else "" for h in first_row]
+    all_rows_str = [[str(c).strip() if c is not None else "" for c in r] for r in all_rows]
+    header_idx, headers = _find_header_row(all_rows_str)
+    if header_idx is None:
+        return []
     idx_id = _find_col(headers, COL_IDENTIFIANT)
     idx_nom = _find_col(headers, COL_NOM)
     idx_prenom = _find_col(headers, COL_PRENOM)
@@ -173,20 +173,20 @@ def parse_excel(content):
     idx_actif = _find_col(headers, COL_ACTIF)
 
     rows = []
-    for row in rows_iter:
+    for row in all_rows[header_idx + 1:]:
         row = list(row) if row else []
         max_idx = max(idx_nom, idx_prenom) if idx_id is None else max(idx_id, idx_nom, idx_prenom)
         if len(row) <= max_idx:
             continue
-        identifiant = (row[idx_id] or "").strip() if idx_id is not None and idx_id < len(row) else ""
-        nom = (row[idx_nom] or "").strip() if idx_nom < len(row) else ""
-        prenom = (row[idx_prenom] or "").strip() if idx_prenom < len(row) else ""
+        identifiant = str(row[idx_id] or "").strip() if idx_id is not None and idx_id < len(row) else ""
+        nom = str(row[idx_nom] or "").strip() if idx_nom < len(row) else ""
+        prenom = str(row[idx_prenom] or "").strip() if idx_prenom < len(row) else ""
         if not nom or not prenom:
             continue
-        email = (row[idx_email] or "").strip() if idx_email is not None and idx_email < len(row) else ""
+        email = str(row[idx_email] or "").strip() if idx_email is not None and idx_email < len(row) else ""
         date_embauche = _parse_date(row[idx_date] if idx_date is not None and idx_date < len(row) else None)
-        role_raw = (row[idx_role] or "salarie")
-        role = "rh" if str(role_raw).lower() in ("rh", "admin") else "salarie"
+        role_raw = str(row[idx_role] or "salarie")
+        role = "rh" if role_raw.lower() in ("rh", "admin") else "salarie"
         actif = _parse_bool(row[idx_actif] if idx_actif is not None and idx_actif < len(row) else True)
         rows.append({
             "identifiant": identifiant,

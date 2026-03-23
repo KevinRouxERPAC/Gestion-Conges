@@ -19,6 +19,7 @@
                 {{ year + 1 }} →
             </a>
         </div>
+        {% if current_user.role in ['salarie', 'responsable'] %}
         <label class="flex items-center gap-4 cursor-pointer text-sm text-gray-700">
             <input type="checkbox" id="voir-tous" {% if voir_tous %}checked{% endif %}
                    data-url-moi="{{ url_for('salarie.calendrier', annee=year) }}"
@@ -26,6 +27,29 @@
                    class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
             <span>Voir les congés de tout le monde</span>
         </label>
+        {% endif %}
+        <div class="bg-gray-50 rounded-lg p-3 w-full">
+            <div class="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+                Filtrer par type
+            </div>
+            <div class="flex flex-col gap-2">
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="CP" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>Congés</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="Sans solde" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>Sans solde</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="RTT" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>RTT (heures)</span>
+                </label>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -47,26 +71,32 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         {% for e in events %}
-                        <tr>
+                        <tr data-type="{{ e.type }}">
                             <td class="px-3 py-2 whitespace-nowrap">
                                 {{ e.label }}
                             </td>
-                            <td class="px-3 py-2">{{ e.jours }} j</td>
+                            <td class="px-3 py-2">
+                                {% if e.type == 'RTT' %}
+                                    {{ e.heures_rtt|default(0) }} h
+                                {% else %}
+                                    {{ e.jours }} j
+                                {% endif %}
+                            </td>
                             <td class="px-3 py-2">
                                 <span class="px-2 py-1 rounded text-xs font-medium
                                     {% if e.type == 'CP' %}bg-erpac-100 text-erpac-800
                                     {% elif e.type == 'RTT' %}bg-purple-100 text-purple-800
-                                    {% elif e.type == 'Maladie' %}bg-red-100 text-red-800
-                                    {% elif e.type == 'Anciennete' %}bg-green-100 text-green-800
+                                    {% elif e.type == 'Sans solde' %}bg-yellow-100 text-yellow-900
+
                                     {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                    {{ 'Congés' if e.type in ['CP', 'Anciennete'] else e.type }}
+                                    {{ 'Congés' if e.type == 'CP' else e.type }}
                                 </span>
                             </td>
                             <td class="px-3 py-2">
@@ -96,23 +126,23 @@
             <div class="space-y-2 text-sm">
                 <div class="flex items-center gap-2">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #008C3A;"></span>
-                    <span>CP - Congés payés</span>
+                    <span>Congés</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #9333ea;"></span>
-                    <span>RTT</span>
+                    <span>RTT (heures)</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #ef4444;"></span>
-                    <span>Maladie</span>
+                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #f59e0b;"></span>
+                    <span>Sans solde</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #16a34a;"></span>
-                    <span>Ancienneté</span>
+                    <span class="hidden">Ancienneté</span>
                 </div>
                 <div class="flex items-center gap-2">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #6b7280;"></span>
-                    <span>Autre</span>
+                    <span class="hidden">Autre</span>
                 </div>
                 <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #fef3c7; border: 2px dashed #f59e0b;"></span>
@@ -154,26 +184,37 @@ document.addEventListener('DOMContentLoaded', function() {
             window.location.href = this.checked ? this.dataset.urlTous : this.dataset.urlMoi;
         });
     }
+
     var dataEl = document.getElementById('calendar-events-data');
     const eventsData = dataEl ? JSON.parse(dataEl.textContent) : [];
+
     const typeColors = {
         'CP': '#008C3A',
+        'Sans solde': '#f59e0b',
         'RTT': '#9333ea',
-        'Maladie': '#ef4444',
-        'Anciennete': '#16a34a',
         'default': '#6b7280'
     };
 
-    const getDisplayType = (type) => (type === 'CP' || type === 'Anciennete') ? 'Congés' : type;
+    const getDisplayType = (type) => (type === 'CP') ? 'Congés' : type;
 
-    const calendarEvents = eventsData.map(e => {
+    const mapToCalendarEvents = (list) => list.map(e => {
         const endDate = new Date(e.end);
         endDate.setDate(endDate.getDate() + 1);
+
         const isEnAttente = e.statut === 'en_attente_responsable' || e.statut === 'en_attente_rh';
         const color = typeColors[e.type] || typeColors['default'];
         const displayType = getDisplayType(e.type);
-        const baseTitle = isEnAttente ? `${displayType} - ${e.jours} j (en attente)` : `${displayType} - ${e.jours} jour(s)`;
+
+        const isRTT = e.type === 'RTT';
+        const unitTextValide = isRTT ? `${e.heures_rtt || 0} h` : `${e.jours} jour(s)`;
+        const unitTextAttente = isRTT ? `${e.heures_rtt || 0} h` : `${e.jours} j`;
+
+        const baseTitle = isEnAttente
+            ? `${displayType} - ${unitTextAttente} (en attente)`
+            : `${displayType} - ${unitTextValide}`;
+
         const title = e.salarie ? `${e.salarie} – ${baseTitle}` : baseTitle;
+
         return {
             title: title,
             start: e.start,
@@ -181,14 +222,12 @@ document.addEventListener('DOMContentLoaded', function() {
             backgroundColor: isEnAttente ? '#fef3c7' : color,
             borderColor: isEnAttente ? '#f59e0b' : color,
             textColor: isEnAttente ? '#92400e' : '#fff',
-            extendedProps: { type: e.type, jours: e.jours, statut: e.statut || 'valide' }
+            extendedProps: { type: e.type, jours: e.jours, heures_rtt: e.heures_rtt, statut: e.statut || 'valide' }
         };
     });
 
     const calendarEl = document.getElementById('calendar-salarie');
 
-    // Si l'année affichée est l'année courante, on centre le calendrier sur aujourd'hui.
-    // Sinon, on reste positionné sur le début de l'année demandée.
     const currentYear = new Date().getFullYear();
     const requestedYear = parseInt(document.getElementById('calendar-year').textContent, 10);
     const initialDate = currentYear === requestedYear
@@ -208,14 +247,48 @@ document.addEventListener('DOMContentLoaded', function() {
             today: 'Aujourd\'hui',
             month: 'Mois'
         },
-        events: calendarEvents,
+        events: [],
         initialDate: initialDate,
         height: 'auto',
         eventClick: function(info) {
             info.jsEvent.preventDefault();
         }
     });
+
     calendar.render();
-});
-</script>
+
+    const typeInputs = Array.from(document.querySelectorAll('input[name="type_filter"]'));
+    const getSelectedTypes = () => {
+        const selected = new Set();
+        typeInputs.forEach(el => { if (el.checked) selected.add(el.value); });
+        return selected;
+    };
+
+    const applyTypeFilters = () => {
+        const selected = getSelectedTypes();
+        const selectedSize = selected.size;
+
+        document.querySelectorAll('tr[data-type]').forEach(row => {
+            const t = row.getAttribute('data-type');
+            row.hidden = selectedSize > 0 ? !selected.has(t) : true;
+        });
+
+        const filteredEvents = selectedSize > 0 ? eventsData.filter(e => selected.has(e.type)) : [];
+        calendar.removeAllEvents();
+        calendar.addEventSource(mapToCalendarEvents(filteredEvents));
+    };
+
+    typeInputs.forEach(el => el.addEventListener('change', applyTypeFilters));
+    applyTypeFilters();
+});</script>
 {% endblock %}
+
+
+
+
+
+
+
+
+
+
