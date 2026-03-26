@@ -14,14 +14,20 @@
     </div>
 
     <div class="mb-5">
+        {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
+        {% set pct_cp_now = pct_cp|round(0, 'floor')|int %}
         <div class="flex justify-between text-sm text-gray-600 mb-2">
             <span>Congés payés (CP + ancienneté)</span>
             <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
             <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_cp > 90 else 'bg-orange-400' if pct_cp > 70 else 'bg-erpac-primary' }}"
-                 style="width: {{ pct_cp|round(0, 'floor') }}%"></div>
+                 style="width: {{ pct_cp_now }}%"
+                 role="progressbar"
+                 aria-label="Progression congés payés"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="{{ pct_cp_now }}"></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Restant : {{ solde.solde_restant }} jour(s)
@@ -29,16 +35,22 @@
     </div>
 
     <div>
+        {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
+        {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
+        {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
+        {% set pct_rtt_now = pct_rtt|round(0, 'floor')|int %}
         <div class="flex justify-between text-sm text-gray-600 mb-2">
             <span>RTT</span>
             <span>{{ solde.rtt_total_consomme|default(0) }} / {{ solde.rtt_total_alloue|default(0) }} heure(s)</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
-            {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
-            {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
             <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_rtt > 90 else 'bg-orange-400' if pct_rtt > 70 else 'bg-purple-600' }}"
-                 style="width: {{ pct_rtt|round(0, 'floor') }}%"></div>
+                 style="width: {{ pct_rtt_now }}%"
+                 role="progressbar"
+                 aria-label="Progression RTT"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="{{ pct_rtt_now }}"></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Restant : {{ solde.rtt_solde_restant|default(0) }} heure(s)
@@ -51,8 +63,9 @@
     <h2 class="text-lg font-semibold text-amber-900 mb-4">Demandes en attente ({{ demandes_attente|length }})</h2>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
+            <caption class="sr-only">Demandes de congés en attente de validation responsable</caption>
             <thead><tr class="text-left text-amber-800 border-b border-amber-200">
-                <th class="py-2 pr-4">Salarié</th><th class="py-2 pr-4">Période</th><th class="py-2 pr-4">Type</th><th class="py-2 pr-4">Jours</th><th class="py-2 text-right">Actions</th>
+                <th scope="col" class="py-2 pr-4">Salarié</th><th scope="col" class="py-2 pr-4">Période</th><th scope="col" class="py-2 pr-4">Type</th><th scope="col" class="py-2 pr-4">Jours</th><th scope="col" class="py-2 text-right">Actions</th>
             </tr></thead>
             <tbody>
             {% for c in demandes_attente %}
@@ -147,52 +160,6 @@
 
 <script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const eventsData = {{ calendar_events|tojson }};
-    const typeColors = {
-        'CP': '#008C3A',
-        'RTT': '#9333ea',
-        'Maladie': '#ef4444',
-        'Anciennete': '#16a34a',
-        'default': '#6b7280'
-    };
-
-    const calendarEvents = eventsData.map(e => {
-        const endDate = new Date(e.end);
-        endDate.setDate(endDate.getDate() + 1);
-        const isEnAttente = e.statut === 'en_attente_responsable' || e.statut === 'en_attente_rh';
-        const color = typeColors[e.type_conge] || typeColors['default'];
-        return {
-            title: e.user + ' - ' + e.type_conge,
-            start: e.start,
-            end: endDate.toISOString().split('T')[0],
-            backgroundColor: isEnAttente ? '#fef3c7' : color,
-            borderColor: isEnAttente ? '#f59e0b' : color,
-            textColor: isEnAttente ? '#92400e' : '#fff',
-        };
-    });
-
-    const calendarEl = document.getElementById('calendar-responsable');
-    if (calendarEl) {
-        const calendar = new FullCalendar.Calendar(calendarEl, {
-            initialView: 'dayGridMonth',
-            locale: 'fr',
-            firstDay: 1,
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'dayGridMonth'
-            },
-            buttonText: {
-                today: "Aujourd'hui",
-                month: 'Mois'
-            },
-            events: calendarEvents,
-            height: 'auto'
-        });
-        calendar.render();
-    }
-});
-</script>
+<script type="application/json" id="calendar-events-data-responsable">{{ calendar_events|tojson }}</script>
+<script src="{{ url_for('static', filename='js/responsable-dashboard.js') }}"></script>
 {% endblock %}

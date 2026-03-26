@@ -132,6 +132,74 @@ def verifier_solde_rtt_suffisant(user_id, nb_heures, conge_id_exclu=None):
     return solde_actuel >= nb_heures
 
 
+def calculer_soldes_batch(user_ids, parametrage_id=None):
+    """Calcule les soldes de tous les user_ids en 3 requêtes au lieu de N*4."""
+    param = _get_param(parametrage_id)
+    empty = {
+        "total_alloue": 0, "jours_conges": 0, "jours_anciennete": 0,
+        "jours_report": 0, "total_consomme": 0, "solde_restant": 0,
+        "rtt_heures_allouees": 0, "rtt_heures_reportees": 0,
+        "rtt_total_alloue": 0, "rtt_total_consomme": 0, "rtt_solde_restant": 0,
+    }
+    if not param or not user_ids:
+        return {uid: dict(empty) for uid in user_ids}
+
+    allocations = AllocationConge.query.filter(
+        AllocationConge.user_id.in_(user_ids),
+        AllocationConge.parametrage_id == param.id,
+    ).all()
+    alloc_by_user = {a.user_id: a for a in allocations}
+
+    cp_rows = db.session.query(
+        Conge.user_id,
+        func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0),
+    ).filter(
+        Conge.user_id.in_(user_ids),
+        Conge.date_debut >= param.debut_exercice,
+        Conge.date_fin <= param.fin_exercice,
+        Conge.type_conge.in_(["CP", "Anciennete"]),
+        Conge.statut == "valide",
+    ).group_by(Conge.user_id).all()
+    cp_by_user = {uid: int(v) for uid, v in cp_rows}
+
+    rtt_rows = db.session.query(
+        Conge.user_id,
+        func.coalesce(func.sum(Conge.nb_heures_rtt), 0),
+    ).filter(
+        Conge.user_id.in_(user_ids),
+        Conge.date_debut >= param.debut_exercice,
+        Conge.date_fin <= param.fin_exercice,
+        Conge.type_conge == "RTT",
+        Conge.statut == "valide",
+    ).group_by(Conge.user_id).all()
+    rtt_by_user = {uid: int(v) for uid, v in rtt_rows}
+
+    result = {}
+    for uid in user_ids:
+        alloc = alloc_by_user.get(uid)
+        if not alloc:
+            result[uid] = dict(empty)
+            continue
+        cp_total = alloc.total_jours
+        cp_consomme = cp_by_user.get(uid, 0)
+        rtt_total = alloc.total_rtt_heures
+        rtt_consomme = rtt_by_user.get(uid, 0)
+        result[uid] = {
+            "total_alloue": cp_total,
+            "jours_conges": alloc.jours_alloues,
+            "jours_anciennete": alloc.jours_anciennete,
+            "jours_report": alloc.jours_report,
+            "total_consomme": cp_consomme,
+            "solde_restant": cp_total - cp_consomme,
+            "rtt_heures_allouees": alloc.rtt_heures_allouees,
+            "rtt_heures_reportees": alloc.rtt_heures_reportees,
+            "rtt_total_alloue": rtt_total,
+            "rtt_total_consomme": rtt_consomme,
+            "rtt_solde_restant": rtt_total - rtt_consomme,
+        }
+    return result
+
+
 def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
     """Crée ou met à jour les allocations de congés (CP + RTT) pour tous les salariés actifs."""
     from models.user import User

@@ -14,14 +14,19 @@ from models import db as _db
 @pytest.fixture(scope="session")
 def app():
     """Crée l'application Flask pour les tests (SQLite in-memory)."""
-    app = create_app()
-    app.config.update({
+    app = create_app(test_config={
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "WTF_CSRF_ENABLED": False,
         "MAIL_SUPPRESS_SEND": True,
         "SERVER_NAME": "localhost",
     })
+
+    uri = (app.config.get("SQLALCHEMY_DATABASE_URI") or "").lower()
+    if ":memory:" not in uri and "test" not in uri:
+        raise RuntimeError(
+            "Refus de lancer les tests: la base configurée n'est pas une base de test/in-memory."
+        )
 
     with app.app_context():
         _db.drop_all()

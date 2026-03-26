@@ -11,13 +11,19 @@ class Config:
             "SECRET_KEY non défini. Définissez la variable d'environnement SECRET_KEY "
             "(ex: dans web.config ou .env). Générez-en une avec : python -c \"import secrets; print(secrets.token_urlsafe(32))\""
         )
-    # timeout=15 : SQLite attend jusqu'à 15 s si la base est verrouillée (écritures concurrentes multi-utilisateurs)
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
+    # Base de données. Par défaut : SQLite locale (adapté petite équipe, timeout=15 pour les écritures concurrentes).
+    # Pour PostgreSQL : DATABASE_URL=postgresql://user:pass@host/dbname
+    _SQLITE_DEFAULT = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL", _SQLITE_DEFAULT)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 1800  # 30 minutes en secondes
 
     # Schéma d’URL (http ou https). En HTTPS derrière IIS, mettre PREFERRED_URL_SCHEME=https dans web.config.
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "http")
+
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = PREFERRED_URL_SCHEME == "https"
 
     # SMTP pour les notifications (validation/refus de congés)
     # Exemple : MAIL_SERVER=smtp.gmail.com MAIL_PORT=587 MAIL_USE_TLS=true

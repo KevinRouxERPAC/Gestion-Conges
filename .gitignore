@@ -5,6 +5,8 @@ env/
 
 # Node (Tailwind)
 node_modules/
+playwright-report/
+test-results/
 
 # Cache Python
 __pycache__/

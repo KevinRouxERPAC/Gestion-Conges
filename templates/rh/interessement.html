@@ -50,15 +50,17 @@
 
 <!-- Liste des périodes -->
 <div class="bg-white rounded-xl shadow overflow-hidden">
+    <div class="overflow-x-auto">
     <table class="w-full">
+        <caption class="sr-only">Liste des périodes d’intéressement</caption>
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Libellé</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Base</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plancher</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Libellé</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Base</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plancher</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -88,7 +90,7 @@
                             {{ 'Désactiver' if p.actif else 'Activer' }}
                         </button>
                     </form>
-                    <form method="POST" class="inline" onsubmit="return confirm('Supprimer cette période et ses règles ?');">
+                    <form method="POST" class="inline" data-confirm="Supprimer cette période et ses règles ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="delete_periode">
                         <input type="hidden" name="periode_id" value="{{ p.id }}">
@@ -103,5 +105,6 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endblock %}

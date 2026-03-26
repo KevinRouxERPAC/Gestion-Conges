@@ -64,8 +64,14 @@ a, button, input, select, textarea, [role="button"] {
 }
 
 /* Focus styles */
-input:focus, select:focus, textarea:focus {
-    outline: none;
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+    outline: 2px solid rgba(0, 140, 58, 0.45);
+    outline-offset: 2px;
+}
+
+/* Alpine cloak helper: évite le flash de contenu avant init JS */
+[x-cloak] {
+    display: none !important;
 }
 
 
@@ -123,7 +129,7 @@ input:focus, select:focus, textarea:focus {
     font-size: .875rem;
     min-width: 10.5rem;
 }
-@media (max-width: 900px) {
+@media (max-width: 767px) {
     .erpac-toolbar {
         align-items: flex-start;
     }

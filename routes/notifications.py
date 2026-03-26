@@ -1,4 +1,6 @@
 """Blueprint des notifications in-app et Web Push."""
+from urllib.parse import urlparse
+
 from flask import Blueprint, render_template, redirect, url_for, request, jsonify
 from flask_login import login_required, current_user
 from models import db
@@ -7,6 +9,16 @@ from models.push_subscription import PushSubscription
 from services.notifications import compter_non_lues
 
 notifications_bp = Blueprint("notifications", __name__)
+
+
+def _safe_redirect_url(fallback):
+    """Renvoie request.referrer seulement s'il pointe vers le même hôte, sinon fallback."""
+    ref = request.referrer
+    if ref:
+        parsed = urlparse(ref)
+        if not parsed.netloc or parsed.netloc == request.host:
+            return ref
+    return fallback
 
 
 @notifications_bp.route("/count")
@@ -50,9 +62,11 @@ def marquer_lue(notification_id):
     notif = Notification.query.filter_by(id=notification_id, user_id=current_user.id).first_or_404()
     notif.lue = True
     db.session.commit()
-    if request.referrer and "notifications" in (request.referrer or ""):
+    default = url_for("salarie.accueil" if current_user.role == "salarie" else "rh.dashboard")
+    target = _safe_redirect_url(default)
+    if "notifications" in target:
         return redirect(url_for("notifications.liste"))
-    return redirect(request.referrer or url_for("salarie.accueil" if current_user.role == "salarie" else "rh.dashboard"))
+    return redirect(target)
 
 
 @notifications_bp.route("/tout-lire", methods=["POST"])
@@ -61,7 +75,7 @@ def tout_marquer_lues():
     """Marque toutes les notifications de l'utilisateur comme lues."""
     Notification.query.filter_by(user_id=current_user.id, lue=False).update({"lue": True})
     db.session.commit()
-    return redirect(request.referrer or url_for("notifications.liste"))
+    return redirect(_safe_redirect_url(url_for("notifications.liste")))
 
 
 @notifications_bp.route("/vapid-public")

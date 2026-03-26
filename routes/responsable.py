@@ -77,7 +77,6 @@ def valider_conge(conge_id):
     conge.statut = "en_attente_rh"
     conge.valide_par_responsable_id = current_user.id
     conge.valide_par_responsable_le = datetime.now(timezone.utc)
-    db.session.commit()
     notifier_rh_demande_transmise(conge)
     db.session.commit()
     flash("Demande validée. Transmise aux RH.", "success")
@@ -103,7 +102,6 @@ def refuser_conge(conge_id):
         conge.valide_par_responsable_id = current_user.id
         conge.valide_par_responsable_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
-        db.session.commit()
         notifier_conge_refuse(conge, motif)
         db.session.commit()
         flash("Demande refusée.", "success")
@@ -234,7 +232,7 @@ def ajouter_conge_subordonne(user_id):
             nb_heures_exceptionnelles=nb_heures_exceptionnelles if exc_code else None,
         )
         db.session.add(conge)
-        db.session.commit()
+        db.session.flush()
 
         notifier_rh_nouvelle_demande(conge)
         db.session.commit()

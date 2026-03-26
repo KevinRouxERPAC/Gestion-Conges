@@ -1,7 +1,8 @@
 # Verifie la configuration du site Gestion Conges pour IIS
 # Executer depuis la racine du projet : .\scripts\verifier_config_iis.ps1
+param([string]$BasePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path)
 
-$base = "C:\Sites\Gestion-Conges"
+$base = $BasePath
 Write-Host "=== Verification config IIS - $base ===" -ForegroundColor Cyan
 
 @("app.py", "run_wsgi.py", "web.config") | ForEach-Object {
@@ -10,7 +11,8 @@ Write-Host "=== Verification config IIS - $base ===" -ForegroundColor Cyan
 }
 
 $py = Join-Path $base ".venv\Scripts\python.exe"
-if (Test-Path $py) { Write-Host "  OK  .venv\Scripts\python.exe" } else { Write-Host "  MANQUE  .venv\Scripts\python.exe" -ForegroundColor Red }
+if (-not (Test-Path $py)) { $py = Join-Path $base "venv\Scripts\python.exe" }
+if (Test-Path $py) { Write-Host "  OK  $py" } else { Write-Host "  MANQUE  .venv\\Scripts\\python.exe ou venv\\Scripts\\python.exe" -ForegroundColor Red }
 
 if (Test-Path (Join-Path $base "logs")) { Write-Host "  OK  logs\" } else { Write-Host "  MANQUE  logs\" -ForegroundColor Red }
 

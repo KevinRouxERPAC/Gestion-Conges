@@ -50,14 +50,16 @@
     <h2 class="text-lg font-semibold text-gray-800">Détail par mois</h2>
   </div>
   {% if heures_rows %}
+  <div class="overflow-x-auto">
   <table class="w-full">
+    <caption class="sr-only">Détail mensuel des heures de l'exercice actif</caption>
     <thead class="bg-gray-50">
       <tr>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mois</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payées</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trajet</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Travaillées</th>
-        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saisie le</th>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Mois</th>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payées</th>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Trajet</th>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Travaillées</th>
+        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Saisie le</th>
       </tr>
     </thead>
     <tbody class="divide-y divide-gray-200">
@@ -72,6 +74,7 @@
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% else %}
   <div class="px-6 py-12 text-center text-gray-500">Aucune heure saisie sur l'exercice.</div>
   {% endif %}

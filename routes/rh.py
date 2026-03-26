@@ -1,7 +1,6 @@
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from functools import wraps
 
-import bcrypt
 from services.auth_utils import hash_password
 from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file
 from flask_login import login_required, current_user
@@ -11,8 +10,7 @@ from models.conge import Conge
 from models.jour_ferie import JourFerie
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.user import User
-from models.conge_exceptionnel_type import CongeExceptionnelType
-from models.heures_payees import HeuresPayees
+from models.heures_hebdo import HeuresHebdoSaisie, HeuresHebdoVerrou
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.solde import (
     calculer_solde,
@@ -25,13 +23,15 @@ from services.jours_feries import get_jours_feries
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
-from services.heures_rtt import maj_rtt_allocations_depuis_heures
 from models.interessement_periode import InteressementPeriode
 from models.interessement_regle import InteressementRegle
-from services.interessement import calculer_interessement
 from services.export_interessement import export_interessement_xlsx
+from services.rh_dashboard import build_rh_dashboard_context
+from services.rh_admin_actions import handle_interessement_action, handle_types_exceptionnels_action
 
 rh_bp = Blueprint("rh", __name__)
+
+ROLES_AUTORISES = {"rh", "salarie", "responsable"}
 
 
 def rh_required(f):
@@ -47,101 +47,7 @@ def rh_required(f):
 @rh_bp.route("/dashboard")
 @rh_required
 def dashboard():
-    salaries = User.query.filter_by(actif=True).order_by(User.nom).all()
-    param = get_parametrage_actif()
-
-    salaries_data = []
-    for s in salaries:
-        solde_info = calculer_solde(s.id)
-        conges_en_cours = Conge.query.filter(
-            Conge.user_id == s.id,
-            Conge.statut == "valide",
-            Conge.date_debut <= datetime.today().date(),
-            Conge.date_fin >= datetime.today().date(),
-        ).count()
-        salaries_data.append({
-            "user": s,
-            "solde": solde_info,
-            "conges_en_cours": conges_en_cours,
-        })
-
-    # Données pour les graphiques (solde restant par salarié)
-    chart_labels = []
-    chart_soldes_restants = []
-    for item in salaries_data:
-        user = item["user"]
-        solde = item["solde"]
-        chart_labels.append(f"{user.prenom} {user.nom}")
-        chart_soldes_restants.append(solde.get("solde_restant", 0))
-
-    # Données pour le calendrier (tous les congés de l'exercice actif)
-    calendar_events = []
-    conges_exercice_rows = []
-    if param:
-        conges_exercice = Conge.query.filter(
-            Conge.statut == "valide",
-            Conge.date_debut <= param.fin_exercice,
-            Conge.date_fin >= param.debut_exercice,
-        ).all()
-        for c in conges_exercice:
-            if c.utilisateur is None:
-                continue
-            label = f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}"
-            calendar_events.append({
-                "start": c.date_debut.isoformat(),
-                "end": c.date_fin.isoformat(),
-                "user": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
-                "type_conge": c.type_conge,
-            })
-            conges_exercice_rows.append({
-                "salarie": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
-                "label": label,
-                "jours": c.nb_jours_ouvrables or 0,
-                "type": c.type_conge,
-            })
-
-    # Demandes en attente de validation RH (niveau 2, après validation responsable)
-    demandes_attente = (
-        Conge.query.filter_by(statut="en_attente_rh")
-        .order_by(Conge.cree_le.asc())
-        .all()
-    )
-
-    # Salariés inactifs (pour le tableau en dessous)
-    salaries_inactifs = User.query.filter_by(actif=False).order_by(User.nom).all()
-    salaries_data_inactifs = []
-    for s in salaries_inactifs:
-        solde_info = calculer_solde(s.id)
-        salaries_data_inactifs.append({"user": s, "solde": solde_info})
-
-    # Stats
-    total_salaries = len(salaries)
-    total_en_conge = sum(1 for s in salaries_data if s["conges_en_cours"] > 0)
-
-    today = date.today()
-    compta_31_03 = None
-    compta_30_09 = None
-    if param:
-        year = param.fin_exercice.year
-        compta_31_03 = date(year, 3, 31)
-        compta_30_09 = date(year, 9, 30)
-
-    return render_template(
-        "rh/dashboard.html",
-        salaries_data=salaries_data,
-        salaries_data_inactifs=salaries_data_inactifs,
-        total_salaries=total_salaries,
-        total_en_conge=total_en_conge,
-        parametrage=param,
-        chart_labels=chart_labels,
-        chart_soldes_restants=chart_soldes_restants,
-        calendar_events=calendar_events,
-        conges_exercice_rows=conges_exercice_rows,
-        demandes_attente=demandes_attente,
-        today=today,
-        compta_31_03=compta_31_03,
-        compta_30_09=compta_30_09,
-    )
+    return render_template("rh/dashboard.html", **build_rh_dashboard_context(datetime.today().date()))
 
 @rh_bp.route("/salarie/<int:user_id>")
 @rh_required
@@ -150,7 +56,11 @@ def salarie_detail(user_id):
     solde_info = calculer_solde(user.id)
     param = get_parametrage_actif()
 
-    conges = Conge.query.filter_by(user_id=user.id).order_by(Conge.date_debut.desc()).all()
+    LIMIT = 50
+    voir_tout = request.args.get("tous") == "1"
+    q = Conge.query.filter_by(user_id=user.id).order_by(Conge.date_debut.desc())
+    total_conges = q.count()
+    conges = q.all() if voir_tout else q.limit(LIMIT).all()
 
     return render_template(
         "rh/salarie_detail.html",
@@ -158,6 +68,9 @@ def salarie_detail(user_id):
         solde=solde_info,
         conges=conges,
         parametrage=param,
+        total_conges=total_conges,
+        voir_tout=voir_tout,
+        limit=LIMIT,
     )
 
 @rh_bp.route("/salarie/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
@@ -314,6 +227,12 @@ def modifier_conge(conge_id):
         type_conge = request.form.get("type_conge", conge.type_conge)
         exc_code = parse_code(type_conge)
         exc_type = None
+
+        types_standards = {"CP", "Anciennete", "RTT", "Sans solde", "Maladie"}
+        if type_conge not in types_standards and not exc_code:
+            flash("Merci de sélectionner un type de congé valide.", "error")
+            return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+
         if exc_code:
             exc_type = get_type_exceptionnel(exc_code)
             if not exc_type or not exc_type.actif:
@@ -420,12 +339,21 @@ def valider_conge(conge_id):
         if not verifier_solde_rtt_suffisant(conge.user_id, conge.nb_heures_rtt or 0):
             flash("Solde RTT insuffisant pour valider ce congé.", "error")
             return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+    else:
+        from services.conges_exceptionnels import parse_code, get_type_exceptionnel, verifier_plafond
+        exc_code = parse_code(conge.type_conge)
+        if exc_code:
+            exc_type = get_type_exceptionnel(exc_code)
+            if exc_type and exc_type.plafond_annuel is not None:
+                quantite = conge.nb_heures_exceptionnelles if exc_type.unite == "heures" else conge.nb_jours_ouvrables
+                if not verifier_plafond(conge.user_id, exc_type, quantite):
+                    flash(f"Plafond dépassé pour le congé exceptionnel « {exc_type.libelle} ».", "error")
+                    return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     conge.statut = "valide"
     conge.valide_par_id = current_user.id
     conge.valide_le = datetime.now(timezone.utc)
     conge.motif_refus = None
-    db.session.commit()
 
     notifier_conge_valide(conge)
     db.session.commit()
@@ -452,7 +380,6 @@ def refuser_conge(conge_id):
         conge.valide_par_id = current_user.id
         conge.valide_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
-        db.session.commit()
 
         notifier_conge_refuse(conge, motif)
         db.session.commit()
@@ -732,6 +659,9 @@ def creer_salarie():
         identifiant = request.form.get("identifiant", "").strip()
         mot_de_passe = request.form.get("mot_de_passe", "")
         role = request.form.get("role", "salarie").strip() or "salarie"
+        if role not in ROLES_AUTORISES:
+            flash("Rôle invalide. Valeurs autorisées : salarie, responsable, rh.", "error")
+            return render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all())
         date_embauche_str = request.form.get("date_embauche", "").strip()
 
         if not nom or not prenom or not identifiant or not mot_de_passe:
@@ -785,6 +715,9 @@ def modifier_salarie(user_id):
         identifiant = request.form.get("identifiant", "").strip()
         mot_de_passe = request.form.get("mot_de_passe", "")
         role = request.form.get("role", "salarie").strip() or "salarie"
+        if role not in ROLES_AUTORISES:
+            flash("Rôle invalide. Valeurs autorisées : salarie, responsable, rh.", "error")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
         date_embauche_str = request.form.get("date_embauche", "").strip()
         actif_str = request.form.get("actif", "off")
 
@@ -832,82 +765,9 @@ def types_exceptionnels():
     from services.conges_exceptionnels import get_types_exceptionnels
 
     if request.method == "POST":
-        action = request.form.get("action")
-
-        if action == "create":
-            code = (request.form.get("code") or "").strip().upper()
-            libelle = (request.form.get("libelle") or "").strip()
-            unite = (request.form.get("unite") or "jours").strip() or "jours"
-            plafond_str = (request.form.get("plafond_annuel") or "").strip()
-            plafond = None
-            if plafond_str:
-                try:
-                    plafond = int(plafond_str)
-                except ValueError:
-                    plafond = None
-
-            if not code or not libelle or unite not in ("jours", "heures"):
-                flash("Données invalides.", "error")
-                return redirect(url_for("rh.types_exceptionnels"))
-
-            existing = CongeExceptionnelType.query.filter_by(code=code).first()
-            if existing:
-                flash("Un type avec ce code existe déjà.", "error")
-                return redirect(url_for("rh.types_exceptionnels"))
-
-            t = CongeExceptionnelType(code=code, libelle=libelle, unite=unite, plafond_annuel=plafond, actif=True)
-            db.session.add(t)
-            db.session.commit()
-            flash("Type ajouté.", "success")
-            return redirect(url_for("rh.types_exceptionnels"))
-
-        if action == "update":
-            try:
-                type_id = int(request.form.get("type_id") or "0")
-            except ValueError:
-                type_id = 0
-
-            t = CongeExceptionnelType.query.get(type_id)
-            if not t:
-                flash("Type introuvable.", "error")
-                return redirect(url_for("rh.types_exceptionnels"))
-
-            libelle = (request.form.get("libelle") or "").strip()
-            unite = (request.form.get("unite") or "jours").strip() or "jours"
-            plafond_str = (request.form.get("plafond_annuel") or "").strip()
-            plafond = None
-            if plafond_str:
-                try:
-                    plafond = int(plafond_str)
-                except ValueError:
-                    plafond = None
-
-            if not libelle or unite not in ("jours", "heures"):
-                flash("Données invalides.", "error")
-                return redirect(url_for("rh.types_exceptionnels"))
-
-            t.libelle = libelle
-            t.unite = unite
-            t.plafond_annuel = plafond
-            db.session.commit()
-            flash("Type mis à jour.", "success")
-            return redirect(url_for("rh.types_exceptionnels"))
-
-        if action == "toggle":
-            try:
-                type_id = int(request.form.get("type_id") or "0")
-            except ValueError:
-                type_id = 0
-
-            t = CongeExceptionnelType.query.get(type_id)
-            if not t:
-                flash("Type introuvable.", "error")
-                return redirect(url_for("rh.types_exceptionnels"))
-
-            t.actif = not bool(t.actif)
-            db.session.commit()
-            flash("Statut mis à jour.", "success")
-            return redirect(url_for("rh.types_exceptionnels"))
+        category, message = handle_types_exceptionnels_action(request.form)
+        flash(message, category)
+        return redirect(url_for("rh.types_exceptionnels"))
 
     types = get_types_exceptionnels(actifs_only=False)
     return render_template("rh/types_exceptionnels.html", types=types)
@@ -918,7 +778,7 @@ def types_exceptionnels():
 @rh_bp.route("/heures", methods=["GET", "POST"])
 @rh_required
 def heures():
-    """Saisie mensuelle des heures (trajet/travaillées/payées) et recalcul RTT optionnel."""
+    """Saisie manuelle hebdomadaire en grille avec brouillon, contrôle et verrouillage."""
     from services.solde import get_parametrage_actif
 
     param = get_parametrage_actif()
@@ -926,83 +786,148 @@ def heures():
         flash("Aucun paramétrage actif. Configurez d'abord l'exercice.", "error")
         return redirect(url_for("rh.parametrage"))
 
+    iso_now = date.today().isocalendar()
     try:
-        annee = int(request.values.get("annee") or date.today().year)
+        annee_iso = int(request.values.get("annee_iso") or iso_now.year)
     except ValueError:
-        annee = date.today().year
+        annee_iso = iso_now.year
     try:
-        mois = int(request.values.get("mois") or date.today().month)
+        semaine_iso = int(request.values.get("semaine_iso") or iso_now.week)
     except ValueError:
-        mois = date.today().month
-    if mois < 1 or mois > 12:
-        mois = date.today().month
+        semaine_iso = iso_now.week
+
+    if semaine_iso < 1 or semaine_iso > 53:
+        semaine_iso = iso_now.week
 
     salaries = User.query.filter_by(actif=True).order_by(User.nom).all()
+    verrou = HeuresHebdoVerrou.query.filter_by(annee_iso=annee_iso, semaine_iso=semaine_iso).first()
+    semaine_verrouillee = bool(verrou and verrou.verrouille)
 
     if request.method == "POST":
         action = (request.form.get("action") or "save").strip() or "save"
-        saved_user_ids = []
+        if semaine_verrouillee:
+            flash("Cette semaine est déjà validée et verrouillée.", "warning")
+            return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
+
+        erreurs = []
+        lignes = []
+        now_utc = datetime.now(timezone.utc)
 
         for s in salaries:
             prefix = f"u{s.id}_"
-            hp_str = (request.form.get(prefix + "heures_payees") or "").strip()
-            ht_str = (request.form.get(prefix + "heures_trajet") or "").strip()
-            hw_str = (request.form.get(prefix + "heures_travaillees") or "").strip()
+            hpv_str = (request.form.get(prefix + "heures_prevues") or "").strip()
+            htr_str = (request.form.get(prefix + "heures_travaillees") or "").strip()
+            hsup_str = (request.form.get(prefix + "heures_sup") or "").strip()
+            htraj_str = (request.form.get(prefix + "heures_trajet") or "").strip()
+            habs_str = (request.form.get(prefix + "heures_absence") or "").strip()
 
-            # Si rien saisi pour ce salarié, on ignore.
-            if not (hp_str or ht_str or hw_str):
+            if not (hpv_str or htr_str or hsup_str or htraj_str or habs_str):
                 continue
 
             try:
-                heures_payees = int(hp_str or 0)
-                heures_trajet = int(ht_str or 0)
-                heures_travaillees = int(hw_str or 0)
+                heures_prevues = float((hpv_str or "35").replace(",", "."))
+                heures_travaillees = float((htr_str or "0").replace(",", "."))
+                heures_sup = float((hsup_str or "0").replace(",", "."))
+                heures_trajet = float((htraj_str or "0").replace(",", "."))
+                heures_absence = float((habs_str or "0").replace(",", "."))
             except ValueError:
-                flash(f"Valeurs invalides pour {s.prenom} {s.nom}.", "error")
-                return redirect(url_for("rh.heures", annee=annee, mois=mois))
+                erreurs.append(f"Valeurs invalides pour {s.prenom} {s.nom}.")
+                continue
 
-            row = HeuresPayees.query.filter_by(user_id=s.id, annee=annee, mois=mois).first()
+            if min(heures_prevues, heures_travaillees, heures_sup, heures_trajet, heures_absence) < 0:
+                erreurs.append(f"Valeurs négatives interdites pour {s.prenom} {s.nom}.")
+                continue
+            if any(x > 80 for x in [heures_prevues, heures_travaillees, heures_sup, heures_trajet, heures_absence]):
+                erreurs.append(f"Valeur trop élevée (> 80) pour {s.prenom} {s.nom}.")
+                continue
+            if heures_travaillees + heures_absence > heures_prevues + heures_sup + 1:
+                erreurs.append(f"Incohérence de total pour {s.prenom} {s.nom}.")
+                continue
+
+            row = HeuresHebdoSaisie.query.filter_by(
+                user_id=s.id, annee_iso=annee_iso, semaine_iso=semaine_iso
+            ).first()
             if not row:
-                row = HeuresPayees(user_id=s.id, annee=annee, mois=mois)
+                row = HeuresHebdoSaisie(user_id=s.id, annee_iso=annee_iso, semaine_iso=semaine_iso)
                 db.session.add(row)
 
-            row.heures_payees = max(0, heures_payees)
-            row.heures_trajet = max(0, heures_trajet)
-            row.heures_travaillees = max(0, heures_travaillees)
-            row.source = "manuel"
+            row.heures_prevues = heures_prevues
+            row.heures_travaillees = heures_travaillees
+            row.heures_sup = heures_sup
+            row.heures_trajet = heures_trajet
+            row.heures_absence = heures_absence
+            row.statut = "brouillon"
             row.saisi_par_id = current_user.id
-            saved_user_ids.append(s.id)
+            row.saisi_le = now_utc
+            row.valide_par_id = None
+            row.valide_le = None
+            lignes.append(row)
+
+        if erreurs:
+            for err in erreurs[:5]:
+                flash(err, "error")
+            if len(erreurs) > 5:
+                flash(f"{len(erreurs) - 5} autre(s) erreur(s) de saisie.", "error")
+            db.session.rollback()
+            return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
 
         db.session.commit()
 
-        if saved_user_ids:
-            flash("Heures enregistrées.", "success")
-        else:
-            flash("Aucune donnée à enregistrer.", "info")
+        if action == "save":
+            flash("Brouillon enregistré.", "success")
+            return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
 
-        if action == "save_recalc":
-            try:
-                res = maj_rtt_allocations_depuis_heures(param, user_ids=saved_user_ids)
-                if res:
-                    flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
-                else:
-                    flash("RTT non recalculées (mode RTT = fixe ou paramétrage manquant).", "warning")
-            except Exception:
-                db.session.rollback()
-                flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
+        if action == "validate":
+            confirm = (request.form.get("confirm_validate") or "") == "1"
+            if not confirm:
+                flash("Merci de cocher la confirmation avant validation.", "error")
+                return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
 
-        return redirect(url_for("rh.heures", annee=annee, mois=mois))
+            if not verrou:
+                verrou = HeuresHebdoVerrou(annee_iso=annee_iso, semaine_iso=semaine_iso)
+                db.session.add(verrou)
 
-    existing = HeuresPayees.query.filter_by(annee=annee, mois=mois).all()
-    by_user = {e.user_id: e for e in existing}
+            rows_to_validate = HeuresHebdoSaisie.query.filter_by(
+                annee_iso=annee_iso,
+                semaine_iso=semaine_iso,
+            ).all()
+            if not rows_to_validate:
+                flash("Aucune donnée à valider pour cette semaine.", "warning")
+                return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
+
+            now_utc = datetime.now(timezone.utc)
+            for row in rows_to_validate:
+                row.statut = "valide"
+                row.valide_par_id = current_user.id
+                row.valide_le = now_utc
+
+            verrou.verrouille = True
+            verrou.valide_par_id = current_user.id
+            verrou.valide_le = now_utc
+            db.session.commit()
+            flash("Semaine validée et verrouillée.", "success")
+            return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
+
+        flash("Action inconnue.", "warning")
+        return redirect(url_for("rh.heures", annee_iso=annee_iso, semaine_iso=semaine_iso))
+
+    rows = HeuresHebdoSaisie.query.filter_by(annee_iso=annee_iso, semaine_iso=semaine_iso).all()
+    by_user = {e.user_id: e for e in rows}
+
+    debut_semaine = date.fromisocalendar(annee_iso, semaine_iso, 1)
+    fin_semaine = debut_semaine + timedelta(days=6)
 
     return render_template(
         "rh/heures.html",
         parametrage=param,
-        annee=annee,
-        mois=mois,
+        annee_iso=annee_iso,
+        semaine_iso=semaine_iso,
+        debut_semaine=debut_semaine,
+        fin_semaine=fin_semaine,
         salaries=salaries,
         heures_by_user=by_user,
+        semaine_verrouillee=semaine_verrouillee,
+        verrou=verrou,
     )
 
 
@@ -1013,73 +938,9 @@ def interessement():
     periodes = InteressementPeriode.query.order_by(InteressementPeriode.date_debut.desc()).all()
 
     if request.method == "POST":
-        action = request.form.get("action", "")
-
-        if action == "create_periode":
-            libelle = (request.form.get("libelle") or "").strip()
-            date_debut_str = (request.form.get("date_debut") or "").strip()
-            date_fin_str = (request.form.get("date_fin") or "").strip()
-            base_points_str = (request.form.get("base_points") or "100").strip()
-            plancher_str = (request.form.get("plancher_points") or "0").strip()
-
-            if not libelle or not date_debut_str or not date_fin_str:
-                flash("Libellé, date de début et date de fin sont obligatoires.", "error")
-                return redirect(url_for("rh.interessement"))
-
-            try:
-                d_debut = datetime.strptime(date_debut_str, "%Y-%m-%d").date()
-                d_fin = datetime.strptime(date_fin_str, "%Y-%m-%d").date()
-            except ValueError:
-                flash("Format de date invalide.", "error")
-                return redirect(url_for("rh.interessement"))
-
-            if d_fin < d_debut:
-                flash("La date de fin doit être postérieure à la date de début.", "error")
-                return redirect(url_for("rh.interessement"))
-
-            try:
-                base_points = int(base_points_str)
-                plancher_points = int(plancher_str)
-            except ValueError:
-                flash("Base et plancher doivent être des entiers.", "error")
-                return redirect(url_for("rh.interessement"))
-
-            p = InteressementPeriode(
-                libelle=libelle,
-                date_debut=d_debut,
-                date_fin=d_fin,
-                base_points=base_points,
-                plancher_points=plancher_points,
-                actif=False,
-            )
-            db.session.add(p)
-            db.session.commit()
-            flash("Période créée.", "success")
-            return redirect(url_for("rh.interessement"))
-
-        if action == "toggle_periode":
-            try:
-                pid = int(request.form.get("periode_id") or "0")
-            except ValueError:
-                pid = 0
-            p = InteressementPeriode.query.get(pid)
-            if p:
-                p.actif = not p.actif
-                db.session.commit()
-                flash("Statut mis à jour.", "success")
-            return redirect(url_for("rh.interessement"))
-
-        if action == "delete_periode":
-            try:
-                pid = int(request.form.get("periode_id") or "0")
-            except ValueError:
-                pid = 0
-            p = InteressementPeriode.query.get(pid)
-            if p:
-                db.session.delete(p)
-                db.session.commit()
-                flash("Période supprimée.", "success")
-            return redirect(url_for("rh.interessement"))
+        category, message = handle_interessement_action(request.form)
+        flash(message, category)
+        return redirect(url_for("rh.interessement"))
 
     return render_template("rh/interessement.html", periodes=periodes)
 
@@ -1097,55 +958,9 @@ def interessement_regles(periode_id):
         types_conge_disponibles.append(f"EXC:{t.code}")
 
     if request.method == "POST":
-        action = request.form.get("action", "")
-
-        if action == "add_regle":
-            type_absence = (request.form.get("type_absence") or "").strip()
-            ppj_str = (request.form.get("points_par_jour") or "0").strip()
-
-            if not type_absence:
-                flash("Type d’absence obligatoire.", "error")
-                return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-            existing = InteressementRegle.query.filter_by(periode_id=periode.id, type_absence=type_absence).first()
-            if existing:
-                flash("Une règle existe déjà pour ce type d’absence.", "error")
-                return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-            try:
-                ppj = float(ppj_str)
-            except ValueError:
-                ppj = 0.0
-
-            r = InteressementRegle(periode_id=periode.id, type_absence=type_absence, points_par_jour=ppj)
-            db.session.add(r)
-            db.session.commit()
-            flash("Règle ajoutée.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-        if action == "update_regles":
-            for r in regles:
-                ppj_str = (request.form.get(f"ppj_{r.id}") or "").strip()
-                if ppj_str:
-                    try:
-                        r.points_par_jour = float(ppj_str)
-                    except ValueError:
-                        pass
-            db.session.commit()
-            flash("Règles mises à jour.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-        if action == "delete_regle":
-            try:
-                rid = int(request.form.get("regle_id") or "0")
-            except ValueError:
-                rid = 0
-            r = InteressementRegle.query.get(rid)
-            if r and r.periode_id == periode.id:
-                db.session.delete(r)
-                db.session.commit()
-                flash("Règle supprimée.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
+        category, message = handle_interessement_action(request.form, periode_id=periode.id)
+        flash(message, category)
+        return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
 
     return render_template(
         "rh/interessement_regles.html",

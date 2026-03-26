@@ -1,82 +1,117 @@
 {% extends "base.html" %}
-{% block title %}Heures / RTT{% endblock %}
+{% block title %}Saisie heures RH{% endblock %}
 
 {% block content %}
 <div class="mb-8">
-  <h1 class="text-2xl font-bold text-gray-800">Heures / RTT</h1>
-  <p class="text-gray-500 mt-1">Saisie mensuelle des heures (trajet / travaillées / payées) et recalcul RTT selon le paramétrage.</p>
+  <h1 class="text-2xl font-bold text-gray-800">Saisie manuelle des heures RH</h1>
+  <p class="text-gray-500 mt-1">Semaine {{ "%02d"|format(semaine_iso) }} / {{ annee_iso }} · édition en grille avec validation en temps réel.</p>
 </div>
 
-<div class="bg-white rounded-xl shadow p-6 mb-8">
+<div class="bg-white rounded-xl shadow p-6 mb-6">
   <form method="GET" class="flex flex-col md:flex-row gap-4 items-end">
     <div>
-      <label class="block text-sm text-gray-600 mb-1">Mois</label>
-      <input type="number" name="mois" min="1" max="12" value="{{ mois }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+      <label class="block text-sm text-gray-600 mb-1">Semaine ISO</label>
+      <input type="number" name="semaine_iso" min="1" max="53" value="{{ semaine_iso }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
     </div>
     <div>
-      <label class="block text-sm text-gray-600 mb-1">Année</label>
-      <input type="number" name="annee" min="2000" max="2100" value="{{ annee }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+      <label class="block text-sm text-gray-600 mb-1">Année ISO</label>
+      <input type="number" name="annee_iso" min="2000" max="2100" value="{{ annee_iso }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
     </div>
-    <div class="flex items-end">
-      <button type="submit" class="bg-gray-900 hover:bg-black text-white font-medium py-2 px-4 rounded-lg transition">Afficher</button>
-    </div>
+    <button type="submit" class="bg-gray-900 hover:bg-black text-white font-medium py-2 px-4 rounded-lg transition">Afficher</button>
     <div class="ml-auto text-sm text-gray-500">
-      <div>Exercice actif : <span class="font-medium">{{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}</span></div>
-      <div>Mode RTT : <span class="font-medium">{{ parametrage.rtt_calc_mode }}</span></div>
+      <div>Période: <span class="font-medium">{{ debut_semaine.strftime("%d/%m/%Y") }} → {{ fin_semaine.strftime("%d/%m/%Y") }}</span></div>
+      <div>Exercice actif: <span class="font-medium">{{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}</span></div>
     </div>
   </form>
 </div>
 
-<div class="bg-white rounded-xl shadow overflow-hidden">
+{% if semaine_verrouillee %}
+<div class="bg-green-50 border border-green-200 text-green-800 rounded-xl p-4 mb-6 text-sm">
+  Cette semaine est validée et verrouillée{% if verrou and verrou.valide_le %} le {{ verrou.valide_le.strftime("%d/%m/%Y") }}{% endif %}. La saisie n'est plus modifiable.
+</div>
+{% endif %}
+
+<form method="POST" id="weekly-hours-form" class="bg-white rounded-xl shadow overflow-hidden">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="semaine_iso" value="{{ semaine_iso }}">
+  <input type="hidden" name="annee_iso" value="{{ annee_iso }}">
+  <input type="hidden" name="confirm_validate" id="confirm_validate_input" value="0">
+
   <div class="px-6 py-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-    <h2 class="text-lg font-semibold text-gray-800">Saisie - {{ "%02d"|format(mois) }}/{{ annee }}</h2>
-    <div class="text-xs text-gray-500">Astuce: laissez vide une ligne pour ne pas la modifier.</div>
+    <h2 class="text-lg font-semibold text-gray-800">Grille hebdomadaire</h2>
+    <div class="text-xs text-gray-500">Navigation: Tab, Shift+Tab, flèches. Collage possible depuis Excel.</div>
   </div>
 
-  <form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="mois" value="{{ mois }}">
-    <input type="hidden" name="annee" value="{{ annee }}">
+  <div class="overflow-x-auto">
+    <table class="min-w-full" id="hours-grid">
+      <caption class="sr-only">Grille hebdomadaire de saisie des heures par salarié</caption>
+      <thead class="bg-gray-50">
+        <tr>
+          <th scope="col" class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">H prévues</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">H travaillées</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">H sup</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">H trajet</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Absences</th>
+          <th scope="col" class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase">Écart</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-200">
+        {% for s in salaries %}
+        {% set row = heures_by_user.get(s.id) %}
+        {% set row_locked = semaine_verrouillee or (row and row.statut == 'valide') %}
+        <tr class="hover:bg-gray-50" data-user-row="{{ s.id }}">
+          <td class="px-4 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
+          <td class="px-3 py-3">
+            {% if row and row.statut == "valide" %}
+            <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
+            {% else %}
+            <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">Brouillon</span>
+            {% endif %}
+          </td>
+          <td class="px-3 py-3">
+            <input {% if row_locked %}disabled{% endif %} type="number" step="0.25" min="0" max="80" name="u{{ s.id }}_heures_prevues" value="{{ row.heures_prevues if row else "35" }}" class="grid-input w-28 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-erpac-primary">
+          </td>
+          <td class="px-3 py-3">
+            <input {% if row_locked %}disabled{% endif %} type="number" step="0.25" min="0" max="80" name="u{{ s.id }}_heures_travaillees" value="{{ row.heures_travaillees if row else "" }}" class="grid-input w-28 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-erpac-primary">
+          </td>
+          <td class="px-3 py-3">
+            <input {% if row_locked %}disabled{% endif %} type="number" step="0.25" min="0" max="80" name="u{{ s.id }}_heures_sup" value="{{ row.heures_sup if row else "" }}" class="grid-input w-24 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-erpac-primary">
+          </td>
+          <td class="px-3 py-3">
+            <input {% if row_locked %}disabled{% endif %} type="number" step="0.25" min="0" max="80" name="u{{ s.id }}_heures_trajet" value="{{ row.heures_trajet if row else "" }}" class="grid-input w-24 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-erpac-primary">
+          </td>
+          <td class="px-3 py-3">
+            <input {% if row_locked %}disabled{% endif %} type="number" step="0.25" min="0" max="80" name="u{{ s.id }}_heures_absence" value="{{ row.heures_absence if row else "" }}" class="grid-input w-24 px-2 py-1 border rounded text-sm focus:ring-2 focus:ring-erpac-primary">
+          </td>
+          <td class="px-3 py-3 text-sm font-medium text-gray-700 row-ecart">-</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
 
-    <div class="overflow-x-auto">
-      <table class="min-w-full">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures payées</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures trajet</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures travaillées</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-          {% for s in salaries %}
-          {% set row = heures_by_user.get(s.id) %}
-          <tr class="hover:bg-gray-50">
-            <td class="px-6 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
-            <td class="px-6 py-3">
-              <input type="number" min="0" name="u{{ s.id }}_heures_payees" value="{{ row.heures_payees if row else "" }}" class="w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
-            </td>
-            <td class="px-6 py-3">
-              <input type="number" min="0" name="u{{ s.id }}_heures_trajet" value="{{ row.heures_trajet if row else "" }}" class="w-32 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
-            </td>
-            <td class="px-6 py-3">
-              <input type="number" min="0" name="u{{ s.id }}_heures_travaillees" value="{{ row.heures_travaillees if row else "" }}" class="w-40 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="px-6 py-4 border-t bg-gray-50">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+      <div class="bg-white rounded-lg border px-3 py-2">Lignes avec erreurs: <span id="error-count" class="font-semibold">0</span></div>
+      <div class="bg-white rounded-lg border px-3 py-2">Lignes saisies: <span id="filled-count" class="font-semibold">0</span></div>
+      <div class="bg-white rounded-lg border px-3 py-2">Semaine: <span class="font-semibold">{{ "%02d"|format(semaine_iso) }}/{{ annee_iso }}</span></div>
     </div>
+    <p class="text-xs text-gray-500 mt-3">Règle de cohérence: <span class="font-medium">H travaillées + Absences</span> ne doit pas dépasser <span class="font-medium">H prévues + H sup + 1</span>.</p>
+  </div>
 
-    <div class="px-6 py-4 border-t bg-white flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-      <div class="text-sm text-gray-500">
-        Recalcul RTT: met à jour <span class="font-medium">rtt_heures_allouees</span> selon la règle (si mode = <span class="font-medium">heures</span>).
-      </div>
-      <div class="flex gap-2">
-        <button type="submit" name="action" value="save" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer</button>
-        <button type="submit" name="action" value="save_recalc" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer et recalculer RTT</button>
-      </div>
+  <div class="px-6 py-4 border-t bg-white flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
+    <label class="inline-flex items-center gap-2 text-sm text-gray-700">
+      <input type="checkbox" id="confirm-validate-checkbox" class="rounded border-gray-300" {% if semaine_verrouillee %}disabled{% endif %}>
+      Je confirme la revue et je valide définitivement la semaine (verrouillage).
+    </label>
+    <div class="flex gap-2">
+      <button {% if semaine_verrouillee %}disabled{% endif %} type="submit" name="action" value="save" class="bg-erpac-primary hover:bg-erpac-dark disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer brouillon</button>
+      <button {% if semaine_verrouillee %}disabled{% endif %} type="submit" id="validate-btn" name="action" value="validate" class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg transition">Valider la semaine</button>
     </div>
-  </form>
-</div>
+  </div>
+</form>
+
+<script src="{{ url_for('static', filename='js/rh-heures.js') }}"></script>
 {% endblock %}

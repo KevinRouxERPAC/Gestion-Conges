@@ -91,37 +91,6 @@
         </div>
     </form>
 </div>
-<script>
-(function(){
-  const typeCongeEl = document.getElementById('type_conge');
-  const rttHeuresEl = document.getElementById('nb_heures_rtt');
-  const blocHeuresExc = document.getElementById('bloc_heures_exceptionnelles');
-  const heuresExcEl = document.getElementById('nb_heures_exceptionnelles');
-
-  function refresh(){
-    const opt = typeCongeEl && typeCongeEl.selectedOptions ? typeCongeEl.selectedOptions[0] : null;
-    const val = typeCongeEl ? typeCongeEl.value : '';
-    const unite = opt ? (opt.getAttribute('data-unite') || '') : '';
-
-    const isRTT = val === 'RTT';
-    if (rttHeuresEl && rttHeuresEl.closest('div')) {
-      rttHeuresEl.closest('div').classList.toggle('hidden', !isRTT);
-    }
-
-    const isExcHeures = val.startsWith('EXC:') && unite === 'heures';
-    if (blocHeuresExc) {
-      blocHeuresExc.classList.toggle('hidden', !isExcHeures);
-    }
-    if (heuresExcEl && !isExcHeures) {
-      heuresExcEl.value = '';
-    }
-  }
-
-  if (typeCongeEl) {
-    typeCongeEl.addEventListener('change', refresh);
-    refresh();
-  }
-})();
-</script>
+<script src="{{ url_for('static', filename='js/conge-form.js') }}"></script>
 {% endblock %}
 

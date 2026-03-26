@@ -11,6 +11,7 @@ from models.jour_ferie import JourFerie
 from models.conge_exceptionnel_type import CongeExceptionnelType
 
 from models.heures_payees import HeuresPayees
+from models.heures_hebdo import HeuresHebdoSaisie, HeuresHebdoVerrou
 
 from models.interessement_periode import InteressementPeriode
 from models.interessement_regle import InteressementRegle

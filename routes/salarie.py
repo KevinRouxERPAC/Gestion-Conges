@@ -1,3 +1,4 @@
+import logging
 from datetime import date, datetime
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
@@ -101,7 +102,7 @@ def demander_conge():
             nb_heures_exceptionnelles=nb_heures_exceptionnelles,
         )
         db.session.add(conge)
-        db.session.commit()
+        db.session.flush()
 
         from services.notifications import notifier_responsable_nouvelle_demande, notifier_rh_nouvelle_demande
         if current_user.responsable_id:
@@ -125,13 +126,20 @@ def accueil():
     solde_info = calculer_solde(current_user.id)
     param = get_parametrage_actif()
 
-    conges = Conge.query.filter_by(user_id=current_user.id).order_by(Conge.date_debut.desc()).all()
+    LIMIT = 50
+    voir_tout = request.args.get("tous") == "1"
+    q = Conge.query.filter_by(user_id=current_user.id).order_by(Conge.date_debut.desc())
+    total_conges = q.count()
+    conges = q.all() if voir_tout else q.limit(LIMIT).all()
 
     return render_template(
         "salarie/accueil.html",
         solde=solde_info,
         conges=conges,
         parametrage=param,
+        total_conges=total_conges,
+        voir_tout=voir_tout,
+        limit=LIMIT,
     )
 
 
@@ -293,7 +301,9 @@ def heures():
         try:
             rtt_calc = calculer_rtt_depuis_heures(current_user.id, param)
         except Exception:
-            rtt_calc = None
+            logging.getLogger(__name__).error(
+                "Erreur calcul RTT pour user_id=%s :", current_user.id, exc_info=True
+            )
 
     return render_template(
         "salarie/heures.html",

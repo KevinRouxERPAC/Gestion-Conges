@@ -80,30 +80,6 @@
         </div>
     </form>
 </div>
-<script>
-(function(){
-  const typeCongeEl = document.getElementById('type_conge');
-  const rttHeuresEl = document.getElementById('nb_heures_rtt');
-
-  function refresh(){
-    const val = typeCongeEl ? typeCongeEl.value : '';
-
-    const isRTT = val === 'RTT';
-    if (rttHeuresEl && rttHeuresEl.closest('div')) {
-      rttHeuresEl.closest('div').classList.toggle('hidden', !isRTT);
-    }
-
-    if (rttHeuresEl) {
-      rttHeuresEl.required = isRTT;
-      if (!isRTT) rttHeuresEl.value = '';
-    }
-  }
-
-  if (typeCongeEl) {
-    typeCongeEl.addEventListener('change', refresh);
-    refresh();
-  }
-})();
-</script>
+<script src="{{ url_for('static', filename='js/conge-form.js') }}"></script>
 {% endblock %}
 

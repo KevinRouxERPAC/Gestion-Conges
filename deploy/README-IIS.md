@@ -32,9 +32,9 @@ Ce guide décrit comment héberger l’application sur **Windows Server** avec *
    mkdir logs
    ```
 
-4. Adapter **web.config** à votre chemin d’installation :
+4. Configurer **web.config** :
    - Ouvrir `web.config` à la racine du projet.
-   - Remplacer **toutes** les occurrences du chemin (ex. `C:\Sites\Gestion-Conges`) par le chemin physique réel de votre site (ex. `D:\Apps\GestionConges`) : `processPath`, `workingDirectory`, `stdoutLogFile`.
+   - Vérifier que `arguments="/c run_wsgi_wrapper.cmd"` et `stdoutLogFile="logs\\stdout.log"` pointent bien vers des chemins **relatifs** au dossier du site.
    - Dans la section `<environmentVariables>`, définir une **SECRET_KEY** forte pour la production (et optionnellement les variables SMTP si vous utilisez les e-mails).
 
 ## 3. Configurer le site dans IIS
@@ -91,10 +91,10 @@ Exemple pour ajouter le SMTP :
 - **Email RH (entreprise)** : configurer `MAIL_RH` (variable d'environnement ou `web.config`) avec l'adresse de la boîte mail RH. Cette adresse reçoit un email à chaque nouvelle demande de congé (SMTP : `MAIL_SERVER`, `MAIL_PORT`, etc.).
 - **Web Push (alertes hors du site)** : générer une paire de clés VAPID une fois sur le serveur :
   ```powershell
-  .\venv\Scripts\python.exe gen_vapid_keys.py
+  .\venv\Scripts\python.exe scripts\gen_vapid_keys.py
   ```
   Les fichiers `vapid_private.pem` et `vapid_public.pem` sont créés à la racine du projet (déjà dans `.gitignore`). L'application les utilise automatiquement ; les utilisateurs peuvent cliquer sur « Activer les alertes » dans la barre de navigation.
-- En **HTTP**, le serveur envoie bien les push, mais le navigateur peut ne pas afficher la notification système quand l'utilisateur n'est pas sur le site. Les notifications restent visibles dans l'app (liste des notifications). Voir `docs/WEB-PUSH-HTTPS.md` pour l'affichage des alertes en dehors du site (HTTPS requis).
+- En **HTTP**, le serveur envoie bien les push, mais le navigateur peut ne pas afficher la notification système quand l'utilisateur n'est pas sur le site. Les notifications restent visibles dans l'app (liste des notifications). Pour valider la configuration, voir `docs/VERIFIER-WEBPUSH.md`.
 
 ## 8. Dépannage
 

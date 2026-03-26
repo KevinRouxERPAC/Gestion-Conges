@@ -7,7 +7,7 @@
         <h1 class="text-2xl font-bold text-gray-800">Bonjour {{ current_user.prenom }} !</h1>
         <p class="text-gray-500 mt-1">Voici le récapitulatif de vos congés</p>
     </div>
-    <div class="flex flex-row items-center gap-3 md:gap-4 justify-between w-full flex-nowrap">
+    <div class="flex flex-row flex-wrap sm:flex-nowrap items-center gap-3 md:gap-4 justify-between w-full">
         <!-- Bouton principal : à gauche -->
         <a href="{{ url_for('salarie.demander_conge') }}"
            class="inline-flex items-center justify-center bg-erpac-primary hover:bg-erpac-dark text-white font-semibold text-base md:text-lg py-3 md:py-3.5 px-6 md:px-8 rounded-xl transition shadow-lg whitespace-nowrap shrink-0">
@@ -73,14 +73,20 @@
 
     <!-- CP -->
     <div class="mb-5">
+        {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
+        {% set pct_cp_now = pct_cp|round(0, 'floor')|int %}
         <div class="flex justify-between text-sm text-gray-600 mb-2">
             <span>Congés payés (CP + ancienneté)</span>
             <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
             <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_cp > 90 else 'bg-orange-400' if pct_cp > 70 else 'bg-erpac-primary' }}"
-                 style="width: {{ pct_cp|round(0, 'floor') }}%"></div>
+                 style="width: {{ pct_cp_now }}%"
+                 role="progressbar"
+                 aria-label="Progression congés payés"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="{{ pct_cp_now }}"></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Restant : {{ solde.solde_restant }} jour(s)
@@ -89,16 +95,22 @@
 
     <!-- RTT -->
     <div>
+        {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
+        {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
+        {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
+        {% set pct_rtt_now = pct_rtt|round(0, 'floor')|int %}
         <div class="flex justify-between text-sm text-gray-600 mb-2">
             <span>RTT</span>
             <span>{{ solde.rtt_total_consomme|default(0) }} / {{ solde.rtt_total_alloue|default(0) }} heure(s)</span>
         </div>
         <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
-            {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
-            {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
             <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_rtt > 90 else 'bg-orange-400' if pct_rtt > 70 else 'bg-purple-600' }}"
-                 style="width: {{ pct_rtt|round(0, 'floor') }}%"></div>
+                 style="width: {{ pct_rtt_now }}%"
+                 role="progressbar"
+                 aria-label="Progression RTT"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="{{ pct_rtt_now }}"></div>
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Restant : {{ solde.rtt_solde_restant|default(0) }} heure(s)
@@ -112,15 +124,17 @@
         <h2 class="text-lg font-semibold text-gray-800">Mes congés</h2>
     </div>
     {% if conges %}
+    <div class="overflow-x-auto">
     <table class="w-full">
+        <caption class="sr-only">Liste de mes congés</caption>
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -169,7 +183,7 @@
                 </td>
                 <td class="px-6 py-4 text-right">
                     {% if conge.statut in ['en_attente_responsable', 'en_attente_rh'] %}
-                    <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" onsubmit="return confirm('Annuler cette demande ?')">
+                    <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" data-confirm="Annuler cette demande ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Annuler</button>
                     </form>
@@ -179,6 +193,15 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
+    {% if not voir_tout and total_conges > limit %}
+    <div class="px-6 py-4 text-center border-t border-gray-100">
+        <a href="{{ url_for('salarie.accueil', tous='1') }}"
+           class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">
+            Afficher les {{ total_conges }} congés ({{ total_conges - limit }} masqués) &rarr;
+        </a>
+    </div>
+    {% endif %}
     {% else %}
     <div class="px-6 py-12 text-center text-gray-500">Aucun congé enregistré pour le moment.</div>
     {% endif %}

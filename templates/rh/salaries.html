@@ -18,15 +18,17 @@
         <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
                class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
     </div>
+    <div class="overflow-x-auto">
     <table class="w-full">
+        <caption class="sr-only">Liste des salariés</caption>
         <thead class="bg-gray-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Identifiant</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'embauche</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Identifiant</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rôle</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date d'embauche</th>
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -36,7 +38,7 @@
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'"
-                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'">
+                onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'; }">
                 <td class="px-6 py-4">
                     <div class="font-medium text-gray-900">{{ salarie.nom }} {{ salarie.prenom }}</div>
                 </td>
@@ -72,6 +74,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endblock %}
 
