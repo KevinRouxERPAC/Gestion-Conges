@@ -1,0 +1,3 @@
+probe-session=a810eb
+app-root=C:\Sites\Gestion-Conges
+purpose=verify-iis-physical-path-and-binding

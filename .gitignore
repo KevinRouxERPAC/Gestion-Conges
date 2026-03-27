@@ -35,3 +35,4 @@ deploy/gestion-conges.env
 # Clés VAPID Web Push (générées par gen_vapid_keys.py)
 vapid_private.pem
 vapid_public.pem
+

@@ -37,6 +37,21 @@ python -m venv venv
 pip install -r requirements.txt
 ```
 
+### 1.b Configuration locale rapide (obligatoire)
+
+L'application a besoin d'une `SECRET_KEY`. En local, le plus simple est de copier l'exemple :
+
+```bash
+copy .env.example .env   # Windows (PowerShell/cmd)
+# cp .env.example .env   # Linux / macOS
+```
+
+Puis editer `.env` et remplacer `SECRET_KEY=...` par une valeur generee :
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
 ### 2. Lancer l'application
 
 **Developpement :**
