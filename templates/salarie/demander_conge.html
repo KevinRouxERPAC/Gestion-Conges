@@ -6,7 +6,8 @@
     <a href="{{ url_for('salarie.accueil') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour à mes congés</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Demander un congé</h1>
     <p class="text-gray-500">
-        Solde CP : <strong>{{ solde.solde_restant }}</strong> jour(s) restant(s)
+        Solde congés : <strong>{{ solde.solde_restant }}</strong> jour(s) restant(s)
+        (CP : <strong>{{ solde.cp_restant|default(0) }}</strong>, ancienneté : <strong>{{ solde.anciennete_restante|default(0) }}</strong>)
         {% if solde.rtt_total_alloue is defined %}
             · Solde RTT : <strong>{{ solde.rtt_solde_restant }}</strong> heure(s) restante(s)
         {% endif %}
@@ -44,9 +45,9 @@
             <label for="nb_heures_rtt" class="block text-sm font-medium text-gray-700 mb-1">
                 Heures RTT (si RTT)
             </label>
-            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="1"
+            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="0.01" step="0.01"
                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   placeholder="Nombre d'heures RTT (ex : 2)">
+                   placeholder="Nombre d'heures RTT (ex : 1.5)">
             <p class="text-xs text-gray-400 mt-1">
                 Pour un RTT, indiquez le nombre d'heures (la période calendrier reste indicative).
             </p>

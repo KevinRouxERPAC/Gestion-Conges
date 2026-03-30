@@ -7,12 +7,28 @@ from models import db
 from models.conge import Conge
 from models.user import User
 from models.heures_payees import HeuresPayees
-from services.solde import calculer_solde, get_allocation, get_parametrage_actif, verifier_solde_rtt_suffisant, verifier_solde_suffisant
+from services.solde import calculer_solde, get_allocation, get_parametrage_actif
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 from services.export import export_conges_excel, export_conges_pdf
 from services.heures_rtt import calculer_rtt_depuis_heures
 
 salarie_bp = Blueprint("salarie", __name__)
+
+
+def _parse_decimal_hours(value, default=0.0):
+    try:
+        return float((value or "").replace(",", ".").strip() or default)
+    except (ValueError, AttributeError):
+        return float(default)
+
+
+def _has_max_two_decimals(value):
+    raw = (value or "").strip().replace(",", ".")
+    if not raw:
+        return True
+    if "." not in raw:
+        return True
+    return len(raw.split(".", 1)[1]) <= 2
 
 
 @salarie_bp.route("/demander-conge", methods=["GET", "POST"])
@@ -63,29 +79,14 @@ def demander_conge():
         nb_heures_rtt = None
         nb_heures_exceptionnelles = None
 
-        if type_conge == "CP":
-            if not verifier_solde_suffisant(current_user.id, nb_jours):
-                flash(
-                    f"Solde CP insuffisant. Reste {solde_info['solde_restant']} jour(s), vous en demandez {nb_jours}.",
-                    "error",
-                )
+        if type_conge == "RTT":
+            nb_heures_rtt_raw = request.form.get("nb_heures_rtt")
+            nb_heures_rtt_val = _parse_decimal_hours(nb_heures_rtt_raw, default=0.0)
+            if not _has_max_two_decimals(nb_heures_rtt_raw):
+                flash("Merci de saisir au maximum 2 décimales pour les heures RTT.", "error")
                 return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        elif type_conge == "RTT":
-            try:
-                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
-            except ValueError:
-                nb_heures_rtt_val = 0
             if nb_heures_rtt_val <= 0:
-                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
-                return render_template("salarie/demander_conge.html", solde=solde_info)
-
-            if not verifier_solde_rtt_suffisant(current_user.id, nb_heures_rtt_val):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
-                flash(
-                    f"Solde RTT insuffisant. Reste {solde_rtt} heure(s), vous en demandez {nb_heures_rtt_val}.",
-                    "error",
-                )
+                flash("Merci de saisir un nombre d'heures RTT valide (> 0).", "error")
                 return render_template("salarie/demander_conge.html", solde=solde_info)
 
             nb_heures_rtt = nb_heures_rtt_val

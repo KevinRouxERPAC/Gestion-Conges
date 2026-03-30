@@ -108,17 +108,17 @@
         </div>
         <div>
             <label class="block text-sm text-gray-600 mb-1">Jours report</label>
-            <input type="number" name="jours_report" value="{{ solde.jours_report }}" min="0"
+            <input type="number" name="jours_report" value="{{ solde.jours_report }}"
                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
         </div>
         <div>
             <label class="block text-sm text-gray-600 mb-1">Heures RTT allouées</label>
-            <input type="number" name="rtt_heures_allouees" value="{{ solde.rtt_total_alloue }}" min="0"
+            <input type="number" name="rtt_heures_allouees" value="{{ solde.rtt_heures_allouees }}" min="0" step="0.01"
                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
         </div>
         <div>
             <label class="block text-sm text-gray-600 mb-1">Heures RTT reportées</label>
-            <input type="number" name="rtt_heures_reportees" value="{{ solde.get('rtt_heures_reportees', 0) }}" min="0"
+            <input type="number" name="rtt_heures_reportees" value="{{ solde.get('rtt_heures_reportees', 0) }}" step="0.01"
                    class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
         </div>
         <div class="flex items-end">

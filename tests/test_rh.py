@@ -82,7 +82,7 @@ class TestAjoutCongeRH:
         assert conge is not None
         assert conge.nb_heures_rtt == 4
 
-    def test_ajouter_conge_solde_insuffisant(self, client, db_session, users, parametrage, allocations):
+    def test_ajouter_conge_solde_insuffisant_autorise(self, client, db_session, users, parametrage, allocations):
         login(client, "rh1", "rh123")
         resp = client.post(f"/rh/salarie/{users['salarie'].id}/conge/ajouter", data={
             "date_debut": "2026-01-05",
@@ -90,7 +90,9 @@ class TestAjoutCongeRH:
             "type_conge": "CP",
         }, follow_redirects=True)
         assert resp.status_code == 200
-        assert b"insuffisant" in resp.data
+        conge = Conge.query.filter_by(user_id=users["salarie"].id, type_conge="CP").first()
+        assert conge is not None
+        assert conge.statut == "valide"
 
 
 class TestModificationAllocation:
@@ -114,8 +116,8 @@ class TestModificationAllocation:
 
 
 class TestValidationCongeRH:
-    def test_validation_verifie_solde(self, client, db_session, users, parametrage, allocations):
-        """La validation RH vérifie aussi le solde CP."""
+    def test_validation_autorise_solde_negatif(self, client, db_session, users, parametrage, allocations):
+        """La validation RH doit autoriser un congé même si le solde CP devient négatif."""
         for i in range(3):
             c = Conge(
                 user_id=users["salarie"].id,
@@ -142,7 +144,6 @@ class TestValidationCongeRH:
         login(client, "rh1", "rh123")
         resp = client.post(f"/rh/conge/{conge_test.id}/valider", follow_redirects=True)
         assert resp.status_code == 200
-        assert b"insuffisant" in resp.data
 
         db_session.session.refresh(conge_test)
-        assert conge_test.statut == "en_attente_rh"
+        assert conge_test.statut == "valide"

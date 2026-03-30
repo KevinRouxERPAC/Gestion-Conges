@@ -28,6 +28,8 @@ class TestCalculSoldeCP:
         assert solde["jours_report"] == 0
         assert solde["solde_restant"] == 27
         assert solde["total_consomme"] == 0
+        assert solde["cp_restant"] == 25
+        assert solde["anciennete_restante"] == 2
 
     def test_solde_apres_conge_valide(self, db_session, users, parametrage, allocations):
         """Un congé CP validé dans l'exercice doit être comptabilisé."""
@@ -46,6 +48,8 @@ class TestCalculSoldeCP:
         solde = calculer_solde(users["salarie"].id)
         assert solde["total_consomme"] == 5
         assert solde["solde_restant"] == 22  # 27 - 5
+        assert solde["cp_restant"] == 20
+        assert solde["anciennete_restante"] == 2
 
     def test_anciennete_debite_solde_cp(self, db_session, users, parametrage, allocations):
         """Un congé de type Ancienneté doit aussi débiter le solde CP."""
@@ -63,6 +67,26 @@ class TestCalculSoldeCP:
         assert calculer_jours_cps_consommes(users["salarie"].id) == 2
         solde = calculer_solde(users["salarie"].id)
         assert solde["solde_restant"] == 25  # 27 - 2
+        assert solde["cp_restant"] == 23
+        assert solde["anciennete_restante"] == 2
+
+    def test_priorite_cp_avant_anciennete(self, db_session, users, parametrage, allocations):
+        """La consommation doit d'abord utiliser les CP, puis l'ancienneté."""
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 6, 1),
+            date_fin=date(2026, 6, 30),
+            nb_jours_ouvrables=26,
+            type_conge="CP",
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        solde = calculer_solde(users["salarie"].id)
+        assert solde["total_consomme"] == 26
+        assert solde["cp_restant"] == 0
+        assert solde["anciennete_restante"] == 1
 
     def test_sans_solde_pas_debit(self, db_session, users, parametrage, allocations):
         """Un congé Sans solde ne débite ni CP ni RTT."""
@@ -228,3 +252,64 @@ class TestGenerationAllocations:
         for a in allocs:
             assert a.jours_alloues == 25
             assert a.rtt_heures_allouees == 14
+
+    def test_generer_allocations_reporte_solde_negatif_precedent(self, db_session, users):
+        """Un solde négatif CP/RTT de l'exercice précédent doit réduire la nouvelle allocation."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        param_old = ParametrageAnnuel(
+            debut_exercice=date(2025, 1, 1),
+            fin_exercice=date(2025, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=False,
+        )
+        param_new = ParametrageAnnuel(
+            debut_exercice=date(2026, 1, 1),
+            fin_exercice=date(2026, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add_all([param_old, param_new])
+        db_session.session.flush()
+
+        alloc_old = AllocationConge(
+            user_id=users["salarie"].id,
+            parametrage_id=param_old.id,
+            jours_alloues=25,
+            jours_anciennete=0,
+            jours_report=0,
+            rtt_heures_allouees=14,
+            rtt_heures_reportees=0,
+        )
+        db_session.session.add(alloc_old)
+
+        db_session.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2025, 6, 1),
+            date_fin=date(2025, 7, 11),
+            nb_jours_ouvrables=30,
+            type_conge="CP",
+            statut="valide",
+        ))
+        db_session.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2025, 9, 1),
+            date_fin=date(2025, 9, 1),
+            nb_jours_ouvrables=1,
+            type_conge="RTT",
+            nb_heures_rtt=20,
+            statut="valide",
+        ))
+        db_session.session.commit()
+
+        generer_allocations_pour_parametrage(param_new)
+
+        alloc_new = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id,
+            parametrage_id=param_new.id,
+        ).first()
+        assert alloc_new is not None
+        assert alloc_new.jours_report == -5
+        assert alloc_new.rtt_heures_reportees == -6

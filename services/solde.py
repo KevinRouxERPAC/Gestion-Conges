@@ -29,6 +29,40 @@ def _get_param(parametrage_id):
     return get_parametrage_actif()
 
 
+def _get_parametrage_precedent(param: ParametrageAnnuel):
+    """Retourne l'exercice précédent le plus récent par date de fin."""
+    if not param:
+        return None
+    return (
+        ParametrageAnnuel.query
+        .filter(
+            ParametrageAnnuel.id != param.id,
+            ParametrageAnnuel.fin_exercice < param.debut_exercice,
+        )
+        .order_by(ParametrageAnnuel.fin_exercice.desc())
+        .first()
+    )
+
+
+def _repartir_consommation_cp_anciennete(total_consomme, jours_conges, jours_anciennete, jours_report=0):
+    """Répartit la consommation en priorisant CP (incluant report) puis ancienneté."""
+    cp_disponibles = (jours_conges or 0) + (jours_report or 0)
+    anciennete_disponible = jours_anciennete or 0
+    total = total_consomme or 0
+
+    cp_consomme = min(total, cp_disponibles)
+    anciennete_consomme = min(max(total - cp_consomme, 0), anciennete_disponible)
+
+    return {
+        "cp_disponibles": cp_disponibles,
+        "cp_consomme": cp_consomme,
+        "cp_restant": cp_disponibles - cp_consomme,
+        "anciennete_disponible": anciennete_disponible,
+        "anciennete_consomme": anciennete_consomme,
+        "anciennete_restante": anciennete_disponible - anciennete_consomme,
+    }
+
+
 def calculer_jours_cps_consommes(user_id, parametrage_id=None):
     """Calcule le nombre de jours consommés (CP + Ancienneté) pour l'exercice actif."""
     param = _get_param(parametrage_id)
@@ -74,6 +108,10 @@ def calculer_solde(user_id, parametrage_id=None):
             "jours_report": 0,
             "total_consomme": 0,
             "solde_restant": 0,
+            "cp_restant": 0,
+            "cp_consomme": 0,
+            "anciennete_restante": 0,
+            "anciennete_consommee": 0,
             "rtt_heures_allouees": 0,
             "rtt_heures_reportees": 0,
             "rtt_total_alloue": 0,
@@ -85,6 +123,12 @@ def calculer_solde(user_id, parametrage_id=None):
 
     cp_consomme = calculer_jours_cps_consommes(user_id, pid)
     cp_total = allocation.total_jours
+    repartition_cp = _repartir_consommation_cp_anciennete(
+        total_consomme=cp_consomme,
+        jours_conges=allocation.jours_alloues,
+        jours_anciennete=allocation.jours_anciennete,
+        jours_report=allocation.jours_report,
+    )
 
     rtt_total = allocation.total_rtt_heures
     rtt_consomme = calculer_heures_rtt_consommes(user_id, pid)
@@ -97,6 +141,10 @@ def calculer_solde(user_id, parametrage_id=None):
         "jours_report": allocation.jours_report,
         "total_consomme": cp_consomme,
         "solde_restant": cp_total - cp_consomme,
+        "cp_restant": repartition_cp["cp_restant"],
+        "cp_consomme": repartition_cp["cp_consomme"],
+        "anciennete_restante": repartition_cp["anciennete_restante"],
+        "anciennete_consommee": repartition_cp["anciennete_consomme"],
         # RTT (heures)
         "rtt_heures_allouees": allocation.rtt_heures_allouees,
         "rtt_heures_reportees": allocation.rtt_heures_reportees,
@@ -138,6 +186,7 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
     empty = {
         "total_alloue": 0, "jours_conges": 0, "jours_anciennete": 0,
         "jours_report": 0, "total_consomme": 0, "solde_restant": 0,
+        "cp_restant": 0, "cp_consomme": 0, "anciennete_restante": 0, "anciennete_consommee": 0,
         "rtt_heures_allouees": 0, "rtt_heures_reportees": 0,
         "rtt_total_alloue": 0, "rtt_total_consomme": 0, "rtt_solde_restant": 0,
     }
@@ -160,7 +209,7 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
         Conge.type_conge.in_(["CP", "Anciennete"]),
         Conge.statut == "valide",
     ).group_by(Conge.user_id).all()
-    cp_by_user = {uid: int(v) for uid, v in cp_rows}
+    cp_by_user = {uid: float(v) for uid, v in cp_rows}
 
     rtt_rows = db.session.query(
         Conge.user_id,
@@ -172,7 +221,7 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
         Conge.type_conge == "RTT",
         Conge.statut == "valide",
     ).group_by(Conge.user_id).all()
-    rtt_by_user = {uid: int(v) for uid, v in rtt_rows}
+    rtt_by_user = {uid: float(v) for uid, v in rtt_rows}
 
     result = {}
     for uid in user_ids:
@@ -182,6 +231,12 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
             continue
         cp_total = alloc.total_jours
         cp_consomme = cp_by_user.get(uid, 0)
+        repartition_cp = _repartir_consommation_cp_anciennete(
+            total_consomme=cp_consomme,
+            jours_conges=alloc.jours_alloues,
+            jours_anciennete=alloc.jours_anciennete,
+            jours_report=alloc.jours_report,
+        )
         rtt_total = alloc.total_rtt_heures
         rtt_consomme = rtt_by_user.get(uid, 0)
         result[uid] = {
@@ -191,6 +246,10 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
             "jours_report": alloc.jours_report,
             "total_consomme": cp_consomme,
             "solde_restant": cp_total - cp_consomme,
+            "cp_restant": repartition_cp["cp_restant"],
+            "cp_consomme": repartition_cp["cp_consomme"],
+            "anciennete_restante": repartition_cp["anciennete_restante"],
+            "anciennete_consommee": repartition_cp["anciennete_consomme"],
             "rtt_heures_allouees": alloc.rtt_heures_allouees,
             "rtt_heures_reportees": alloc.rtt_heures_reportees,
             "rtt_total_alloue": rtt_total,
@@ -205,17 +264,29 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
     from models.user import User
 
     salaries = User.query.filter_by(actif=True).all()
+    param_precedent = _get_parametrage_precedent(param)
+
     for s in salaries:
         allocation = AllocationConge.query.filter_by(
             user_id=s.id,
             parametrage_id=param.id,
         ).first()
+
+        report_cp_anticipe = 0
+        report_rtt_anticipe = 0
+        if param_precedent:
+            solde_precedent = calculer_solde(s.id, parametrage_id=param_precedent.id)
+            report_cp_anticipe = min(0, int(solde_precedent.get("solde_restant", 0) or 0))
+            report_rtt_anticipe = min(0, float(solde_precedent.get("rtt_solde_restant", 0) or 0))
+
         if not allocation:
             allocation = AllocationConge(
                 user_id=s.id,
                 parametrage_id=param.id,
             )
             db.session.add(allocation)
+            allocation.jours_report = report_cp_anticipe
+            allocation.rtt_heures_reportees = report_rtt_anticipe
 
         allocation.jours_alloues = param.jours_conges_defaut
         allocation.jours_anciennete = allocation.jours_anciennete or 0

@@ -7,10 +7,27 @@ from models import db
 from models.conge import Conge
 from models.user import User
 from services.notifications import notifier_rh_demande_transmise, notifier_conge_refuse, notifier_rh_nouvelle_demande
-from services.solde import calculer_solde, verifier_solde_suffisant, verifier_solde_rtt_suffisant
+from services.solde import calculer_solde
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 
 responsable_bp = Blueprint("responsable", __name__)
+
+
+def _parse_decimal_hours(value, default=0.0):
+    try:
+        return float((value or "").replace(",", ".").strip() or default)
+    except (ValueError, AttributeError):
+        return float(default)
+
+
+def _has_max_two_decimals(value):
+    raw = (value or "").strip().replace(",", ".")
+    if not raw:
+        return True
+    if "." not in raw:
+        return True
+    return len(raw.split(".", 1)[1]) <= 2
+
 
 def responsable_required(f):
     @wraps(f)
@@ -175,29 +192,14 @@ def ajouter_conge_subordonne(user_id):
         nb_heures_exceptionnelles = None
         nb_heures_rtt = None
 
-        if type_conge in ("CP", "Anciennete"):
-            if not verifier_solde_suffisant(user.id, nb_jours):
-                flash(
-                    f"Solde CP insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
-                    f"{nb_jours} jour(s) demandé(s).",
-                    "error",
-                )
+        if type_conge == "RTT":
+            nb_heures_rtt_raw = request.form.get("nb_heures_rtt")
+            nb_heures_rtt_val = _parse_decimal_hours(nb_heures_rtt_raw, default=0.0)
+            if not _has_max_two_decimals(nb_heures_rtt_raw):
+                flash("Merci de saisir au maximum 2 décimales pour les heures RTT.", "error")
                 return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
-        elif type_conge == "RTT":
-            try:
-                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
-            except ValueError:
-                nb_heures_rtt_val = 0
             if nb_heures_rtt_val <= 0:
-                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
-            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
-                flash(
-                    f"Solde RTT insuffisant. {solde_rtt} heure(s) restante(s), "
-                    f"{nb_heures_rtt_val} heure(s) demandée(s).",
-                    "error",
-                )
+                flash("Merci de saisir un nombre d'heures RTT valide (> 0).", "error")
                 return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
             nb_heures_rtt = nb_heures_rtt_val
         elif exc_code and exc_type:
