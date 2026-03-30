@@ -1,7 +1,5 @@
 # Environnement virtuel Python
 .venv/
-venv/
-env/
 
 # Node (Tailwind)
 node_modules/

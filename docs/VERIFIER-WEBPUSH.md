@@ -7,8 +7,8 @@ Ce guide permet de verifier que les notifications Web Push sont correctement con
 Executer le script de verification (a la racine du projet) :
 
 ```bash
-# Windows (avec venv active)
-.\venv\Scripts\python.exe scripts\verifier_webpush.py
+# Windows (avec .venv active)
+.\.venv\Scripts\python.exe scripts\verifier_webpush.py
 
 # Linux / macOS
 python scripts/verifier_webpush.py

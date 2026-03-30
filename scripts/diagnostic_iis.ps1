@@ -6,7 +6,6 @@ $log = Join-Path $base "logs\diagnostic.txt"
 if (-not (Test-Path (Join-Path $base "logs"))) { New-Item -ItemType Directory -Path (Join-Path $base "logs") -Force | Out-Null }
 
 $pyVenv = Join-Path $base ".venv\Scripts\python.exe"
-if (-not (Test-Path $pyVenv)) { $pyVenv = Join-Path $base "venv\Scripts\python.exe" }
 
 "Diagnostic $(Get-Date)" | Out-File $log
 "Base: $base" | Out-File $log -Append

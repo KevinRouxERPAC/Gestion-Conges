@@ -5,7 +5,6 @@ param([string]$BasePath = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path)
 
 $logFile = Join-Path $BasePath "logs\stdout.log"
 $py = Join-Path $BasePath ".venv\Scripts\python.exe"
-if (-not (Test-Path $py)) { $py = Join-Path $BasePath "venv\Scripts\python.exe" }
 
 Write-Host "=== Diagnostic 502 - $BasePath ===" -ForegroundColor Cyan
 

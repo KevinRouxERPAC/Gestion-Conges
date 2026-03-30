@@ -11,8 +11,7 @@ Write-Host "=== Verification config IIS - $base ===" -ForegroundColor Cyan
 }
 
 $py = Join-Path $base ".venv\Scripts\python.exe"
-if (-not (Test-Path $py)) { $py = Join-Path $base "venv\Scripts\python.exe" }
-if (Test-Path $py) { Write-Host "  OK  $py" } else { Write-Host "  MANQUE  .venv\\Scripts\\python.exe ou venv\\Scripts\\python.exe" -ForegroundColor Red }
+if (Test-Path $py) { Write-Host "  OK  $py" } else { Write-Host "  MANQUE  .venv\\Scripts\\python.exe" -ForegroundColor Red }
 
 if (Test-Path (Join-Path $base "logs")) { Write-Host "  OK  logs\" } else { Write-Host "  MANQUE  logs\" -ForegroundColor Red }
 

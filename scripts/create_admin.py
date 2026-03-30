@@ -5,8 +5,8 @@ Créer le premier utilisateur RH (admin) quand la base est vide.
 
 Usage (depuis la racine du projet) :
   python scripts/create_admin.py
-  # ou avec le venv :
-  venv/bin/python scripts/create_admin.py
+  # ou avec le .venv :
+  .venv/bin/python scripts/create_admin.py
 
 Les variables d'environnement optionnelles :
   ADMIN_IDENTIFIANT  identifiant de connexion (défaut : admin)

@@ -21,7 +21,7 @@ Deploiement simple sur serveur intranet (pas de build frontend, pas de serveur B
 ## Prérequis
 
 - Python 3.10+
-- Optionnel : environnement virtuel (`venv`) recommande
+- Optionnel : environnement virtuel (`.venv`) recommande
 
 ---
 
@@ -31,9 +31,9 @@ Deploiement simple sur serveur intranet (pas de build frontend, pas de serveur B
 
 ```bash
 cd Gestion-Conges
-python -m venv venv
-.\venv\Scripts\activate   # Windows
-# source venv/bin/activate   # Linux / macOS
+python -m venv .venv
+.\.venv\Scripts\activate   # Windows
+# source .venv/bin/activate   # Linux / macOS
 pip install -r requirements.txt
 ```
 
@@ -75,7 +75,7 @@ Port lu depuis `HTTP_PLATFORM_PORT` (IIS) ou `PORT`, sinon 5000.
 Creer un compte **RH** pour se connecter :
 
 ```bash
-.\venv\Scripts\python.exe scripts\create_admin.py
+.\.venv\Scripts\python.exe scripts\create_admin.py
 ```
 
 Le script demande un mot de passe (6 caracteres min). Par defaut : utilisateur `admin`. Pour personnaliser :
