@@ -20,16 +20,40 @@
     var filledRows = 0;
 
     rows.forEach(function (row) {
+      var prevuesInput = row.querySelector('input[name$="_heures_prevues"]');
+      var travailleesInput = row.querySelector('input[name$="_heures_travaillees"]');
+      var supInput = row.querySelector('input[name$="_heures_sup"]');
+      var trajetInput = row.querySelector('input[name$="_heures_trajet"]');
+      var absenceInput = row.querySelector('input[name$="_heures_absence"]');
+
       var values = {
-        prevues: parseVal(row.querySelector('input[name$="_heures_prevues"]')),
-        travaillees: parseVal(row.querySelector('input[name$="_heures_travaillees"]')),
-        sup: parseVal(row.querySelector('input[name$="_heures_sup"]')),
-        trajet: parseVal(row.querySelector('input[name$="_heures_trajet"]')),
-        absence: parseVal(row.querySelector('input[name$="_heures_absence"]')),
+        prevues: parseVal(prevuesInput),
+        travaillees: parseVal(travailleesInput),
+        sup: parseVal(supInput),
+        trajet: parseVal(trajetInput),
+        absence: parseVal(absenceInput),
       };
 
       var isFilled = values.travaillees > 0 || values.sup > 0 || values.trajet > 0 || values.absence > 0;
       if (isFilled) filledRows += 1;
+
+      // Calcul auto H sup côté front (option A)
+      // H sup auto = H travaillées - 34,65 (peut être négatif)
+      // On recalcule si le champ est vide ou vaut 0/0,00 (valeur par défaut non modifiée).
+      if (travailleesInput && supInput) {
+        var baseHebdo = 34.65;
+        var currentRaw = (supInput.value || "").trim();
+        var isDefaultZero =
+          currentRaw === "" ||
+          currentRaw === "0" ||
+          currentRaw === "0,00" ||
+          currentRaw === "0.0";
+        if (isDefaultZero) {
+          var autoSup = values.travaillees - baseHebdo;
+          supInput.value = (Math.round(autoSup * 100) / 100).toFixed(2);
+          values.sup = parseVal(supInput);
+        }
+      }
 
       var hasNegative = Object.values(values).some(function (v) { return v < 0; });
       var overflow = Object.values(values).some(function (v) { return v > 80; });

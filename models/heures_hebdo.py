@@ -11,11 +11,14 @@ class HeuresHebdoSaisie(db.Model):
     annee_iso = db.Column(db.Integer, nullable=False)
     semaine_iso = db.Column(db.Integer, nullable=False)  # 1..53
 
-    heures_prevues = db.Column(db.Float, nullable=False, default=35.0)
+    heures_prevues = db.Column(db.Float, nullable=False, default=34.65)
     heures_travaillees = db.Column(db.Float, nullable=False, default=0.0)
     heures_sup = db.Column(db.Float, nullable=False, default=0.0)
     heures_trajet = db.Column(db.Float, nullable=False, default=0.0)
     heures_absence = db.Column(db.Float, nullable=False, default=0.0)
+
+    # Indicateur qu'il s'agit d'une semaine marquée RTT côté RH (information de suivi)
+    is_semaine_rtt = db.Column(db.Boolean, nullable=False, default=False)
 
     statut = db.Column(db.String(20), nullable=False, default="brouillon")  # brouillon|valide
     saisi_par_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)

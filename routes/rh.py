@@ -805,6 +805,8 @@ def heures():
         lignes = []
         now_utc = datetime.now(timezone.utc)
 
+        BASE_HEBDO_HEURES = 34.65
+
         for s in salaries:
             prefix = f"u{s.id}_"
             hpv_str = (request.form.get(prefix + "heures_prevues") or "").strip()
@@ -812,14 +814,21 @@ def heures():
             hsup_str = (request.form.get(prefix + "heures_sup") or "").strip()
             htraj_str = (request.form.get(prefix + "heures_trajet") or "").strip()
             habs_str = (request.form.get(prefix + "heures_absence") or "").strip()
+            is_rtt = (request.form.get(prefix + "is_semaine_rtt") or "") == "1"
 
-            if not (hpv_str or htr_str or hsup_str or htraj_str or habs_str):
+            if not (hpv_str or htr_str or hsup_str or htraj_str or habs_str or is_rtt):
                 continue
 
             try:
-                heures_prevues = float((hpv_str or "35").replace(",", "."))
+                heures_prevues = float((hpv_str or str(BASE_HEBDO_HEURES)).replace(",", "."))
                 heures_travaillees = float((htr_str or "0").replace(",", "."))
-                heures_sup = float((hsup_str or "0").replace(",", "."))
+                # Calcul automatique des heures supplémentaires (option A) :
+                # H sup auto = H travaillées - 34,65 (peut être négatif),
+                # sauf si le RH a explicitement saisi une valeur différente.
+                if hsup_str and hsup_str.strip() not in {"0", "0,00", "0.0"}:
+                    heures_sup = float(hsup_str.replace(",", "."))
+                else:
+                    heures_sup = heures_travaillees - BASE_HEBDO_HEURES
                 heures_trajet = float((htraj_str or "0").replace(",", "."))
                 heures_absence = float((habs_str or "0").replace(",", "."))
             except ValueError:
@@ -836,6 +845,22 @@ def heures():
                 erreurs.append(f"Incohérence de total pour {s.prenom} {s.nom}.")
                 continue
 
+            # Contrôle heures manquantes vs congés : simple alerte si écart négatif sans congé
+            heures_manquantes = max(0.0, BASE_HEBDO_HEURES - (heures_travaillees + heures_absence))
+            if heures_manquantes > 0:
+                debut_semaine = date.fromisocalendar(annee_iso, semaine_iso, 1)
+                fin_semaine = debut_semaine + timedelta(days=6)
+                conges_semaine = (
+                    Conge.query.filter_by(user_id=s.id, statut="valide")
+                    .filter(Conge.date_debut <= fin_semaine, Conge.date_fin >= debut_semaine)
+                    .count()
+                )
+                if conges_semaine == 0:
+                    erreurs.append(
+                        f"Attention: il manque {heures_manquantes:.2f} h pour {s.prenom} {s.nom} sur la semaine "
+                        f"sans aucun jour de congé enregistré."
+                    )
+
             row = HeuresHebdoSaisie.query.filter_by(
                 user_id=s.id, annee_iso=annee_iso, semaine_iso=semaine_iso
             ).first()
@@ -848,6 +873,7 @@ def heures():
             row.heures_sup = heures_sup
             row.heures_trajet = heures_trajet
             row.heures_absence = heures_absence
+            row.is_semaine_rtt = is_rtt
             row.statut = "brouillon"
             row.saisi_par_id = current_user.id
             row.saisi_le = now_utc
