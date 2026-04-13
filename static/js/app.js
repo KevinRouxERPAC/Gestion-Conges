@@ -26,13 +26,30 @@ function erpacModal() {
     };
 }
 
+/** Données / méthodes du composant Alpine sur #erpac-modal (Alpine 3 : Alpine.$data, v2 : __x.$data). */
+function getErpacModalRoot(modalEl) {
+    if (!modalEl) return null;
+    var A = typeof window !== 'undefined' ? window.Alpine : null;
+    if (A && typeof A.$data === 'function') {
+        try {
+            var root = A.$data(modalEl);
+            if (root && typeof root.show === 'function') return root;
+        } catch (e) { /* élément pas encore branché à Alpine */ }
+    }
+    if (modalEl.__x && modalEl.__x.$data && typeof modalEl.__x.$data.show === 'function') {
+        return modalEl.__x.$data;
+    }
+    return null;
+}
+
 function erpacConfirm(message, opts) {
     opts = opts || {};
     return new Promise(function(resolve) {
         _erpacModalResolve = resolve;
         var el = document.getElementById('erpac-modal');
-        if (!el || !el.__x) { console.warn('Modal indisponible pour confirmation.'); resolve(false); return; }
-        el.__x.$data.show({
+        var root = getErpacModalRoot(el);
+        if (!root) { console.warn('Modal indisponible pour confirmation.'); resolve(false); return; }
+        root.show({
             mode: 'confirm',
             title: opts.title || 'Confirmation',
             message: message,
@@ -47,8 +64,9 @@ function erpacAlert(message, opts) {
     return new Promise(function(resolve) {
         _erpacModalResolve = resolve;
         var el = document.getElementById('erpac-modal');
-        if (!el || !el.__x) { console.warn('Modal indisponible pour alerte:', message); resolve(true); return; }
-        el.__x.$data.show({
+        var root = getErpacModalRoot(el);
+        if (!root) { console.warn('Modal indisponible pour alerte:', message); resolve(true); return; }
+        root.show({
             mode: 'alert',
             title: opts.title || 'Information',
             message: message,
