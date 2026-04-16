@@ -400,6 +400,19 @@ def parametrage():
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
 
+            # On veut garantir qu'il n'y ait qu'un seul exercice "actif" en base.
+            # Et quand on change d'exercice (ou qu'on l'active), on recalcule les allocations
+            # pour refléter le solde basé sur les congés déjà enregistrés.
+            old_debut = param.debut_exercice if param else None
+            old_fin = param.fin_exercice if param else None
+            old_actif = bool(param.actif) if param else False
+            should_recalc_allocations = (
+                param is None or
+                old_debut != debut or
+                old_fin != fin or
+                not old_actif
+            )
+
             if param is None:
                 param = ParametrageAnnuel(
                     debut_exercice=debut,
@@ -420,8 +433,18 @@ def parametrage():
                 param.rtt_calc_mode = rtt_calc_mode
                 param.rtt_heures_reference = rtt_heures_reference
                 param.rtt_coef_surplus = rtt_coef_surplus
+                param.actif = True
 
             db.session.commit()
+
+            # Verrouiller un seul paramétrage actif.
+            ParametrageAnnuel.query.filter(ParametrageAnnuel.id != param.id).update({ParametrageAnnuel.actif: False})
+            db.session.commit()
+
+            # Mettre à jour le solde via les allocations (CP/RTT) du nouvel exercice.
+            if should_recalc_allocations:
+                generer_allocations_pour_parametrage(param)
+
             flash("Paramétrage enregistré.", "success")
             return redirect(url_for("rh.parametrage"))
         elif action == "generer_allocations":

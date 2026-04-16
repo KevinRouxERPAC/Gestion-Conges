@@ -7,7 +7,7 @@ from models import db
 from models.conge import Conge
 from models.user import User
 from services.notifications import notifier_rh_demande_transmise, notifier_conge_refuse, notifier_rh_nouvelle_demande
-from services.solde import calculer_solde
+from services.solde import calculer_solde, verifier_solde_suffisant
 from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
 
 responsable_bp = Blueprint("responsable", __name__)
@@ -178,6 +178,12 @@ def ajouter_conge_subordonne(user_id):
         nb_jours = compter_jours_ouvrables(date_debut, date_fin)
         if nb_jours == 0:
             flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
+            return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+
+        # Contrôle solde (CP / Ancienneté) avant création.
+        # Le RH autorise parfois des soldes négatifs, mais le responsable doit bloquer si solde insuffisant.
+        if type_conge in ("CP", "Anciennete") and not verifier_solde_suffisant(user.id, nb_jours):
+            flash("Solde CP insuffisant.", "error")
             return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
         chevauchement = detecter_chevauchement(user.id, date_debut, date_fin)

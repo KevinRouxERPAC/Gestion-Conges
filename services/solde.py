@@ -285,13 +285,13 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
                 parametrage_id=param.id,
             )
             db.session.add(allocation)
-            allocation.jours_report = report_cp_anticipe
-            allocation.rtt_heures_reportees = report_rtt_anticipe
 
         allocation.jours_alloues = param.jours_conges_defaut
         allocation.jours_anciennete = allocation.jours_anciennete or 0
-        allocation.jours_report = allocation.jours_report or 0
+        # Le report doit refléter le solde réel de l'exercice précédent.
+        # On le recalcule même si l'allocation existe déjà (cas "nouvel exercice" re-paramétré).
+        allocation.jours_report = report_cp_anticipe
         allocation.rtt_heures_allouees = param.rtt_heures_defaut
-        allocation.rtt_heures_reportees = allocation.rtt_heures_reportees or 0
+        allocation.rtt_heures_reportees = report_rtt_anticipe
 
     db.session.commit()
