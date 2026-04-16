@@ -1,12 +1,73 @@
+from datetime import date, timedelta
 from models import db
 from models.conge import Conge
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from sqlalchemy import func
 
 
-def get_parametrage_actif():
+def _shift_exercice(param: ParametrageAnnuel) -> tuple[date, date]:
+    """
+    Calcule les dates du prochain exercice à partir d'un paramétrage existant.
+    On conserve la même durée (fin - début) et on démarre le lendemain de la fin.
+    """
+    duree = param.fin_exercice - param.debut_exercice
+    debut = param.fin_exercice + timedelta(days=1)
+    fin = debut + duree
+    return debut, fin
+
+
+def _ensure_exercice_actif(today: date | None = None) -> ParametrageAnnuel | None:
+    """
+    Garantit qu'un exercice actif est pertinent par rapport à la date du jour.
+    Si l'exercice actif est terminé (today > fin_exercice), un nouvel exercice est créé
+    avec les mêmes paramètres par défaut, activé, l'ancien est désactivé, et les allocations
+    CP/RTT sont générées/mises à jour.
+    """
+    if today is None:
+        today = date.today()
+
+    param = ParametrageAnnuel.query.filter_by(actif=True).first()
+    if not param:
+        return None
+
+    if today <= param.fin_exercice:
+        return param
+
+    # L'exercice actif est terminé : créer le suivant si absent, basculer actif, générer allocations.
+    new_debut, new_fin = _shift_exercice(param)
+
+    existing = (
+        ParametrageAnnuel.query.filter_by(debut_exercice=new_debut, fin_exercice=new_fin).first()
+    )
+    if existing:
+        new_param = existing
+    else:
+        new_param = ParametrageAnnuel(
+            debut_exercice=new_debut,
+            fin_exercice=new_fin,
+            jours_conges_defaut=param.jours_conges_defaut,
+            rtt_heures_defaut=param.rtt_heures_defaut,
+            rtt_calc_mode=param.rtt_calc_mode,
+            rtt_heures_reference=param.rtt_heures_reference,
+            rtt_coef_surplus=param.rtt_coef_surplus,
+            actif=False,  # on active après commit + verrouillage ci-dessous
+        )
+        db.session.add(new_param)
+        db.session.flush()
+
+    # Un seul exercice actif.
+    ParametrageAnnuel.query.update({ParametrageAnnuel.actif: False})
+    new_param.actif = True
+    db.session.commit()
+
+    # Générer allocations pour le nouvel exercice (idempotent).
+    generer_allocations_pour_parametrage(new_param)
+    return new_param
+
+
+def get_parametrage_actif(today: date | None = None):
     """Retourne le paramétrage annuel actif."""
-    return ParametrageAnnuel.query.filter_by(actif=True).first()
+    return _ensure_exercice_actif(today=today)
 
 
 def get_allocation(user_id, parametrage_id=None):

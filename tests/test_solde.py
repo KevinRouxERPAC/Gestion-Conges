@@ -5,6 +5,7 @@ from services.solde import (
     calculer_solde,
     calculer_jours_cps_consommes,
     calculer_heures_rtt_consommes,
+    get_parametrage_actif,
     verifier_solde_suffisant,
     verifier_solde_rtt_suffisant,
     generer_allocations_pour_parametrage,
@@ -313,3 +314,35 @@ class TestGenerationAllocations:
         assert alloc_new is not None
         assert alloc_new.jours_report == -5
         assert alloc_new.rtt_heures_reportees == -6
+
+
+class TestAutoChangementExercice:
+    def test_auto_bascule_exercice_quand_termine(self, db_session, users):
+        """Si l'exercice actif est terminé, get_parametrage_actif doit créer/activer le suivant."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        param_old = ParametrageAnnuel(
+            debut_exercice=date(2025, 4, 1),
+            fin_exercice=date(2026, 3, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add(param_old)
+        db_session.session.commit()
+
+        # "Aujourd'hui" après la fin d'exercice
+        param_active = get_parametrage_actif(today=date(2026, 4, 2))
+        assert param_active is not None
+        assert param_active.actif is True
+        assert param_active.id != param_old.id
+        assert param_active.debut_exercice == date(2026, 4, 1)
+        assert param_active.fin_exercice == date(2027, 3, 31)
+
+        # Un seul exercice actif en base
+        assert ParametrageAnnuel.query.filter_by(actif=True).count() == 1
+
+        # Allocations générées pour les utilisateurs actifs
+        for u in (users["rh"], users["responsable"], users["salarie"], users["salarie_sans_resp"]):
+            alloc = AllocationConge.query.filter_by(user_id=u.id, parametrage_id=param_active.id).first()
+            assert alloc is not None
