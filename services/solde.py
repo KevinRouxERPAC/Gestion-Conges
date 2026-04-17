@@ -16,6 +16,25 @@ def _shift_exercice(param: ParametrageAnnuel) -> tuple[date, date]:
     return debut, fin
 
 
+def _calculer_jours_anciennete_depuis_embauche(date_embauche: date | None, ref_date: date) -> int:
+    """
+    Calcule les jours d'ancienneté sur un barème simple:
+    - 1 jour par tranche complète de 5 ans d'ancienneté
+    - plafonné à 5 jours
+    """
+    if not date_embauche or date_embauche > ref_date:
+        return 0
+
+    annees = ref_date.year - date_embauche.year
+    if (ref_date.month, ref_date.day) < (date_embauche.month, date_embauche.day):
+        annees -= 1
+
+    if annees < 5:
+        return 0
+
+    return min(annees // 5, 5)
+
+
 def _ensure_exercice_actif(today: date | None = None) -> ParametrageAnnuel | None:
     """
     Garantit qu'un exercice actif est pertinent par rapport à la date du jour.
@@ -335,7 +354,18 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
 
         report_cp_anticipe = 0
         report_rtt_anticipe = 0
+        anciennete_precedente = 0
+        anciennete_calculee = _calculer_jours_anciennete_depuis_embauche(
+            s.date_embauche,
+            param.debut_exercice,
+        )
         if param_precedent:
+            allocation_precedente = AllocationConge.query.filter_by(
+                user_id=s.id,
+                parametrage_id=param_precedent.id,
+            ).first()
+            if allocation_precedente:
+                anciennete_precedente = allocation_precedente.jours_anciennete or 0
             solde_precedent = calculer_solde(s.id, parametrage_id=param_precedent.id)
             report_cp_anticipe = min(0, int(solde_precedent.get("solde_restant", 0) or 0))
             report_rtt_anticipe = min(0, float(solde_precedent.get("rtt_solde_restant", 0) or 0))
@@ -348,7 +378,12 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
             db.session.add(allocation)
 
         allocation.jours_alloues = param.jours_conges_defaut
-        allocation.jours_anciennete = allocation.jours_anciennete or 0
+        # Priorité ancienneté:
+        # 1) valeur déjà présente sur allocation (saisie RH éventuelle),
+        # 2) reprise de l'exercice précédent,
+        # 3) calcul automatique depuis la date d'embauche.
+        if not allocation.jours_anciennete:
+            allocation.jours_anciennete = anciennete_precedente or anciennete_calculee
         # Le report doit refléter le solde réel de l'exercice précédent.
         # On le recalcule même si l'allocation existe déjà (cas "nouvel exercice" re-paramétré).
         allocation.jours_report = report_cp_anticipe

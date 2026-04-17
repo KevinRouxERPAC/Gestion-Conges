@@ -315,6 +315,113 @@ class TestGenerationAllocations:
         assert alloc_new.jours_report == -5
         assert alloc_new.rtt_heures_reportees == -6
 
+    def test_generer_allocations_reprend_anciennete_exercice_precedent(self, db_session, users):
+        """La création d'un nouvel exercice doit reprendre les jours d'ancienneté par salarié."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        param_old = ParametrageAnnuel(
+            debut_exercice=date(2025, 1, 1),
+            fin_exercice=date(2025, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=False,
+        )
+        param_new = ParametrageAnnuel(
+            debut_exercice=date(2026, 1, 1),
+            fin_exercice=date(2026, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add_all([param_old, param_new])
+        db_session.session.flush()
+
+        alloc_old = AllocationConge(
+            user_id=users["salarie"].id,
+            parametrage_id=param_old.id,
+            jours_alloues=25,
+            jours_anciennete=7,
+            jours_report=0,
+            rtt_heures_allouees=14,
+            rtt_heures_reportees=0,
+        )
+        db_session.session.add(alloc_old)
+        db_session.session.commit()
+
+        generer_allocations_pour_parametrage(param_new)
+
+        alloc_new = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id,
+            parametrage_id=param_new.id,
+        ).first()
+        assert alloc_new is not None
+        assert alloc_new.jours_alloues == 25
+        assert alloc_new.jours_anciennete == 7
+
+    def test_generer_allocations_calcule_anciennete_depuis_embauche(self, db_session, users):
+        """Sans allocation précédente, l'ancienneté doit être calculée depuis la date d'embauche."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        users["salarie"].date_embauche = date(2014, 1, 1)  # 12 ans au 01/01/2026 -> 2 jours
+        db_session.session.commit()
+
+        param_new = ParametrageAnnuel(
+            debut_exercice=date(2026, 1, 1),
+            fin_exercice=date(2026, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add(param_new)
+        db_session.session.commit()
+
+        generer_allocations_pour_parametrage(param_new)
+
+        alloc_new = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id,
+            parametrage_id=param_new.id,
+        ).first()
+        assert alloc_new is not None
+        assert alloc_new.jours_anciennete == 2
+
+    def test_generer_allocations_recalcule_si_anciennete_a_zero(self, db_session, users):
+        """Une allocation existante à 0 jour d'ancienneté doit être recalculée."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        users["salarie"].date_embauche = date(2010, 1, 1)  # 16 ans au 01/01/2026 -> 3 jours
+        db_session.session.commit()
+
+        param = ParametrageAnnuel(
+            debut_exercice=date(2026, 1, 1),
+            fin_exercice=date(2026, 12, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add(param)
+        db_session.session.flush()
+
+        alloc = AllocationConge(
+            user_id=users["salarie"].id,
+            parametrage_id=param.id,
+            jours_alloues=25,
+            jours_anciennete=0,
+            jours_report=0,
+            rtt_heures_allouees=14,
+            rtt_heures_reportees=0,
+        )
+        db_session.session.add(alloc)
+        db_session.session.commit()
+
+        generer_allocations_pour_parametrage(param)
+
+        alloc_after = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id,
+            parametrage_id=param.id,
+        ).first()
+        assert alloc_after is not None
+        assert alloc_after.jours_anciennete == 3
+
 
 class TestAutoChangementExercice:
     def test_auto_bascule_exercice_quand_termine(self, db_session, users):
