@@ -81,13 +81,15 @@ def users(db_session, _hash):
 
 @pytest.fixture()
 def parametrage(db_session):
-    """Crée un paramétrage annuel actif."""
+    """Crée un paramétrage annuel actif avec exercice avril→mars et congés juin→mai."""
     from datetime import date
     from models.parametrage import ParametrageAnnuel
 
     p = ParametrageAnnuel(
-        debut_exercice=date(2026, 1, 1),
-        fin_exercice=date(2026, 12, 31),
+        debut_exercice=date(2026, 4, 1),
+        fin_exercice=date(2027, 3, 31),
+        debut_periode_conges=date(2026, 6, 1),
+        fin_periode_conges=date(2027, 5, 31),
         jours_conges_defaut=25,
         rtt_heures_defaut=14,
         actif=True,

@@ -7,6 +7,13 @@ class ParametrageAnnuel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     debut_exercice = db.Column(db.Date, nullable=False)
     fin_exercice = db.Column(db.Date, nullable=False)
+
+    # Période des congés (CP / ancienneté) : 1er juin → 31 mai
+    # Distincte de l'exercice comptable (1er avril → 31 mars).
+    # Si NULL, on retombe sur debut_exercice / fin_exercice.
+    debut_periode_conges = db.Column(db.Date, nullable=True)
+    fin_periode_conges = db.Column(db.Date, nullable=True)
+
     jours_conges_defaut = db.Column(db.Integer, nullable=False, default=25)
     # Nombre d'heures RTT allouées par défaut pour l'exercice (0 si non utilisé)
     rtt_heures_defaut = db.Column(db.Integer, nullable=False, default=0)
@@ -20,6 +27,13 @@ class ParametrageAnnuel(db.Model):
     actif = db.Column(db.Boolean, default=True)
 
     allocations = db.relationship("AllocationConge", backref="parametrage", lazy=True, cascade="all, delete-orphan")
+
+    @property
+    def periode_conges(self):
+        """Bornes de la période CP/ancienneté (fallback sur l'exercice)."""
+        debut = self.debut_periode_conges or self.debut_exercice
+        fin = self.fin_periode_conges or self.fin_exercice
+        return debut, fin
 
     def __repr__(self):
         return f"<Parametrage {self.debut_exercice} - {self.fin_exercice}>"

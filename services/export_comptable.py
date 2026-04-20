@@ -60,9 +60,12 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
     if parametrage is None:
         raise ValueError("Paramétrage annuel manquant.")
 
-    debut = parametrage.debut_exercice
-    fin = parametrage.fin_exercice
-    as_of_clamped = min(max(as_of, debut), fin)
+    debut_exercice = parametrage.debut_exercice
+    fin_exercice = parametrage.fin_exercice
+    debut_cp, fin_cp = parametrage.periode_conges
+
+    as_of_cp = min(max(as_of, debut_cp), fin_cp)
+    as_of_rtt = min(max(as_of, debut_exercice), fin_exercice)
 
     users_q = User.query
     if not include_inactifs:
@@ -89,8 +92,8 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
                 Conge.user_id.in_(user_ids),
                 Conge.statut == "valide",
                 Conge.type_conge.in_(["CP", "Anciennete"]),
-                Conge.date_debut >= debut,
-                Conge.date_fin <= as_of_clamped,
+                Conge.date_debut >= debut_cp,
+                Conge.date_fin <= as_of_cp,
             )
             .group_by(Conge.user_id)
             .all()
@@ -108,8 +111,8 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
                 Conge.user_id.in_(user_ids),
                 Conge.statut == "valide",
                 Conge.type_conge == "RTT",
-                Conge.date_debut >= debut,
-                Conge.date_fin <= as_of_clamped,
+                Conge.date_debut >= debut_exercice,
+                Conge.date_fin <= as_of_rtt,
             )
             .group_by(Conge.user_id)
             .all()
@@ -122,8 +125,9 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
     ws_rtt = wb.create_sheet("Synthèse RTT")
 
     title = (
-        f"Export comptable au {as_of_clamped.strftime('%d/%m/%Y')} "
-        f"(exercice {debut.strftime('%d/%m/%Y')} → {fin.strftime('%d/%m/%Y')})"
+        f"Export comptable au {as_of.strftime('%d/%m/%Y')} — "
+        f"Exercice {debut_exercice.strftime('%d/%m/%Y')} → {fin_exercice.strftime('%d/%m/%Y')} / "
+        f"Congés {debut_cp.strftime('%d/%m/%Y')} → {fin_cp.strftime('%d/%m/%Y')}"
     )
     for ws in (ws_cp, ws_rtt):
         ws.append([title])

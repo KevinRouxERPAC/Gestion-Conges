@@ -5,15 +5,28 @@ from models.parametrage import ParametrageAnnuel, AllocationConge
 from sqlalchemy import func
 
 
-def _shift_exercice(param: ParametrageAnnuel) -> tuple[date, date]:
+def _shift_exercice(param: ParametrageAnnuel) -> dict:
     """
-    Calcule les dates du prochain exercice à partir d'un paramétrage existant.
-    On conserve la même durée (fin - début) et on démarre le lendemain de la fin.
+    Calcule les dates du prochain exercice et de la prochaine période congés.
+    On conserve la même durée et on démarre le lendemain de la fin.
     """
     duree = param.fin_exercice - param.debut_exercice
     debut = param.fin_exercice + timedelta(days=1)
     fin = debut + duree
-    return debut, fin
+
+    debut_conges = None
+    fin_conges = None
+    if param.debut_periode_conges and param.fin_periode_conges:
+        duree_conges = param.fin_periode_conges - param.debut_periode_conges
+        debut_conges = param.fin_periode_conges + timedelta(days=1)
+        fin_conges = debut_conges + duree_conges
+
+    return {
+        "debut": debut,
+        "fin": fin,
+        "debut_conges": debut_conges,
+        "fin_conges": fin_conges,
+    }
 
 
 def _calculer_jours_anciennete_depuis_embauche(date_embauche: date | None, ref_date: date) -> int:
@@ -52,8 +65,9 @@ def _ensure_exercice_actif(today: date | None = None) -> ParametrageAnnuel | Non
     if today <= param.fin_exercice:
         return param
 
-    # L'exercice actif est terminé : créer le suivant si absent, basculer actif, générer allocations.
-    new_debut, new_fin = _shift_exercice(param)
+    shifted = _shift_exercice(param)
+    new_debut = shifted["debut"]
+    new_fin = shifted["fin"]
 
     existing = (
         ParametrageAnnuel.query.filter_by(debut_exercice=new_debut, fin_exercice=new_fin).first()
@@ -64,12 +78,14 @@ def _ensure_exercice_actif(today: date | None = None) -> ParametrageAnnuel | Non
         new_param = ParametrageAnnuel(
             debut_exercice=new_debut,
             fin_exercice=new_fin,
+            debut_periode_conges=shifted["debut_conges"],
+            fin_periode_conges=shifted["fin_conges"],
             jours_conges_defaut=param.jours_conges_defaut,
             rtt_heures_defaut=param.rtt_heures_defaut,
             rtt_calc_mode=param.rtt_calc_mode,
             rtt_heures_reference=param.rtt_heures_reference,
             rtt_coef_surplus=param.rtt_coef_surplus,
-            actif=False,  # on active après commit + verrouillage ci-dessous
+            actif=False,
         )
         db.session.add(new_param)
         db.session.flush()
@@ -144,15 +160,17 @@ def _repartir_consommation_cp_anciennete(total_consomme, jours_conges, jours_anc
 
 
 def calculer_jours_cps_consommes(user_id, parametrage_id=None):
-    """Calcule le nombre de jours consommés (CP + Ancienneté) pour l'exercice actif."""
+    """Calcule le nombre de jours consommés (CP + Ancienneté) sur la période congés."""
     param = _get_param(parametrage_id)
     if param is None:
         return 0
 
+    debut_cp, fin_cp = param.periode_conges
+
     result = db.session.query(func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0)).filter(
         Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
+        Conge.date_debut >= debut_cp,
+        Conge.date_fin <= fin_cp,
         Conge.type_conge.in_(["CP", "Anciennete"]),
         Conge.statut == "valide",
     ).scalar()
@@ -279,13 +297,15 @@ def calculer_soldes_batch(user_ids, parametrage_id=None):
     ).all()
     alloc_by_user = {a.user_id: a for a in allocations}
 
+    debut_cp, fin_cp = param.periode_conges
+
     cp_rows = db.session.query(
         Conge.user_id,
         func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0),
     ).filter(
         Conge.user_id.in_(user_ids),
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
+        Conge.date_debut >= debut_cp,
+        Conge.date_fin <= fin_cp,
         Conge.type_conge.in_(["CP", "Anciennete"]),
         Conge.statut == "valide",
     ).group_by(Conge.user_id).all()
@@ -346,6 +366,8 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
     salaries = User.query.filter_by(actif=True).all()
     param_precedent = _get_parametrage_precedent(param)
 
+    debut_cp, _ = param.periode_conges
+
     for s in salaries:
         allocation = AllocationConge.query.filter_by(
             user_id=s.id,
@@ -357,7 +379,7 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
         anciennete_precedente = 0
         anciennete_calculee = _calculer_jours_anciennete_depuis_embauche(
             s.date_embauche,
-            param.debut_exercice,
+            debut_cp,
         )
         if param_precedent:
             allocation_precedente = AllocationConge.query.filter_by(
@@ -367,8 +389,8 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
             if allocation_precedente:
                 anciennete_precedente = allocation_precedente.jours_anciennete or 0
             solde_precedent = calculer_solde(s.id, parametrage_id=param_precedent.id)
-            report_cp_anticipe = min(0, int(solde_precedent.get("solde_restant", 0) or 0))
-            report_rtt_anticipe = min(0, float(solde_precedent.get("rtt_solde_restant", 0) or 0))
+            report_cp_anticipe = int(solde_precedent.get("solde_restant", 0) or 0)
+            report_rtt_anticipe = float(solde_precedent.get("rtt_solde_restant", 0) or 0)
 
         if not allocation:
             allocation = AllocationConge(
@@ -378,14 +400,8 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
             db.session.add(allocation)
 
         allocation.jours_alloues = param.jours_conges_defaut
-        # Priorité ancienneté:
-        # 1) valeur déjà présente sur allocation (saisie RH éventuelle),
-        # 2) reprise de l'exercice précédent,
-        # 3) calcul automatique depuis la date d'embauche.
         if not allocation.jours_anciennete:
             allocation.jours_anciennete = anciennete_precedente or anciennete_calculee
-        # Le report doit refléter le solde réel de l'exercice précédent.
-        # On le recalcule même si l'allocation existe déjà (cas "nouvel exercice" re-paramétré).
         allocation.jours_report = report_cp_anticipe
         allocation.rtt_heures_allouees = param.rtt_heures_defaut
         allocation.rtt_heures_reportees = report_rtt_anticipe

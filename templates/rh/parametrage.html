@@ -9,56 +9,91 @@
 
 <!-- Parametrage exercice -->
 <div class="bg-white rounded-xl shadow p-6 mb-8">
-    <h2 class="text-lg font-semibold text-gray-800 mb-4">Exercice fiscal</h2>
-    <form method="POST" class="grid grid-cols-1 md:grid-cols-7 gap-4 items-end">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Exercice et périodes</h2>
+    <form method="POST" class="space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_parametrage">
+
+        <!-- Exercice comptable (avril → mars) — gouverne les RTT et le rapport annuel -->
+        <fieldset class="border border-gray-200 rounded-lg p-4">
+            <legend class="text-sm font-semibold text-gray-700 px-2">Exercice de l'entreprise (1<sup>er</sup> avril → 31 mars)</legend>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Début de l'exercice</label>
+                    <input type="date" name="debut_exercice" required
+                           value="{{ parametrage.debut_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Fin de l'exercice</label>
+                    <input type="date" name="fin_exercice" required
+                           value="{{ parametrage.fin_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Période des congés (juin → mai) — gouverne les CP et l'ancienneté -->
+        <fieldset class="border border-blue-200 rounded-lg p-4 bg-blue-50/30">
+            <legend class="text-sm font-semibold text-blue-700 px-2">Période des congés payés (1<sup>er</sup> juin → 31 mai)</legend>
+            <p class="text-xs text-gray-500 mb-3">Les CP et jours d'ancienneté sont réinitialisés au 1<sup>er</sup> juin. Le reste de la période précédente est reporté.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Début de la période congés</label>
+                    <input type="date" name="debut_periode_conges"
+                           value="{{ parametrage.debut_periode_conges.strftime('%Y-%m-%d') if parametrage and parametrage.debut_periode_conges else '' }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Fin de la période congés</label>
+                    <input type="date" name="fin_periode_conges"
+                           value="{{ parametrage.fin_periode_conges.strftime('%Y-%m-%d') if parametrage and parametrage.fin_periode_conges else '' }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400">
+                </div>
+            </div>
+        </fieldset>
+
+        <!-- Paramètres d'allocation -->
+        <fieldset class="border border-gray-200 rounded-lg p-4">
+            <legend class="text-sm font-semibold text-gray-700 px-2">Allocations par défaut</legend>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2">
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Jours congés par défaut (CP)</label>
+                    <input type="number" name="jours_conges_defaut" min="0" required
+                           value="{{ parametrage.jours_conges_defaut if parametrage else 25 }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Heures RTT par défaut</label>
+                    <input type="number" name="rtt_heures_defaut" min="0" required
+                           value="{{ parametrage.rtt_heures_defaut if parametrage else 0 }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Mode RTT</label>
+                    <select name="rtt_calc_mode" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                        {% set mode = (parametrage.rtt_calc_mode if parametrage and parametrage.rtt_calc_mode else 'fixe') %}
+                        <option value="fixe" {% if mode == 'fixe' %}selected{% endif %}>Fixe (heures par défaut)</option>
+                        <option value="heures" {% if mode == 'heures' %}selected{% endif %}>Calculé depuis heures</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Référence heures (annuel)</label>
+                    <input type="number" name="rtt_heures_reference" min="0"
+                           value="{{ parametrage.rtt_heures_reference if parametrage else 0 }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 mb-1">Coef. surplus → RTT</label>
+                    <input type="number" name="rtt_coef_surplus" min="0" step="0.01"
+                           value="{{ parametrage.rtt_coef_surplus if parametrage else 0 }}"
+                           class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                </div>
+            </div>
+        </fieldset>
+
         <div>
-            <label class="block text-sm text-gray-600 mb-1">Début de l'exercice</label>
-            <input type="date" name="debut_exercice" required
-                   value="{{ parametrage.debut_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Fin de l'exercice</label>
-            <input type="date" name="fin_exercice" required
-                   value="{{ parametrage.fin_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Jours congés par défaut (CP)</label>
-            <input type="number" name="jours_conges_defaut" min="0" required
-                   value="{{ parametrage.jours_conges_defaut if parametrage else 25 }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Heures RTT par défaut</label>
-            <input type="number" name="rtt_heures_defaut" min="0" required
-                   value="{{ parametrage.rtt_heures_defaut if parametrage else 0 }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Mode RTT</label>
-            <select name="rtt_calc_mode" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-                {% set mode = (parametrage.rtt_calc_mode if parametrage and parametrage.rtt_calc_mode else 'fixe') %}
-                <option value="fixe" {% if mode == 'fixe' %}selected{% endif %}>Fixe (heures par défaut)</option>
-                <option value="heures" {% if mode == 'heures' %}selected{% endif %}>Calculé depuis heures</option>
-            </select>
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Référence heures (annuel)</label>
-            <input type="number" name="rtt_heures_reference" min="0"
-                   value="{{ parametrage.rtt_heures_reference if parametrage else 0 }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <label class="block text-sm text-gray-600 mb-1">Coef. surplus → RTT</label>
-            <input type="number" name="rtt_coef_surplus" min="0" step="0.01"
-                   value="{{ parametrage.rtt_coef_surplus if parametrage else 0 }}"
-                   class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-        </div>
-        <div>
-            <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition w-full">
+            <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition">
                 Enregistrer
             </button>
         </div>

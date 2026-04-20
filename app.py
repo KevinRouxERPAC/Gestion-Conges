@@ -128,6 +128,7 @@ def create_app(test_config=None):
             "migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux",
             "migrate_rtt_columns", "migrate_conges_exceptionnels", "migrate_heures_payees",
             "migrate_rtt_calc_heures", "migrate_interessement", "migrate_heures_hebdo",
+            "migrate_periode_conges",
         )
         for mig in _migrations:
             try:

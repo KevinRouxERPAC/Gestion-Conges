@@ -48,6 +48,11 @@
                 <span class="text-red-500">Non configuré</span>
             {% endif %}
         </div>
+        {% if parametrage and parametrage.debut_periode_conges %}
+        <div class="text-xs text-blue-600 mt-1">
+            Congés : {{ parametrage.debut_periode_conges.strftime('%d/%m/%Y') }} - {{ parametrage.fin_periode_conges.strftime('%d/%m/%Y') }}
+        </div>
+        {% endif %}
     </div>
 </div>
 

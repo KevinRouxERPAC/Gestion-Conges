@@ -389,6 +389,10 @@ def parametrage():
             try:
                 debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
                 fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
+                debut_cp_str = request.form.get("debut_periode_conges", "").strip()
+                fin_cp_str = request.form.get("fin_periode_conges", "").strip()
+                debut_cp = datetime.strptime(debut_cp_str, "%Y-%m-%d").date() if debut_cp_str else None
+                fin_cp = datetime.strptime(fin_cp_str, "%Y-%m-%d").date() if fin_cp_str else None
                 jours_defaut = int(request.form["jours_conges_defaut"])
                 rtt_heures_defaut = int(request.form['rtt_heures_defaut'])
                 rtt_calc_mode = (request.form.get('rtt_calc_mode') or 'fixe').strip() or 'fixe'
@@ -405,11 +409,15 @@ def parametrage():
             # pour refléter le solde basé sur les congés déjà enregistrés.
             old_debut = param.debut_exercice if param else None
             old_fin = param.fin_exercice if param else None
+            old_debut_cp = param.debut_periode_conges if param else None
+            old_fin_cp = param.fin_periode_conges if param else None
             old_actif = bool(param.actif) if param else False
             should_recalc_allocations = (
                 param is None or
                 old_debut != debut or
                 old_fin != fin or
+                old_debut_cp != debut_cp or
+                old_fin_cp != fin_cp or
                 not old_actif
             )
 
@@ -417,6 +425,8 @@ def parametrage():
                 param = ParametrageAnnuel(
                     debut_exercice=debut,
                     fin_exercice=fin,
+                    debut_periode_conges=debut_cp,
+                    fin_periode_conges=fin_cp,
                     jours_conges_defaut=jours_defaut,
                     rtt_heures_defaut=rtt_heures_defaut,
                     rtt_calc_mode=rtt_calc_mode,
@@ -428,6 +438,8 @@ def parametrage():
             else:
                 param.debut_exercice = debut
                 param.fin_exercice = fin
+                param.debut_periode_conges = debut_cp
+                param.fin_periode_conges = fin_cp
                 param.jours_conges_defaut = jours_defaut
                 param.rtt_heures_defaut = rtt_heures_defaut
                 param.rtt_calc_mode = rtt_calc_mode

@@ -56,8 +56,8 @@ class TestCalculSoldeCP:
         """Un congé de type Ancienneté doit aussi débiter le solde CP."""
         conge = Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2026, 3, 2),
-            date_fin=date(2026, 3, 3),
+            date_debut=date(2026, 7, 2),
+            date_fin=date(2026, 7, 3),
             nb_jours_ouvrables=2,
             type_conge="Anciennete",
             statut="valide",
@@ -110,8 +110,8 @@ class TestCalculSoldeCP:
         """Un congé Maladie ne débite ni CP ni RTT."""
         conge = Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2026, 4, 1),
-            date_fin=date(2026, 4, 10),
+            date_debut=date(2026, 7, 1),
+            date_fin=date(2026, 7, 10),
             nb_jours_ouvrables=8,
             type_conge="Maladie",
             statut="valide",
@@ -152,8 +152,8 @@ class TestCalculSoldeRTT:
         """Un RTT validé de 4h doit être comptabilisé en heures."""
         conge = Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2026, 5, 4),
-            date_fin=date(2026, 5, 4),
+            date_debut=date(2026, 10, 5),
+            date_fin=date(2026, 10, 5),
             nb_jours_ouvrables=1,
             type_conge="RTT",
             nb_heures_rtt=4,
@@ -171,8 +171,8 @@ class TestCalculSoldeRTT:
         """Consommation RTT égale au total alloué → solde 0."""
         conge = Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2026, 5, 4),
-            date_fin=date(2026, 5, 4),
+            date_debut=date(2026, 10, 5),
+            date_fin=date(2026, 10, 5),
             nb_jours_ouvrables=1,
             type_conge="RTT",
             nb_heures_rtt=14,
@@ -189,8 +189,8 @@ class TestCalculSoldeRTT:
         """Un RTT ne doit pas impacter le solde CP."""
         conge = Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2026, 9, 1),
-            date_fin=date(2026, 9, 1),
+            date_debut=date(2026, 11, 2),
+            date_fin=date(2026, 11, 2),
             nb_jours_ouvrables=1,
             type_conge="RTT",
             nb_heures_rtt=7,
@@ -259,15 +259,19 @@ class TestGenerationAllocations:
         from models.parametrage import ParametrageAnnuel, AllocationConge
 
         param_old = ParametrageAnnuel(
-            debut_exercice=date(2025, 1, 1),
-            fin_exercice=date(2025, 12, 31),
+            debut_exercice=date(2025, 4, 1),
+            fin_exercice=date(2026, 3, 31),
+            debut_periode_conges=date(2025, 6, 1),
+            fin_periode_conges=date(2026, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=False,
         )
         param_new = ParametrageAnnuel(
-            debut_exercice=date(2026, 1, 1),
-            fin_exercice=date(2026, 12, 31),
+            debut_exercice=date(2026, 4, 1),
+            fin_exercice=date(2027, 3, 31),
+            debut_periode_conges=date(2026, 6, 1),
+            fin_periode_conges=date(2027, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=True,
@@ -286,14 +290,16 @@ class TestGenerationAllocations:
         )
         db_session.session.add(alloc_old)
 
+        # CP dans la période congés (juin 2025 → mai 2026)
         db_session.session.add(Conge(
             user_id=users["salarie"].id,
-            date_debut=date(2025, 6, 1),
-            date_fin=date(2025, 7, 11),
+            date_debut=date(2025, 7, 1),
+            date_fin=date(2025, 8, 11),
             nb_jours_ouvrables=30,
             type_conge="CP",
             statut="valide",
         ))
+        # RTT dans l'exercice (avril 2025 → mars 2026)
         db_session.session.add(Conge(
             user_id=users["salarie"].id,
             date_debut=date(2025, 9, 1),
@@ -315,20 +321,90 @@ class TestGenerationAllocations:
         assert alloc_new.jours_report == -5
         assert alloc_new.rtt_heures_reportees == -6
 
-    def test_generer_allocations_reprend_anciennete_exercice_precedent(self, db_session, users):
-        """La création d'un nouvel exercice doit reprendre les jours d'ancienneté par salarié."""
+    def test_generer_allocations_reporte_solde_positif_precedent(self, db_session, users):
+        """Un solde positif CP/RTT de l'exercice précédent doit être reporté sur le nouvel exercice."""
         from models.parametrage import ParametrageAnnuel, AllocationConge
 
         param_old = ParametrageAnnuel(
-            debut_exercice=date(2025, 1, 1),
-            fin_exercice=date(2025, 12, 31),
+            debut_exercice=date(2025, 4, 1),
+            fin_exercice=date(2026, 3, 31),
+            debut_periode_conges=date(2025, 6, 1),
+            fin_periode_conges=date(2026, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=False,
         )
         param_new = ParametrageAnnuel(
-            debut_exercice=date(2026, 1, 1),
-            fin_exercice=date(2026, 12, 31),
+            debut_exercice=date(2026, 4, 1),
+            fin_exercice=date(2027, 3, 31),
+            debut_periode_conges=date(2026, 6, 1),
+            fin_periode_conges=date(2027, 5, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add_all([param_old, param_new])
+        db_session.session.flush()
+
+        alloc_old = AllocationConge(
+            user_id=users["salarie"].id,
+            parametrage_id=param_old.id,
+            jours_alloues=25,
+            jours_anciennete=0,
+            jours_report=0,
+            rtt_heures_allouees=14,
+            rtt_heures_reportees=0,
+        )
+        db_session.session.add(alloc_old)
+        # CP dans la période congés (juin 2025 → mai 2026)
+        db_session.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2025, 7, 2),
+            date_fin=date(2025, 7, 8),
+            nb_jours_ouvrables=5,
+            type_conge="CP",
+            statut="valide",
+        ))
+        # RTT dans l'exercice (avril 2025 → mars 2026)
+        db_session.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2025, 9, 1),
+            date_fin=date(2025, 9, 1),
+            nb_jours_ouvrables=1,
+            type_conge="RTT",
+            nb_heures_rtt=4,
+            statut="valide",
+        ))
+        db_session.session.commit()
+
+        generer_allocations_pour_parametrage(param_new)
+
+        alloc_new = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id,
+            parametrage_id=param_new.id,
+        ).first()
+        assert alloc_new is not None
+        assert alloc_new.jours_report == 20
+        assert alloc_new.rtt_heures_reportees == 10
+
+    def test_generer_allocations_reprend_anciennete_exercice_precedent(self, db_session, users):
+        """La création d'un nouvel exercice doit reprendre les jours d'ancienneté par salarié."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        param_old = ParametrageAnnuel(
+            debut_exercice=date(2025, 4, 1),
+            fin_exercice=date(2026, 3, 31),
+            debut_periode_conges=date(2025, 6, 1),
+            fin_periode_conges=date(2026, 5, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=False,
+        )
+        param_new = ParametrageAnnuel(
+            debut_exercice=date(2026, 4, 1),
+            fin_exercice=date(2027, 3, 31),
+            debut_periode_conges=date(2026, 6, 1),
+            fin_periode_conges=date(2027, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=True,
@@ -362,12 +438,14 @@ class TestGenerationAllocations:
         """Sans allocation précédente, l'ancienneté doit être calculée depuis la date d'embauche."""
         from models.parametrage import ParametrageAnnuel, AllocationConge
 
-        users["salarie"].date_embauche = date(2014, 1, 1)  # 12 ans au 01/01/2026 -> 2 jours
+        users["salarie"].date_embauche = date(2014, 6, 1)  # 12 ans au 01/06/2026 -> 2 jours
         db_session.session.commit()
 
         param_new = ParametrageAnnuel(
-            debut_exercice=date(2026, 1, 1),
-            fin_exercice=date(2026, 12, 31),
+            debut_exercice=date(2026, 4, 1),
+            fin_exercice=date(2027, 3, 31),
+            debut_periode_conges=date(2026, 6, 1),
+            fin_periode_conges=date(2027, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=True,
@@ -388,12 +466,14 @@ class TestGenerationAllocations:
         """Une allocation existante à 0 jour d'ancienneté doit être recalculée."""
         from models.parametrage import ParametrageAnnuel, AllocationConge
 
-        users["salarie"].date_embauche = date(2010, 1, 1)  # 16 ans au 01/01/2026 -> 3 jours
+        users["salarie"].date_embauche = date(2010, 6, 1)  # 16 ans au 01/06/2026 -> 3 jours
         db_session.session.commit()
 
         param = ParametrageAnnuel(
-            debut_exercice=date(2026, 1, 1),
-            fin_exercice=date(2026, 12, 31),
+            debut_exercice=date(2026, 4, 1),
+            fin_exercice=date(2027, 3, 31),
+            debut_periode_conges=date(2026, 6, 1),
+            fin_periode_conges=date(2027, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=True,
@@ -431,6 +511,8 @@ class TestAutoChangementExercice:
         param_old = ParametrageAnnuel(
             debut_exercice=date(2025, 4, 1),
             fin_exercice=date(2026, 3, 31),
+            debut_periode_conges=date(2025, 6, 1),
+            fin_periode_conges=date(2026, 5, 31),
             jours_conges_defaut=25,
             rtt_heures_defaut=14,
             actif=True,
@@ -438,18 +520,115 @@ class TestAutoChangementExercice:
         db_session.session.add(param_old)
         db_session.session.commit()
 
-        # "Aujourd'hui" après la fin d'exercice
         param_active = get_parametrage_actif(today=date(2026, 4, 2))
         assert param_active is not None
         assert param_active.actif is True
         assert param_active.id != param_old.id
         assert param_active.debut_exercice == date(2026, 4, 1)
         assert param_active.fin_exercice == date(2027, 3, 31)
+        assert param_active.debut_periode_conges == date(2026, 6, 1)
+        assert param_active.fin_periode_conges == date(2027, 5, 31)
 
-        # Un seul exercice actif en base
         assert ParametrageAnnuel.query.filter_by(actif=True).count() == 1
 
-        # Allocations générées pour les utilisateurs actifs
         for u in (users["rh"], users["responsable"], users["salarie"], users["salarie_sans_resp"]):
             alloc = AllocationConge.query.filter_by(user_id=u.id, parametrage_id=param_active.id).first()
             assert alloc is not None
+
+
+class TestPeriodesDistinctes:
+    """Vérifie que CP utilise la période congés (juin→mai) et RTT l'exercice (avril→mars)."""
+
+    def test_cp_hors_exercice_mais_dans_periode_conges(self, db_session, users, parametrage, allocations):
+        """Un CP en avril-mai est hors exercice (avril→mars fini) mais dans la période congés (juin→mai)."""
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2027, 4, 5),
+            date_fin=date(2027, 4, 9),
+            nb_jours_ouvrables=5,
+            type_conge="CP",
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        solde = calculer_solde(users["salarie"].id)
+        assert solde["total_consomme"] == 5
+        assert solde["solde_restant"] == 22
+
+    def test_rtt_en_avril_dans_exercice(self, db_session, users, parametrage, allocations):
+        """Un RTT en avril est dans l'exercice (avril→mars) et doit être comptabilisé."""
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 4, 6),
+            date_fin=date(2026, 4, 6),
+            nb_jours_ouvrables=1,
+            type_conge="RTT",
+            nb_heures_rtt=7,
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        solde = calculer_solde(users["salarie"].id)
+        assert solde["rtt_total_consomme"] == 7
+        assert solde["rtt_solde_restant"] == 7
+
+    def test_cp_en_avril_mai_pas_dans_periode_conges_precedente(self, db_session, users):
+        """Un CP en avril-mai de l'ancienne période congés ne doit pas compter pour la nouvelle."""
+        from models.parametrage import ParametrageAnnuel, AllocationConge
+
+        param = ParametrageAnnuel(
+            debut_exercice=date(2027, 4, 1),
+            fin_exercice=date(2028, 3, 31),
+            debut_periode_conges=date(2027, 6, 1),
+            fin_periode_conges=date(2028, 5, 31),
+            jours_conges_defaut=25,
+            rtt_heures_defaut=14,
+            actif=True,
+        )
+        db_session.session.add(param)
+        db_session.session.flush()
+
+        alloc = AllocationConge(
+            user_id=users["salarie"].id,
+            parametrage_id=param.id,
+            jours_alloues=25,
+            jours_anciennete=2,
+            jours_report=0,
+            rtt_heures_allouees=14,
+            rtt_heures_reportees=0,
+        )
+        db_session.session.add(alloc)
+
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2027, 5, 5),
+            date_fin=date(2027, 5, 9),
+            nb_jours_ouvrables=5,
+            type_conge="CP",
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        solde = calculer_solde(users["salarie"].id, parametrage_id=param.id)
+        assert solde["total_consomme"] == 0
+
+    def test_rtt_hors_exercice_pas_comptabilise(self, db_session, users, parametrage, allocations):
+        """Un RTT hors de l'exercice (avant avril ou après mars) ne doit pas être comptabilisé."""
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2027, 4, 1),
+            date_fin=date(2027, 4, 1),
+            nb_jours_ouvrables=1,
+            type_conge="RTT",
+            nb_heures_rtt=7,
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        solde = calculer_solde(users["salarie"].id)
+        assert solde["rtt_total_consomme"] == 0
+        assert solde["rtt_solde_restant"] == 14
