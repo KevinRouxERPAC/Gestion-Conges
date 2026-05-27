@@ -137,7 +137,13 @@ def parse_csv(content):
         email = (row[idx_email] or "").strip() if idx_email is not None and idx_email < len(row) else ""
         date_embauche = _parse_date(row[idx_date] if idx_date is not None and idx_date < len(row) else None)
         role_raw = (row[idx_role] or "salarie").strip() if idx_role is not None and idx_role < len(row) else "salarie"
-        role = "rh" if str(role_raw).lower() in ("rh", "admin") else "salarie"
+        role_norm = str(role_raw).strip().lower()
+        if role_norm in ("rh", "admin"):
+            role = "rh"
+        elif role_norm in ("responsable", "manager", "chef"):
+            role = "responsable"
+        else:
+            role = "salarie"
         actif = _parse_bool(row[idx_actif] if idx_actif is not None and idx_actif < len(row) else True)
         rows.append({
             "identifiant": identifiant,
@@ -186,7 +192,13 @@ def parse_excel(content):
         email = str(row[idx_email] or "").strip() if idx_email is not None and idx_email < len(row) else ""
         date_embauche = _parse_date(row[idx_date] if idx_date is not None and idx_date < len(row) else None)
         role_raw = str(row[idx_role] or "salarie")
-        role = "rh" if role_raw.lower() in ("rh", "admin") else "salarie"
+        role_norm = role_raw.strip().lower()
+        if role_norm in ("rh", "admin"):
+            role = "rh"
+        elif role_norm in ("responsable", "manager", "chef"):
+            role = "responsable"
+        else:
+            role = "salarie"
         actif = _parse_bool(row[idx_actif] if idx_actif is not None and idx_actif < len(row) else True)
         rows.append({
             "identifiant": identifiant,
@@ -201,53 +213,62 @@ def parse_excel(content):
 
 
 def sync_users(rows, default_password, hash_password):
-    """
-    Cree ou met a jour les utilisateurs. Cle: identifiant.
-    Retourne: (created, updated, errors).
+    """Crée ou met à jour les utilisateurs depuis une liste de dicts.
+
+    Clé d'unicité : identifiant. Création si absent, mise à jour si présent.
+    Le rôle est normalisé (whitelist : rh / salarie / responsable) ; les valeurs
+    invalides sont rabattues sur "salarie". Le mot de passe par défaut s'applique
+    uniquement aux créations et doit respecter la politique (≥ 8 caractères).
+
+    Retourne (created, updated, errors).
     """
     from models.user import User
     from models import db
+    from services.auth_utils import normaliser_role, valider_mot_de_passe
 
     created = 0
     updated = 0
     errors = []
+
+    pwd_err = valider_mot_de_passe(default_password) if default_password else None
 
     for i, row in enumerate(rows):
         identifiant = (row.get("identifiant") or "").strip()
         nom = (row.get("nom") or "").strip()
         prenom = (row.get("prenom") or "").strip()
         if not nom or not prenom:
-            errors.append("Ligne %d: nom et prenom obligatoires." % (i + 2))
+            errors.append("Ligne %d : nom et prénom obligatoires." % (i + 2))
             continue
         if not identifiant:
             identifiant = _generate_identifiant(nom, prenom)
+
+        role = normaliser_role(row.get("role") or "salarie") or "salarie"
+
         user = User.query.filter_by(identifiant=identifiant).first()
         if user:
             user.nom = nom
             user.prenom = prenom
             user.email = (row.get("email") or "").strip() or None
             user.date_embauche = row.get("date_embauche")
-            user.role = (row.get("role") or "salarie").strip() or "salarie"
-            if user.role != "rh":
-                user.role = "salarie"
+            user.role = role
             user.actif = row.get("actif", True)
             updated += 1
         else:
-            if not default_password or len(default_password) < 6:
-                errors.append("Ligne %d (%s): mot de passe par defaut requis (min. 6 car.) pour les nouveaux." % (i + 2, identifiant))
+            if pwd_err:
+                errors.append(
+                    "Ligne %d (%s) : %s" % (i + 2, identifiant, pwd_err)
+                )
                 continue
             new_user = User(
                 identifiant=identifiant,
                 nom=nom,
                 prenom=prenom,
                 mot_de_passe_hash=hash_password(default_password),
-                role=(row.get("role") or "salarie").strip() or "salarie",
+                role=role,
                 actif=row.get("actif", True),
                 email=(row.get("email") or "").strip() or None,
                 date_embauche=row.get("date_embauche"),
             )
-            if new_user.role != "rh":
-                new_user.role = "salarie"
             db.session.add(new_user)
             created += 1
 

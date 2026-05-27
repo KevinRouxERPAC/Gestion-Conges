@@ -878,6 +878,76 @@ def export_salarie_pdf(user_id):
     filename = f"conges_{user.prenom}_{user.nom}_{date.today().strftime('%Y%m%d')}.pdf"
     return send_file(buffer, as_attachment=True, download_name=filename, mimetype="application/pdf")
 
+@rh_bp.route("/salaries/importer", methods=["GET", "POST"])
+@rh_required
+def importer_salaries():
+    """Import en masse de salariés depuis un fichier CSV ou Excel.
+
+    Clé d'unicité : identifiant. Création si absent, mise à jour si présent.
+    """
+    from services.import_salaries import parse_csv, parse_excel, sync_users
+
+    if request.method == "POST":
+        f = request.files.get("fichier")
+        default_password = request.form.get("default_password", "")
+        dry_run = request.form.get("dry_run") == "on"
+
+        if not f or not f.filename:
+            flash("Aucun fichier sélectionné.", "error")
+            return redirect(url_for("rh.importer_salaries"))
+
+        content = f.read()
+        filename = f.filename.lower()
+        try:
+            if filename.endswith(".csv"):
+                rows = parse_csv(content)
+            elif filename.endswith(".xlsx") or filename.endswith(".xlsm"):
+                rows = parse_excel(content)
+            else:
+                flash("Format non supporté. Utilisez CSV ou XLSX.", "error")
+                return redirect(url_for("rh.importer_salaries"))
+        except Exception as e:
+            flash(f"Erreur lors de la lecture du fichier : {e}", "error")
+            return redirect(url_for("rh.importer_salaries"))
+
+        if not rows:
+            flash("Aucune ligne exploitable trouvée. Vérifiez les en-têtes NOM / PRENOM.", "error")
+            return redirect(url_for("rh.importer_salaries"))
+
+        if dry_run:
+            # Aperçu sans persistance.
+            return render_template(
+                "rh/import_salaries.html",
+                preview=rows,
+                preview_count=len(rows),
+            )
+
+        created, updated, errors = sync_users(rows, default_password, hash_password)
+
+        log_action(
+            "salaries.import",
+            cible_type="user",
+            details={
+                "fichier": f.filename,
+                "lignes_traitees": len(rows),
+                "crees": created,
+                "mis_a_jour": updated,
+                "erreurs": len(errors),
+            },
+        )
+        db.session.commit()
+
+        msg = f"Import terminé : {created} créé(s), {updated} mis à jour."
+        if errors:
+            msg += f" {len(errors)} erreur(s)."
+        flash(msg, "success" if not errors else "warning")
+        for e in errors[:10]:
+            flash(e, "warning")
+        return redirect(url_for("rh.liste_salaries"))
+
+    return render_template("rh/import_salaries.html", preview=None)
+
+
 @rh_bp.route("/salarie/nouveau", methods=["GET", "POST"])
 @rh_required
 def creer_salarie():
