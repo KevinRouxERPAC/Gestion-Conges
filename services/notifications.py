@@ -60,22 +60,32 @@ def notifier_conge_refuse(conge, motif: str):
 
 
 def notifier_responsable_nouvelle_demande(conge):
-    """Notifie le responsable hiérarchique du salarié qu'une nouvelle demande de congé est en attente (validation niveau 1)."""
+    """Notifie le responsable + ses suppléants actifs (délégations) qu'une nouvelle demande est en attente niveau 1."""
     u = conge.utilisateur
     if not u or not u.responsable_id:
         return
-    responsable_id = u.responsable_id
     nom_salarie = f"{u.prenom} {u.nom}"
     periode = f"{conge.date_debut.strftime('%d/%m/%Y')} - {conge.date_fin.strftime('%d/%m/%Y')}"
     titre = "Demande de congé à valider"
-    message = f"{nom_salarie} a déposé une demande de congé {conge.type_conge} : {periode} ({conge.nb_jours_ouvrables} jour(s)). Validez pour la transmettre aux RH."
-    creer_notification(
-        user_id=responsable_id,
-        type_notif="nouvelle_demande_conge_responsable",
-        titre=titre,
-        message=message,
-        conge_id=conge.id,
+    message = (
+        f"{nom_salarie} a déposé une demande de congé {conge.type_conge} : "
+        f"{periode} ({conge.nb_jours_ouvrables} jour(s)). Validez pour la transmettre aux RH."
     )
+
+    # Suppléants actifs aujourd'hui pour ce responsable.
+    from services.delegation import suppleants_de
+    destinataires = {u.responsable_id}
+    for sid in suppleants_de(u.responsable_id):
+        destinataires.add(sid)
+
+    for uid in destinataires:
+        creer_notification(
+            user_id=uid,
+            type_notif="nouvelle_demande_conge_responsable",
+            titre=titre,
+            message=message,
+            conge_id=conge.id,
+        )
 
 
 def notifier_rh_demande_transmise(conge):

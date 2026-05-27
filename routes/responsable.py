@@ -9,6 +9,13 @@ from models.user import User
 from services.notifications import notifier_rh_demande_transmise, notifier_conge_refuse, notifier_rh_nouvelle_demande
 from services.solde import calculer_solde
 from services.audit import log_action
+from services.delegation import (
+    delegataires_de,
+    peut_valider_pour,
+    subordonnes_effectifs,
+    suppleants_de,
+)
+from models.delegation import Delegation
 
 responsable_bp = Blueprint("responsable", __name__)
 
@@ -26,7 +33,8 @@ def responsable_required(f):
 @responsable_required
 def dashboard():
     solde_info = calculer_solde(current_user.id)
-    subordonnes_actifs = [u for u in current_user.subordonnes if u.actif]
+    # Subordonnés effectifs = directs + ceux des responsables dont je suis suppléant actif.
+    subordonnes_actifs = subordonnes_effectifs(current_user)
     subordonne_ids = [u.id for u in subordonnes_actifs]
     demandes_attente = (
         Conge.query.filter(Conge.user_id.in_(subordonne_ids), Conge.statut == "en_attente_responsable")
@@ -66,12 +74,14 @@ def dashboard():
 def _valider_un_conge_n1(conge):
     """Valide niveau 1 (responsable) un congé. Retourne (ok, message).
     Ne commit pas : caller décide.
+
+    Accepte le responsable direct OU un suppléant actif.
     """
     if conge.statut != "en_attente_responsable":
         return False, f"Conge #{conge.id} : statut {conge.statut}, ignoré."
     u = conge.utilisateur
-    if not u or u.responsable_id != current_user.id:
-        return False, f"Conge #{conge.id} : vous n'êtes pas le responsable de ce salarié."
+    if not u or not peut_valider_pour(current_user, u):
+        return False, f"Conge #{conge.id} : vous n'êtes pas habilité à valider pour ce salarié."
 
     conge.statut = "en_attente_rh"
     conge.valide_par_responsable_id = current_user.id
@@ -182,8 +192,8 @@ def refuser_conge(conge_id):
         flash("Cette demande n'est pas en attente.", "warning")
         return redirect(url_for("responsable.dashboard"))
     u = conge.utilisateur
-    if not u or u.responsable_id != current_user.id:
-        flash("Vous n'êtes pas le responsable de ce salarié.", "error")
+    if not u or not peut_valider_pour(current_user, u):
+        flash("Vous n'êtes pas habilité à refuser pour ce salarié.", "error")
         return redirect(url_for("responsable.dashboard"))
     if request.method == "POST":
         motif = request.form.get("motif_refus", "").strip()
@@ -214,8 +224,8 @@ def refuser_conge(conge_id):
 def ajouter_conge_subordonne(user_id):
     """Le responsable crée un congé pour un de ses subordonnés (envoyé directement en attente RH)."""
     user = User.query.get_or_404(user_id)
-    if user.responsable_id != current_user.id:
-        flash("Ce salarié n'est pas dans votre équipe.", "error")
+    if not peut_valider_pour(current_user, user):
+        flash("Ce salarié n'est pas dans votre équipe (directe ou déléguée).", "error")
         return redirect(url_for("responsable.dashboard"))
 
     solde_info = calculer_solde(user.id)
@@ -257,4 +267,109 @@ def ajouter_conge_subordonne(user_id):
         salarie=user,
         solde=solde_info,
         types_exceptionnels=types_exceptionnels,
+    )
+
+
+@responsable_bp.route("/delegations", methods=["GET", "POST"])
+@responsable_required
+def delegations():
+    """Gestion des délégations (suppléant temporaire) pour le responsable connecté."""
+    if request.method == "POST":
+        action = request.form.get("action", "")
+        if action == "create":
+            try:
+                suppleant_id = int(request.form.get("suppleant_id", "0"))
+                d_debut = datetime.strptime(request.form["date_debut"], "%Y-%m-%d").date()
+                d_fin = datetime.strptime(request.form["date_fin"], "%Y-%m-%d").date()
+            except (ValueError, KeyError, TypeError):
+                flash("Données invalides.", "error")
+                return redirect(url_for("responsable.delegations"))
+
+            if d_fin < d_debut:
+                flash("La date de fin doit être postérieure à la date de début.", "error")
+                return redirect(url_for("responsable.delegations"))
+
+            suppleant = User.query.get(suppleant_id)
+            if not suppleant or not suppleant.actif:
+                flash("Suppléant introuvable.", "error")
+                return redirect(url_for("responsable.delegations"))
+            if suppleant.id == current_user.id:
+                flash("Vous ne pouvez pas vous désigner vous-même comme suppléant.", "error")
+                return redirect(url_for("responsable.delegations"))
+            if suppleant.role != "responsable":
+                flash(
+                    "Le suppléant doit être un autre responsable. Les RH valident déjà en niveau 2.",
+                    "error",
+                )
+                return redirect(url_for("responsable.delegations"))
+
+            d = Delegation(
+                responsable_id=current_user.id,
+                suppleant_id=suppleant.id,
+                date_debut=d_debut,
+                date_fin=d_fin,
+                cree_par_id=current_user.id,
+            )
+            db.session.add(d)
+            db.session.flush()
+            log_action(
+                "delegation.creer",
+                cible_type="delegation",
+                cible_id=d.id,
+                details={
+                    "responsable_id": current_user.id,
+                    "suppleant_id": suppleant.id,
+                    "periode": f"{d_debut} → {d_fin}",
+                },
+            )
+            db.session.commit()
+            flash("Délégation enregistrée.", "success")
+            return redirect(url_for("responsable.delegations"))
+
+        if action == "delete":
+            try:
+                did = int(request.form.get("delegation_id", "0"))
+            except (ValueError, TypeError):
+                did = 0
+            d = Delegation.query.get(did)
+            if d and d.responsable_id == current_user.id:
+                log_action(
+                    "delegation.supprimer",
+                    cible_type="delegation",
+                    cible_id=d.id,
+                    details={
+                        "suppleant_id": d.suppleant_id,
+                        "periode": f"{d.date_debut} → {d.date_fin}",
+                    },
+                )
+                db.session.delete(d)
+                db.session.commit()
+                flash("Délégation supprimée.", "success")
+            return redirect(url_for("responsable.delegations"))
+
+    sortantes = (
+        Delegation.query.filter_by(responsable_id=current_user.id)
+        .order_by(Delegation.date_debut.desc())
+        .all()
+    )
+    entrantes = (
+        Delegation.query.filter_by(suppleant_id=current_user.id)
+        .order_by(Delegation.date_debut.desc())
+        .all()
+    )
+    candidats = (
+        User.query.filter(
+            User.actif == True,
+            User.id != current_user.id,
+            User.role == "responsable",
+        )
+        .order_by(User.nom, User.prenom)
+        .all()
+    )
+    return render_template(
+        "responsable/delegations.html",
+        sortantes=sortantes,
+        entrantes=entrantes,
+        candidats=candidats,
+        aujourdhui=date.today(),
     )

@@ -16,3 +16,5 @@ from models.interessement_periode import InteressementPeriode
 from models.interessement_regle import InteressementRegle
 
 from models.audit_log import AuditLog
+
+from models.delegation import Delegation
