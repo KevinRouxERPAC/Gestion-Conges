@@ -92,12 +92,17 @@ def dashboard():
                 "end": c.date_fin.isoformat(),
                 "user": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
                 "type_conge": c.type_conge,
+                "demi_journee_debut": c.demi_journee_debut,
+                "demi_journee_fin": c.demi_journee_fin,
+                "nb_jours": c.nb_jours_ouvrables or 0,
             })
             conges_exercice_rows.append({
                 "salarie": f"{c.utilisateur.prenom} {c.utilisateur.nom}",
                 "label": label,
                 "jours": c.nb_jours_ouvrables or 0,
                 "type": c.type_conge,
+                "demi_journee_debut": c.demi_journee_debut,
+                "demi_journee_fin": c.demi_journee_fin,
             })
 
     # Demandes en attente de validation RH (niveau 2, après validation responsable)

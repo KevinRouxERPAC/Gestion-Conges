@@ -1,0 +1,80 @@
+{#
+  Macros réutilisables pour standardiser les badges, statuts et compteurs.
+
+  Usage :
+      {% import "_macros.html" as M %}
+      {{ M.badge_statut(conge.statut) }}
+      {{ M.badge_type_conge(conge.type_conge) }}
+      {{ M.solde_pill(value, max=27) }}
+#}
+
+{# Badge de statut de demande de congé (cohérent partout). #}
+{% macro badge_statut(statut, motif_refus=None) -%}
+    {%- set classes = {
+        'valide': 'bg-green-100 text-green-800',
+        'en_attente_responsable': 'bg-amber-100 text-amber-800',
+        'en_attente_rh': 'bg-amber-100 text-amber-800',
+        'refuse': 'bg-red-100 text-red-800',
+        'annule': 'bg-gray-100 text-gray-600',
+    } -%}
+    {%- set libelles = {
+        'valide': 'Validé',
+        'en_attente_responsable': 'En attente responsable',
+        'en_attente_rh': 'En attente RH',
+        'refuse': 'Refusé',
+        'annule': 'Annulé',
+    } -%}
+    <span class="px-2 py-1 rounded text-xs font-medium {{ classes.get(statut, 'bg-gray-100 text-gray-800') }}"
+          {%- if motif_refus and statut == 'refuse' %} title="{{ motif_refus }}"{% endif %}>
+        {{ libelles.get(statut, statut) }}
+    </span>
+{%- endmacro %}
+
+{# Badge de type de congé. #}
+{% macro badge_type_conge(type_conge) -%}
+    {%- set classes = {
+        'CP': 'bg-erpac-100 text-erpac-800',
+        'Anciennete': 'bg-green-100 text-green-800',
+        'RTT': 'bg-purple-100 text-purple-800',
+        'Sans solde': 'bg-yellow-100 text-yellow-900',
+        'Maladie': 'bg-red-100 text-red-800',
+    } -%}
+    {%- set libelles = {
+        'CP': 'Congés',
+        'Anciennete': 'Ancienneté',
+    } -%}
+    {%- if type_conge and type_conge.startswith('EXC:') %}
+        <span class="px-2 py-1 rounded text-xs font-medium bg-indigo-100 text-indigo-800">{{ type_conge[4:] }}</span>
+    {%- else %}
+        <span class="px-2 py-1 rounded text-xs font-medium {{ classes.get(type_conge, 'bg-gray-100 text-gray-800') }}">
+            {{ libelles.get(type_conge, type_conge or '?') }}
+        </span>
+    {%- endif %}
+{%- endmacro %}
+
+{# Pilule de solde avec code couleur selon le restant. #}
+{% macro solde_pill(value, unit='j', show_unit=True) -%}
+    {%- if value is none -%}{%- set value = 0 -%}{%- endif -%}
+    <span class="font-bold {% if value < 0 %}text-red-600{% elif value <= 5 %}text-red-600{% elif value <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+        {{ value|nb_jours if unit == 'j' else value }}{% if show_unit %} <span class="text-xs text-gray-500 font-normal">{{ unit }}</span>{% endif %}
+    </span>
+{%- endmacro %}
+
+{# Marqueur "X en attente" (warning ambre). #}
+{% macro pill_en_attente(value, unit='j') -%}
+    {%- if value and value > 0 -%}
+    <span class="text-xs font-medium text-amber-700">{{ value|nb_jours if unit == 'j' else value }} {{ unit }} en attente</span>
+    {%- endif -%}
+{%- endmacro %}
+
+{# Indicateur de demi-journée (matin / après-midi). #}
+{% macro indicateur_demi(demi_debut, demi_fin) -%}
+    {%- set libelles = {'matin': 'matin', 'apres_midi': 'après-midi'} -%}
+    {%- if demi_debut and demi_fin -%}
+        <span class="text-xs text-gray-500">({{ libelles[demi_debut] }} → {{ libelles[demi_fin] }})</span>
+    {%- elif demi_debut -%}
+        <span class="text-xs text-gray-500">({{ libelles[demi_debut] }})</span>
+    {%- elif demi_fin -%}
+        <span class="text-xs text-gray-500">({{ libelles[demi_fin] }})</span>
+    {%- endif -%}
+{%- endmacro %}

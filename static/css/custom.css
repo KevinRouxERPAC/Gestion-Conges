@@ -56,11 +56,40 @@
     }
 }
 
+/* Skip-link : caché par défaut, visible au focus clavier. */
+.skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+    background: var(--erpac-primary);
+    color: #fff;
+    padding: .75rem 1rem;
+    border-radius: 0 0 .5rem 0;
+    font-weight: 600;
+    text-decoration: none;
+}
+.skip-link:focus-visible {
+    left: 0;
+    outline: 3px solid #fff;
+    outline-offset: -3px;
+}
+
 /* Transitions on interactive elements only */
 a, button, input, select, textarea, [role="button"] {
     transition-property: background-color, border-color, color, box-shadow;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Respecte la préférence utilisateur "réduire les animations". */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 /* Focus styles */

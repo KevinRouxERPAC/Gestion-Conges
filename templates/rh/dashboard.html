@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as M %}
 {% block title %}Tableau de bord RH{% endblock %}
 
 {% block content %}
@@ -232,16 +233,7 @@ function bulkConges() {
                             {{ e.label }}
                         </td>
                         <td class="px-3 py-2">{{ e.jours|nb_jours }} j</td>
-                        <td class="px-3 py-2">
-                            <span class="px-2 py-1 rounded text-xs font-medium
-                                {% if e.type == 'CP' %}bg-erpac-100 text-erpac-800
-                                {% elif e.type == 'RTT' %}bg-purple-100 text-purple-800
-                                {% elif e.type == 'Maladie' %}bg-red-100 text-red-800
-                                {% elif e.type == 'Anciennete' %}bg-green-100 text-green-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ e.type }}
-                            </span>
-                        </td>
+                        <td class="px-3 py-2">{{ M.badge_type_conge(e.type) }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -385,11 +377,19 @@ document.addEventListener('DOMContentLoaded', function() {
         'default': '#6b7280'
     };
 
+    const demiLabel = { matin: 'matin', apres_midi: 'après-midi' };
     const calendarEvents = eventsData.map(e => {
         const endDate = new Date(e.end);
         endDate.setDate(endDate.getDate() + 1);
+        let suffix = '';
+        if (e.demi_journee_debut || e.demi_journee_fin) {
+            const parts = [];
+            if (e.demi_journee_debut) parts.push(demiLabel[e.demi_journee_debut] || e.demi_journee_debut);
+            if (e.demi_journee_fin) parts.push(demiLabel[e.demi_journee_fin] || e.demi_journee_fin);
+            suffix = ` (½ ${parts.join(' / ')})`;
+        }
         return {
-            title: `${e.user} - ${e.type_conge}`,
+            title: `${e.user} - ${e.type_conge}${suffix}`,
             start: e.start,
             end: endDate.toISOString().split('T')[0],
             backgroundColor: typeColors[e.type_conge] || typeColors['default'],

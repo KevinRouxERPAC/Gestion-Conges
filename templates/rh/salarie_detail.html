@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as M %}
 {% block title %}{{ salarie.prenom }} {{ salarie.nom }}{% endblock %}
 
 {% block content %}
@@ -163,29 +164,8 @@
                 <td class="px-6 py-4">
                     <span class="font-semibold">{{ conge.nb_jours_ouvrables|nb_jours }}</span> <span class="text-gray-500 text-sm">jour(s)</span>
                 </td>
-                <td class="px-6 py-4">
-                    <span class="px-2 py-1 rounded text-xs font-medium
-                        {% if conge.type_conge == 'CP' %}bg-erpac-100 text-erpac-800
-                        {% elif conge.type_conge == 'RTT' %}bg-purple-100 text-purple-800
-                        {% elif conge.type_conge == 'Maladie' %}bg-red-100 text-red-800
-                        {% elif conge.type_conge == 'Anciennete' %}bg-green-100 text-green-800
-                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                        {{ conge.type_conge }}
-                    </span>
-                </td>
-                <td class="px-6 py-4">
-                    {% if conge.statut == 'valide' %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
-                    {% elif conge.statut == 'en_attente_responsable' %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente responsable</span>
-                    {% elif conge.statut == 'en_attente_rh' %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente RH</span>
-                    {% elif conge.statut == 'refuse' %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800" title="{{ conge.motif_refus or '' }}">Refusé</span>
-                    {% else %}
-                    <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ conge.statut|default('-') }}</span>
-                    {% endif %}
-                </td>
+                <td class="px-6 py-4">{{ M.badge_type_conge(conge.type_conge) }}</td>
+                <td class="px-6 py-4">{{ M.badge_statut(conge.statut, conge.motif_refus) }}</td>
                 <td class="px-6 py-4 text-sm text-gray-500">
                     {{ conge.motif_refus if conge.statut == 'refuse' and conge.motif_refus else (conge.commentaire or '-') }}
                 </td>

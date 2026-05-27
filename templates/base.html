@@ -10,6 +10,7 @@
     <script defer src="{{ url_for('static', filename='vendor/alpine.min.js') }}"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
+    <a href="#main-content" class="skip-link">Aller au contenu principal</a>
     {% if current_user.is_authenticated %}
     <nav class="bg-erpac-primary text-white shadow-lg" x-data="{ mobileOpen: false }">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -124,7 +125,7 @@
         </div>
     </main>
 
-    <footer class="bg-erpac-primary text-erpac-100 text-center py-4 text-sm" aria-hidden="true">
+    <footer class="bg-erpac-primary text-white text-center py-4 text-sm">
         &copy; {{ now().year if now is defined else "2026" }} ERPAC - Gestion des Congés
     </footer>
 
