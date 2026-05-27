@@ -63,17 +63,16 @@ def dashboard():
         calendar_events=calendar_events,
     )
 
-@responsable_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
-@responsable_required
-def valider_conge(conge_id):
-    conge = Conge.query.get_or_404(conge_id)
+def _valider_un_conge_n1(conge):
+    """Valide niveau 1 (responsable) un congé. Retourne (ok, message).
+    Ne commit pas : caller décide.
+    """
     if conge.statut != "en_attente_responsable":
-        flash("Cette demande n'est pas en attente de votre validation.", "warning")
-        return redirect(url_for("responsable.dashboard"))
+        return False, f"Conge #{conge.id} : statut {conge.statut}, ignoré."
     u = conge.utilisateur
     if not u or u.responsable_id != current_user.id:
-        flash("Vous n'êtes pas le responsable de ce salarié.", "error")
-        return redirect(url_for("responsable.dashboard"))
+        return False, f"Conge #{conge.id} : vous n'êtes pas le responsable de ce salarié."
+
     conge.statut = "en_attente_rh"
     conge.valide_par_responsable_id = current_user.id
     conge.valide_par_responsable_le = datetime.now(timezone.utc)
@@ -88,10 +87,91 @@ def valider_conge(conge_id):
             "periode": f"{conge.date_debut} → {conge.date_fin}",
         },
     )
-    db.session.commit()
     notifier_rh_demande_transmise(conge)
+    return True, None
+
+
+@responsable_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
+@responsable_required
+def valider_conge(conge_id):
+    conge = Conge.query.get_or_404(conge_id)
+    ok, err = _valider_un_conge_n1(conge)
+    if not ok:
+        flash(err or "Validation impossible.", "warning")
+        return redirect(url_for("responsable.dashboard"))
     db.session.commit()
     flash("Demande validée. Transmise aux RH.", "success")
+    return redirect(url_for("responsable.dashboard"))
+
+
+@responsable_bp.route("/conges/valider-lots", methods=["POST"])
+@responsable_required
+def valider_lots():
+    """Validation niveau 1 par lots."""
+    ids = request.form.getlist("conge_ids")
+    if not ids:
+        flash("Aucun congé sélectionné.", "warning")
+        return redirect(url_for("responsable.dashboard"))
+    nb_ok = 0
+    erreurs = []
+    for cid in ids:
+        try:
+            conge = Conge.query.get(int(cid))
+        except (ValueError, TypeError):
+            continue
+        if not conge:
+            continue
+        ok, err = _valider_un_conge_n1(conge)
+        if ok:
+            nb_ok += 1
+        elif err:
+            erreurs.append(err)
+    db.session.commit()
+    if nb_ok:
+        flash(f"{nb_ok} demande(s) validée(s) et transmise(s) aux RH.", "success")
+    for e in erreurs:
+        flash(e, "warning")
+    return redirect(url_for("responsable.dashboard"))
+
+
+@responsable_bp.route("/conges/refuser-lots", methods=["POST"])
+@responsable_required
+def refuser_lots():
+    """Refus niveau 1 par lots avec motif commun."""
+    ids = request.form.getlist("conge_ids")
+    motif = (request.form.get("motif_refus") or "").strip()
+    if not ids:
+        flash("Aucun congé sélectionné.", "warning")
+        return redirect(url_for("responsable.dashboard"))
+    if not motif:
+        return render_template("responsable/refuser_lots.html", conge_ids=ids)
+
+    nb_ok = 0
+    for cid in ids:
+        try:
+            conge = Conge.query.get(int(cid))
+        except (ValueError, TypeError):
+            continue
+        if not conge or conge.statut != "en_attente_responsable":
+            continue
+        u = conge.utilisateur
+        if not u or u.responsable_id != current_user.id:
+            continue
+        conge.statut = "refuse"
+        conge.valide_par_responsable_id = current_user.id
+        conge.valide_par_responsable_le = datetime.now(timezone.utc)
+        conge.motif_refus = motif
+        log_action(
+            "conge.refuser_n1",
+            cible_type="conge",
+            cible_id=conge.id,
+            details={"user_id": conge.user_id, "motif": motif, "lot": True},
+        )
+        notifier_conge_refuse(conge, motif)
+        nb_ok += 1
+
+    db.session.commit()
+    flash(f"{nb_ok} demande(s) refusée(s).", "success")
     return redirect(url_for("responsable.dashboard"))
 
 @responsable_bp.route("/conge/<int:conge_id>/refuser", methods=["GET", "POST"])

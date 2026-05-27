@@ -53,14 +53,43 @@
 
 <!-- Demandes en attente -->
 {% if demandes_attente %}
-<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8">
-    <h2 class="text-lg font-semibold text-amber-900 mb-4">
-        Demandes en attente de validation ({{ demandes_attente|length }})
-    </h2>
+<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8" x-data="bulkConges()">
+    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+        <h2 class="text-lg font-semibold text-amber-900">
+            Demandes en attente de validation ({{ demandes_attente|length }})
+        </h2>
+        <div class="flex items-center gap-2 text-sm">
+            <span class="text-amber-800" x-text="`${selected.length} sélectionnée(s)`"></span>
+            <form method="POST" action="{{ url_for('rh.valider_lots') }}" class="inline" @submit="prepareForm($event)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="conge_ids" :value="id">
+                </template>
+                <button type="submit" :disabled="selected.length === 0"
+                        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">
+                    Valider la sélection
+                </button>
+            </form>
+            <form method="POST" action="{{ url_for('rh.refuser_lots') }}" class="inline" @submit="prepareForm($event)">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <template x-for="id in selected" :key="id">
+                    <input type="hidden" name="conge_ids" :value="id">
+                </template>
+                <button type="submit" :disabled="selected.length === 0"
+                        class="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">
+                    Refuser la sélection
+                </button>
+            </form>
+        </div>
+    </div>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
             <thead>
                 <tr class="text-left text-amber-800 border-b border-amber-200">
+                    <th class="py-2 pr-2 w-8">
+                        <input type="checkbox" @change="toggleAll($event)" aria-label="Tout sélectionner"
+                               class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary">
+                    </th>
                     <th class="py-2 pr-4">Salarié</th>
                     <th class="py-2 pr-4">Période</th>
                     <th class="py-2 pr-4">Type</th>
@@ -71,6 +100,11 @@
             <tbody>
                 {% for c in demandes_attente %}
                 <tr class="border-b border-amber-100">
+                    <td class="py-3 pr-2">
+                        <input type="checkbox" value="{{ c.id }}" @change="toggle({{ c.id }}, $event)"
+                               class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary"
+                               aria-label="Sélectionner cette demande">
+                    </td>
                     <td class="py-3">
                         <a href="{{ url_for('rh.salarie_detail', user_id=c.user_id) }}" class="text-erpac-primary hover:text-erpac-dark font-medium">
                             {{ c.utilisateur.prenom if c.utilisateur else '-' }} {{ c.utilisateur.nom if c.utilisateur else '' }}
@@ -81,7 +115,7 @@
                     <td class="py-3">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
                     <td class="py-3 text-right space-x-2">
                         <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=c.id) }}" class="inline">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button>
                         </form>
                         <a href="{{ url_for('rh.refuser_conge', conge_id=c.id) }}"
@@ -93,6 +127,33 @@
         </table>
     </div>
 </div>
+<script>
+function bulkConges() {
+    return {
+        selected: [],
+        toggle(id, ev) {
+            if (ev.target.checked) {
+                if (!this.selected.includes(id)) this.selected.push(id);
+            } else {
+                this.selected = this.selected.filter(x => x !== id);
+            }
+        },
+        toggleAll(ev) {
+            const checked = ev.target.checked;
+            const cbs = ev.target.closest('table').querySelectorAll('tbody input[type="checkbox"]');
+            cbs.forEach(cb => { cb.checked = checked; });
+            this.selected = checked
+                ? Array.from(cbs).map(cb => parseInt(cb.value, 10))
+                : [];
+        },
+        prepareForm(ev) {
+            if (this.selected.length === 0) {
+                ev.preventDefault();
+            }
+        },
+    };
+}
+</script>
 {% endif %}
 
 <!-- Calendrier global des congés + récapitulatif -->

@@ -274,46 +274,30 @@ def supprimer_conge(conge_id):
     flash("Congé supprimé.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
-@rh_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
-@rh_required
-def valider_conge(conge_id):
-    """Valider une demande de congé en attente. Solde CP/RTT peut être négatif (informatif).
-    Pour un congé exceptionnel, on re-vérifie le plafond car la consommation peut avoir bougé
-    entre la soumission et la validation RH.
-    """
-    conge = Conge.query.get_or_404(conge_id)
-    if conge.statut != "en_attente_rh":
-        flash("Ce congé n'est pas en attente de validation RH.", "warning")
-        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+def _valider_un_conge_rh(conge):
+    """Applique la validation niveau 2 (RH) à un congé. Retourne (ok, message).
 
-    # Plafond exceptionnel : seul cas où on bloque réellement à la validation.
+    Effectue les contrôles bloquants (plafond exceptionnel), pose le statut,
+    écrit l'audit et empile la notification salarié. Ne commit pas : le caller
+    décide.
+    """
+    if conge.statut != "en_attente_rh":
+        return False, f"Conge #{conge.id} : statut {conge.statut}, ignoré."
+
     from services.conges_exceptionnels import parse_code, get_type_exceptionnel, verifier_plafond
     exc_code = parse_code(conge.type_conge)
     if exc_code:
         exc_type = get_type_exceptionnel(exc_code)
         if exc_type and exc_type.plafond_annuel is not None:
-            if exc_type.unite == "heures":
-                quantite = conge.nb_heures_exceptionnelles or 0
-            else:
-                quantite = conge.nb_jours_ouvrables or 0
+            quantite = (
+                conge.nb_heures_exceptionnelles or 0
+                if exc_type.unite == "heures"
+                else conge.nb_jours_ouvrables or 0
+            )
             if not verifier_plafond(conge.user_id, exc_type, quantite, conge_id_exclu=conge.id):
-                flash(
-                    f"Plafond annuel dépassé pour « {exc_type.libelle} » : impossible de valider.",
-                    "error",
+                return False, (
+                    f"Conge #{conge.id} : plafond annuel dépassé pour « {exc_type.libelle} »."
                 )
-                return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
-
-    # CP/RTT : solde négatif autorisé, on signale uniquement.
-    if conge.type_conge in ("CP", "Anciennete"):
-        solde_info = calculer_solde(conge.user_id)
-        solde_apres = solde_info["solde_restant"] - (conge.nb_jours_ouvrables or 0)
-        if solde_apres < 0:
-            flash(f"Validation effectuée. Solde CP négatif : {solde_apres} jour(s).", "warning")
-    elif conge.type_conge == "RTT":
-        solde_info = calculer_solde(conge.user_id)
-        rtt_apres = solde_info.get("rtt_solde_restant", 0) - (conge.nb_heures_rtt or 0)
-        if rtt_apres < 0:
-            flash(f"Validation effectuée. Solde RTT négatif : {rtt_apres} heure(s).", "warning")
 
     conge.statut = "valide"
     conge.valide_par_id = current_user.id
@@ -330,13 +314,75 @@ def valider_conge(conge_id):
             "periode": f"{conge.date_debut} → {conge.date_fin}",
         },
     )
-    db.session.commit()
-
     notifier_conge_valide(conge)
+    return True, None
+
+
+@rh_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
+@rh_required
+def valider_conge(conge_id):
+    """Valider une demande de congé en attente. Solde CP/RTT peut être négatif (informatif).
+    Pour un congé exceptionnel, on re-vérifie le plafond car la consommation peut avoir bougé
+    entre la soumission et la validation RH.
+    """
+    conge = Conge.query.get_or_404(conge_id)
+    if conge.statut != "en_attente_rh":
+        flash("Ce congé n'est pas en attente de validation RH.", "warning")
+        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    # Warnings de solde négatif (informatifs).
+    if conge.type_conge in ("CP", "Anciennete"):
+        solde_info = calculer_solde(conge.user_id)
+        solde_apres = solde_info["solde_restant"] - (conge.nb_jours_ouvrables or 0)
+        if solde_apres < 0:
+            flash(f"Validation effectuée. Solde CP négatif : {solde_apres} jour(s).", "warning")
+    elif conge.type_conge == "RTT":
+        solde_info = calculer_solde(conge.user_id)
+        rtt_apres = solde_info.get("rtt_solde_restant", 0) - (conge.nb_heures_rtt or 0)
+        if rtt_apres < 0:
+            flash(f"Validation effectuée. Solde RTT négatif : {rtt_apres} heure(s).", "warning")
+
+    ok, err = _valider_un_conge_rh(conge)
+    if not ok:
+        flash(err or "Validation impossible.", "error")
+        return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
     db.session.commit()
 
     flash("Demande de congé validée.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+
+@rh_bp.route("/conges/valider-lots", methods=["POST"])
+@rh_required
+def valider_lots():
+    """Validation par lots : reçoit conge_ids[] et applique pour chaque demande en attente RH."""
+    ids = request.form.getlist("conge_ids")
+    if not ids:
+        flash("Aucun congé sélectionné.", "warning")
+        return redirect(url_for("rh.dashboard"))
+
+    nb_ok = 0
+    erreurs = []
+    for cid in ids:
+        try:
+            conge = Conge.query.get(int(cid))
+        except (ValueError, TypeError):
+            continue
+        if not conge:
+            continue
+        ok, err = _valider_un_conge_rh(conge)
+        if ok:
+            nb_ok += 1
+        elif err:
+            erreurs.append(err)
+
+    db.session.commit()
+    if nb_ok:
+        flash(f"{nb_ok} demande(s) validée(s).", "success")
+    for e in erreurs:
+        flash(e, "warning")
+    return redirect(url_for("rh.dashboard"))
 
 @rh_bp.route("/conge/<int:conge_id>/refuser", methods=["GET", "POST"])
 @rh_required
@@ -372,6 +418,50 @@ def refuser_conge(conge_id):
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
     return render_template("rh/refuser_conge.html", conge=conge)
+
+
+@rh_bp.route("/conges/refuser-lots", methods=["POST"])
+@rh_required
+def refuser_lots():
+    """Refus par lots : conge_ids[] + motif_refus commun à toutes les demandes.
+
+    Si le motif est absent, on rebascule sur une page de saisie groupée
+    (le RH a coché les demandes puis cliqué "Refuser la sélection").
+    """
+    ids = request.form.getlist("conge_ids")
+    motif = (request.form.get("motif_refus") or "").strip()
+    if not ids:
+        flash("Aucun congé sélectionné.", "warning")
+        return redirect(url_for("rh.dashboard"))
+    if not motif:
+        # Page de saisie groupée du motif.
+        return render_template("rh/refuser_lots.html", conge_ids=ids)
+
+    nb_ok = 0
+    for cid in ids:
+        try:
+            conge = Conge.query.get(int(cid))
+        except (ValueError, TypeError):
+            continue
+        if not conge or conge.statut != "en_attente_rh":
+            continue
+        conge.statut = "refuse"
+        conge.valide_par_id = current_user.id
+        conge.valide_le = datetime.now(timezone.utc)
+        conge.motif_refus = motif
+        log_action(
+            "conge.refuser",
+            cible_type="conge",
+            cible_id=conge.id,
+            details={"user_id": conge.user_id, "motif": motif, "lot": True},
+        )
+        notifier_conge_refuse(conge, motif)
+        nb_ok += 1
+
+    db.session.commit()
+    flash(f"{nb_ok} demande(s) refusée(s) avec le même motif.", "success")
+    return redirect(url_for("rh.dashboard"))
+
 
 @rh_bp.route("/parametrage", methods=["GET", "POST"])
 @rh_required
