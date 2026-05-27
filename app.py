@@ -39,12 +39,14 @@ def create_app():
     from routes.salarie import salarie_bp
     from routes.responsable import responsable_bp
     from routes.notifications import notifications_bp
+    from routes.api import api_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(rh_bp, url_prefix="/rh")
     app.register_blueprint(salarie_bp, url_prefix="/salarie")
     app.register_blueprint(responsable_bp, url_prefix="/responsable")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
+    app.register_blueprint(api_bp, url_prefix="/api")
 
     @app.context_processor
     def inject_now():
