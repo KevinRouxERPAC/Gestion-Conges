@@ -23,6 +23,9 @@ from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
 from services.heures_rtt import maj_rtt_allocations_depuis_heures
+from services.audit import log_action
+from models.audit_log import AuditLog
+import json as _json
 from models.interessement_periode import InteressementPeriode
 from models.interessement_regle import InteressementRegle
 from services.interessement import calculer_interessement
@@ -254,6 +257,18 @@ def modifier_conge(conge_id):
 def supprimer_conge(conge_id):
     conge = Conge.query.get_or_404(conge_id)
     user_id = conge.user_id
+    log_action(
+        "conge.supprimer",
+        cible_type="conge",
+        cible_id=conge.id,
+        details={
+            "user_id": user_id,
+            "type_conge": conge.type_conge,
+            "nb_jours": conge.nb_jours_ouvrables,
+            "periode": f"{conge.date_debut} → {conge.date_fin}",
+            "statut": conge.statut,
+        },
+    )
     db.session.delete(conge)
     db.session.commit()
     flash("Congé supprimé.", "success")
@@ -304,6 +319,17 @@ def valider_conge(conge_id):
     conge.valide_par_id = current_user.id
     conge.valide_le = datetime.now(timezone.utc)
     conge.motif_refus = None
+    log_action(
+        "conge.valider",
+        cible_type="conge",
+        cible_id=conge.id,
+        details={
+            "user_id": conge.user_id,
+            "type_conge": conge.type_conge,
+            "nb_jours": conge.nb_jours_ouvrables,
+            "periode": f"{conge.date_debut} → {conge.date_fin}",
+        },
+    )
     db.session.commit()
 
     notifier_conge_valide(conge)
@@ -331,6 +357,12 @@ def refuser_conge(conge_id):
         conge.valide_par_id = current_user.id
         conge.valide_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
+        log_action(
+            "conge.refuser",
+            cible_type="conge",
+            cible_id=conge.id,
+            details={"user_id": conge.user_id, "motif": motif},
+        )
         db.session.commit()
 
         notifier_conge_refuse(conge, motif)
@@ -494,6 +526,13 @@ def modifier_allocation(user_id):
         allocation = AllocationConge(user_id=user_id, parametrage_id=param.id)
         db.session.add(allocation)
 
+    avant = {
+        "jours_alloues": allocation.jours_alloues,
+        "jours_anciennete": allocation.jours_anciennete,
+        "jours_report": allocation.jours_report,
+        "rtt_heures_allouees": allocation.rtt_heures_allouees,
+        "rtt_heures_reportees": allocation.rtt_heures_reportees,
+    }
     try:
         allocation.jours_alloues = int(request.form.get("jours_alloues", param.jours_conges_defaut))
         allocation.jours_anciennete = int(request.form.get("jours_anciennete", 0))
@@ -504,6 +543,19 @@ def modifier_allocation(user_id):
         flash("Valeurs invalides.", "error")
         return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
+    apres = {
+        "jours_alloues": allocation.jours_alloues,
+        "jours_anciennete": allocation.jours_anciennete,
+        "jours_report": allocation.jours_report,
+        "rtt_heures_allouees": allocation.rtt_heures_allouees,
+        "rtt_heures_reportees": allocation.rtt_heures_reportees,
+    }
+    log_action(
+        "allocation.modifier",
+        cible_type="allocation",
+        cible_id=allocation.id,
+        details={"user_id": user_id, "avant": avant, "apres": apres},
+    )
     db.session.commit()
     flash("Allocation mise à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
@@ -518,7 +570,14 @@ def modifier_statut_salarie(user_id):
         return redirect(url_for("rh.salarie_detail", user_id=user_id))
 
     actif_str = request.form.get("actif", "off")
+    actif_avant = user.actif
     user.actif = actif_str == "on"
+    log_action(
+        "salarie.statut",
+        cible_type="user",
+        cible_id=user.id,
+        details={"actif_avant": actif_avant, "actif_apres": user.actif},
+    )
     db.session.commit()
     flash("Statut du salarié mis à jour.", "success")
     return redirect(url_for("rh.salarie_detail", user_id=user_id))
@@ -651,6 +710,19 @@ def creer_salarie():
             responsable_id=int(r_id) if r_id else None,
         )
         db.session.add(user)
+        db.session.flush()
+        log_action(
+            "salarie.creer",
+            cible_type="user",
+            cible_id=user.id,
+            details={
+                "identifiant": user.identifiant,
+                "nom": user.nom,
+                "prenom": user.prenom,
+                "role": user.role,
+                "responsable_id": user.responsable_id,
+            },
+        )
         db.session.commit()
 
         flash("Salarié créé avec succès.", "success")
@@ -706,16 +778,39 @@ def modifier_salarie(user_id):
                 flash("Date d'embauche invalide.", "error")
                 return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
+        avant = {
+            "nom": user.nom,
+            "prenom": user.prenom,
+            "identifiant": user.identifiant,
+            "role": user.role,
+            "actif": user.actif,
+            "responsable_id": user.responsable_id,
+        }
         user.nom = nom
         user.prenom = prenom
         user.identifiant = identifiant
         user.role = role
         user.date_embauche = date_embauche
         user.actif = actif_str == "on"
+        mdp_modifie = bool(mot_de_passe)
         if mot_de_passe:
             user.mot_de_passe_hash = hash_password(mot_de_passe)
         r_id = request.form.get("responsable_id", "").strip()
         user.responsable_id = int(r_id) if r_id else None
+        apres = {
+            "nom": user.nom,
+            "prenom": user.prenom,
+            "identifiant": user.identifiant,
+            "role": user.role,
+            "actif": user.actif,
+            "responsable_id": user.responsable_id,
+        }
+        log_action(
+            "salarie.modifier",
+            cible_type="user",
+            cible_id=user.id,
+            details={"avant": avant, "apres": apres, "mdp_modifie": mdp_modifie},
+        )
         db.session.commit()
         flash("Salarié mis à jour.", "success")
         return redirect(url_for("rh.liste_salaries"))
@@ -1072,5 +1167,66 @@ def export_interessement(periode_id):
         as_attachment=True,
         download_name=filename,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@rh_bp.route("/audit-log")
+@rh_required
+def audit_log():
+    """Journal des actions RH/responsable (création/modification/suppression/validation/refus)."""
+    PAGE_SIZE = 100
+
+    # Filtres
+    action_filter = (request.args.get("action") or "").strip()
+    acteur_filter = (request.args.get("acteur") or "").strip()
+    try:
+        page = max(1, int(request.args.get("page", 1)))
+    except (TypeError, ValueError):
+        page = 1
+
+    query = AuditLog.query
+    if action_filter:
+        query = query.filter(AuditLog.action.like(f"{action_filter}%"))
+    if acteur_filter:
+        try:
+            query = query.filter(AuditLog.acteur_id == int(acteur_filter))
+        except ValueError:
+            pass
+
+    total = query.count()
+    entries = (
+        query.order_by(AuditLog.cree_le.desc())
+        .offset((page - 1) * PAGE_SIZE)
+        .limit(PAGE_SIZE)
+        .all()
+    )
+
+    # Décodage JSON des détails pour affichage lisible.
+    entries_view = []
+    for e in entries:
+        try:
+            details = _json.loads(e.details) if e.details else None
+        except (TypeError, ValueError):
+            details = {"_raw": e.details}
+        entries_view.append({"row": e, "details": details})
+
+    # Liste d'acteurs pour le filtre (déduplique côté Python pour ne pas alourdir SQL).
+    acteurs = (
+        User.query.filter(User.id.in_(db.session.query(AuditLog.acteur_id).distinct()))
+        .order_by(User.nom, User.prenom)
+        .all()
+    )
+
+    return render_template(
+        "rh/audit_log.html",
+        entries=entries_view,
+        total=total,
+        page=page,
+        page_size=PAGE_SIZE,
+        has_next=(page * PAGE_SIZE) < total,
+        has_prev=page > 1,
+        action_filter=action_filter,
+        acteur_filter=acteur_filter,
+        acteurs=acteurs,
     )
 

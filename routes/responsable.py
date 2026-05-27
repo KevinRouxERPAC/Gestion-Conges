@@ -8,6 +8,7 @@ from models.conge import Conge
 from models.user import User
 from services.notifications import notifier_rh_demande_transmise, notifier_conge_refuse, notifier_rh_nouvelle_demande
 from services.solde import calculer_solde
+from services.audit import log_action
 
 responsable_bp = Blueprint("responsable", __name__)
 
@@ -76,6 +77,17 @@ def valider_conge(conge_id):
     conge.statut = "en_attente_rh"
     conge.valide_par_responsable_id = current_user.id
     conge.valide_par_responsable_le = datetime.now(timezone.utc)
+    log_action(
+        "conge.valider_n1",
+        cible_type="conge",
+        cible_id=conge.id,
+        details={
+            "user_id": conge.user_id,
+            "type_conge": conge.type_conge,
+            "nb_jours": conge.nb_jours_ouvrables,
+            "periode": f"{conge.date_debut} → {conge.date_fin}",
+        },
+    )
     db.session.commit()
     notifier_rh_demande_transmise(conge)
     db.session.commit()
@@ -102,6 +114,12 @@ def refuser_conge(conge_id):
         conge.valide_par_responsable_id = current_user.id
         conge.valide_par_responsable_le = datetime.now(timezone.utc)
         conge.motif_refus = motif
+        log_action(
+            "conge.refuser_n1",
+            cible_type="conge",
+            cible_id=conge.id,
+            details={"user_id": conge.user_id, "motif": motif},
+        )
         db.session.commit()
         notifier_conge_refuse(conge, motif)
         db.session.commit()

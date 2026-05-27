@@ -22,6 +22,7 @@
                         <a href="{{ url_for('rh.liste_salaries') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Salariés</a>
                         <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Paramétrage</a>
                         <a href="{{ url_for('rh.heures') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Heures / RTT</a>
+                        <a href="{{ url_for('rh.audit_log') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Audit</a>
                         {% elif current_user.role == 'responsable' %}
                         <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes congés</a>
                         <a href="{{ url_for('salarie.calendrier') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Calendrier</a>
@@ -66,6 +67,7 @@
                 <a href="{{ url_for('rh.liste_salaries') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Salariés</a>
                 <a href="{{ url_for('rh.parametrage') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Paramétrage</a>
                 <a href="{{ url_for('rh.heures') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Heures / RTT</a>
+                <a href="{{ url_for('rh.audit_log') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Audit</a>
                 {% elif current_user.role == 'responsable' %}
                 <a href="{{ url_for('salarie.accueil') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes congés</a>
                 <a href="{{ url_for('salarie.calendrier') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Calendrier</a>
