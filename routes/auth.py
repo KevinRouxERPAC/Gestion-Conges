@@ -4,12 +4,16 @@ from flask import Blueprint, render_template, redirect, url_for, request, flash,
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db
 from models.user import User
+from app import limiter
 
 auth_bp = Blueprint("auth", __name__)
 
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
+# Protection contre le brute force : 10 tentatives/min/IP, 50/heure/IP.
+# Les GET (affichage de la page) ne consomment pas le quota.
+@limiter.limit("10 per minute; 50 per hour", methods=["POST"])
 def login():
     if current_user.is_authenticated:
         if current_user.role == "rh":

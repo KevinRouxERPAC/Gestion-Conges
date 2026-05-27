@@ -3,6 +3,8 @@ import sys
 from datetime import timedelta
 from flask import Flask, redirect, url_for, Response, send_from_directory
 from flask_login import LoginManager
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -11,6 +13,14 @@ from models import db
 
 csrf = CSRFProtect()
 migrate = Migrate()
+# Rate limiter : protège /login contre le brute force. Storage en mémoire
+# suffisant pour un déploiement single-process (Waitress/Gunicorn 1 worker).
+# Pour multi-worker, basculer storage_uri vers Redis.
+limiter = Limiter(
+    key_func=get_remote_address,
+    default_limits=[],  # pas de limite globale, application ciblée
+    storage_uri="memory://",
+)
 
 
 def create_app():
@@ -25,6 +35,8 @@ def create_app():
     # Migrations Alembic via Flask-Migrate. Dossier "migrations/" à la racine.
     # Commandes : flask db migrate -m "..."  /  flask db upgrade  /  flask db stamp head
     migrate.init_app(app, db)
+    # Rate limiter (désactivé en tests via app.config["RATELIMIT_ENABLED"] = False).
+    limiter.init_app(app)
 
     # Flask-Login
     login_manager = LoginManager()
@@ -98,6 +110,41 @@ def create_app():
     def no_hsts(response):
         if app.config.get("PREFERRED_URL_SCHEME") != "https":
             response.headers.pop("Strict-Transport-Security", None)
+        return response
+
+    @app.after_request
+    def security_headers(response):
+        """Pose les en-têtes de sécurité par défaut sur toutes les réponses HTML.
+
+        Politique adaptée à un intranet :
+        - default-src 'self' : tout doit venir du même domaine.
+        - 'unsafe-inline' sur script-src + style-src : compromis pour rester
+          compatible avec Alpine.js et les <script>/style inline existants.
+          Une refactorisation pour utiliser des nonces serait préférable, mais
+          le risque XSS reste limité grâce à l'échappement Jinja + CSRF.
+        - frame-ancestors 'none' : remplace X-Frame-Options DENY.
+        - HSTS uniquement si PREFERRED_URL_SCHEME=https (cf. no_hsts ci-dessus).
+        """
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline'; "
+            "style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' data:; "
+            "font-src 'self' data:; "
+            "connect-src 'self'; "
+            "frame-ancestors 'none'; "
+            "base-uri 'self'; "
+            "form-action 'self'"
+        )
+        response.headers.setdefault("Content-Security-Policy", csp)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "same-origin")
+        response.headers.setdefault("Permissions-Policy", "geolocation=(), microphone=(), camera=()")
+        if app.config.get("PREFERRED_URL_SCHEME") == "https":
+            response.headers.setdefault(
+                "Strict-Transport-Security", "max-age=15552000; includeSubDomains"
+            )
         return response
 
     # Schéma de base : laissé pour les environnements de test (SQLite in-memory) et

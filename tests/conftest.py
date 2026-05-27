@@ -21,6 +21,7 @@ def app():
         "WTF_CSRF_ENABLED": False,
         "MAIL_SUPPRESS_SEND": True,
         "SERVER_NAME": "localhost",
+        "RATELIMIT_ENABLED": False,
     })
 
     with app.app_context():
@@ -33,6 +34,14 @@ def app():
 @pytest.fixture(autouse=True)
 def db_session(app):
     """Chaque test s'exécute dans une transaction annulée à la fin."""
+    # Reset du rate limiter entre tests : sinon les hits s'accumulent entre tests
+    # (storage mémoire partagé par la fixture app session-scoped).
+    try:
+        from app import limiter
+        limiter.reset()
+    except Exception:
+        pass
+
     with app.app_context():
         _db.create_all()
         yield _db
