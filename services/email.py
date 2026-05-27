@@ -152,36 +152,84 @@ L'équipe ERPAC
     return send_email(email, subject, body_text, body_html)
 
 
-def envoyer_notification_rh_nouvelle_demande(nom_salarie: str, periode: str, nb_jours: int, type_conge: str):
-    """Envoie un email a la boite RH entreprise (MAIL_RH) pour une nouvelle demande de conge."""
+def envoyer_recap_hebdo_rh(demandes: list) -> bool:
+    """Envoie un récap hebdomadaire à la boîte RH entreprise (MAIL_RH).
+
+    `demandes` est une liste de dicts contenant :
+      - nom_salarie (str)
+      - periode (str, ex. "12/05/2026 - 16/05/2026")
+      - nb_jours (int)
+      - type_conge (str)
+      - statut (str : "en_attente_responsable" | "en_attente_rh")
+      - age_jours (int, nombre de jours depuis la création de la demande)
+
+    Retourne False si MAIL_RH non configuré ou si la liste est vide (pas d'envoi).
+    """
     to = (current_app.config.get("MAIL_RH") or "").strip()
     if not to:
         return False
-    subject = "ERPAC Conges - Nouvelle demande de conge"
-    body_text = f"""Une nouvelle demande de conge a ete deposee.
+    if not demandes:
+        # Pas d'email si rien à signaler.
+        return False
 
-Salarie : {nom_salarie}
-Periode : {periode}
-Jours : {nb_jours}
-Type : {type_conge}
+    nb = len(demandes)
+    subject = f"ERPAC Conges - Recap hebdomadaire : {nb} demande(s) en attente"
 
-Connectez-vous a l'application pour valider ou refuser la demande.
+    # Texte brut
+    lignes_text = []
+    for d in demandes:
+        statut_label = "en attente responsable" if d["statut"] == "en_attente_responsable" else "en attente RH"
+        lignes_text.append(
+            f"- {d['nom_salarie']} | {d['periode']} | {d['nb_jours']} j | "
+            f"{d['type_conge']} | {statut_label} | depuis {d['age_jours']} j"
+        )
+    body_text = (
+        f"Bonjour,\n\n"
+        f"{nb} demande(s) de conge en attente de validation.\n\n"
+        + "\n".join(lignes_text)
+        + "\n\nConnectez-vous a l'application pour valider ou refuser.\n\n"
+        "Cordialement,\nL'equipe ERPAC\n"
+    )
 
-Cordialement,
-L'equipe ERPAC
-"""
+    # HTML
+    lignes_html = []
+    for d in demandes:
+        statut_label = "En attente responsable" if d["statut"] == "en_attente_responsable" else "En attente RH"
+        statut_color = "#92400e" if d["statut"] == "en_attente_responsable" else "#9a3412"
+        age_color = "#dc2626" if d["age_jours"] >= 7 else "#6b7280"
+        lignes_html.append(
+            f"<tr>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb;'>{escape(d['nom_salarie'])}</td>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb;'>{escape(d['periode'])}</td>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb; text-align:right;'>{d['nb_jours']} j</td>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb;'>{escape(d['type_conge'])}</td>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb; color:{statut_color};'>{statut_label}</td>"
+            f"<td style='padding:6px 10px; border:1px solid #e5e7eb; color:{age_color};'>{d['age_jours']} j</td>"
+            f"</tr>"
+        )
     body_html = f"""
 <!DOCTYPE html>
 <html>
 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Une nouvelle demande de conge a ete deposee.</p>
-    <table style="border-collapse: collapse; margin: 20px 0;">
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Salarie :</strong></td><td>{escape(nom_salarie)}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Periode :</strong></td><td>{periode}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Jours :</strong></td><td>{nb_jours}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>
+    <p>Bonjour,</p>
+    <p><strong>{nb}</strong> demande(s) de conge en attente de validation.</p>
+    <table style="border-collapse: collapse; margin: 20px 0; font-size: 14px;">
+        <thead>
+            <tr style="background:#008C3A; color:#fff;">
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:left;">Salarie</th>
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:left;">Periode</th>
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:right;">Jours</th>
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:left;">Type</th>
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:left;">Statut</th>
+                <th style="padding:6px 10px; border:1px solid #006c2d; text-align:left;">Anciennete</th>
+            </tr>
+        </thead>
+        <tbody>
+            {''.join(lignes_html)}
+        </tbody>
     </table>
-    <p>Connectez-vous a l'application pour valider ou refuser la demande.</p>
+    <p style="color:#6b7280; font-size:13px;">Les demandes de plus de 7 jours sont signalees en rouge.</p>
+    <p>Connectez-vous a l'application pour valider ou refuser.</p>
     <p>Cordialement,<br>L'equipe ERPAC</p>
 </body>
 </html>

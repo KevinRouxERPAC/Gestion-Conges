@@ -83,6 +83,20 @@ sudo nginx -t && sudo systemctl reload nginx
 - Redémarrer l’app : `sudo systemctl restart gestion-conges`
 - Recharger nginx : `sudo systemctl reload nginx`
 
+## Récap hebdomadaire RH (cron)
+
+Le script `scripts/recap_hebdo.py` envoie un email récap à `MAIL_RH` listant toutes les demandes de congé en attente (validation responsable + validation RH). Aucun envoi si la liste est vide.
+
+Ajouter une entrée cron pour l'utilisateur du service (lundi 8h) :
+
+```bash
+sudo -u freebox crontab -e
+# Ajouter :
+0 8 * * 1 cd /home/freebox/Gestion-Conges && venv/bin/python scripts/recap_hebdo.py >> logs/recap_hebdo.log 2>&1
+```
+
+Variables d'environnement requises : `SECRET_KEY`, `MAIL_RH` et la configuration SMTP. Si vous utilisez `deploy/gestion-conges.env`, sourcez-le dans la commande cron : `bash -c 'set -a; . /home/freebox/Gestion-Conges/deploy/gestion-conges.env; set +a; cd /home/freebox/Gestion-Conges && venv/bin/python scripts/recap_hebdo.py'`.
+
 ## Base de données
 
 La base SQLite `gestion_conges.db` est créée automatiquement dans le répertoire du projet au premier lancement. L’utilisateur du service (`freebox`) doit avoir les droits en lecture/écriture sur ce répertoire.

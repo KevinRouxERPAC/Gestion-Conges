@@ -88,7 +88,22 @@ Exemple pour ajouter le SMTP :
 
 - **Notifications in-app** : toujours actives (liste dans le menu « Notifications »). Aucune configuration supplémentaire.
 - **Conformité RGPD** : aucune adresse email salarié n'est collectée ; les notifications salarié (validation/refus) sont in-app et Web Push uniquement.
-- **Email RH (entreprise)** : configurer `MAIL_RH` (variable d'environnement ou `web.config`) avec l'adresse de la boîte mail RH. Cette adresse reçoit un email à chaque nouvelle demande de congé (SMTP : `MAIL_SERVER`, `MAIL_PORT`, etc.).
+- **Email RH (entreprise)** : configurer `MAIL_RH` (variable d'environnement ou `web.config`) avec l'adresse de la boîte mail RH. Cette adresse reçoit un **récap hebdomadaire** des demandes de congé en attente (SMTP : `MAIL_SERVER`, `MAIL_PORT`, etc.). Aucun email n'est envoyé si aucune demande n'est en attente. Voir « Récap hebdomadaire RH » ci-dessous pour la planification.
+
+### Récap hebdomadaire RH (planificateur de tâches Windows)
+
+Le script `scripts/recap_hebdo.py` envoie un seul email à `MAIL_RH` listant toutes les demandes de congé en attente (validation responsable + validation RH). Aucun envoi si la liste est vide.
+
+1. Ouvrir **Planificateur de tâches** (`taskschd.msc`).
+2. Créer une tâche de base :
+   - **Nom** : `ERPAC Gestion Congés - Récap hebdo RH`
+   - **Déclencheur** : Chaque semaine, lundi 08:00.
+   - **Action** : Démarrer un programme.
+     - Programme : `C:\inetpub\GestionConges\venv\Scripts\python.exe`
+     - Arguments : `scripts\recap_hebdo.py`
+     - Démarrer dans : `C:\inetpub\GestionConges`
+3. Dans les propriétés de la tâche, onglet **Général** → cocher « Exécuter même si l'utilisateur n'est pas connecté » et utiliser un compte de service ayant les droits sur le dossier du site.
+4. Tester en lançant la tâche manuellement : un email récap doit arriver dans `MAIL_RH` (ou rien si aucune demande en attente).
 - **Web Push (alertes hors du site)** : générer une paire de clés VAPID une fois sur le serveur :
   ```powershell
   .\venv\Scripts\python.exe gen_vapid_keys.py

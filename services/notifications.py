@@ -79,7 +79,11 @@ def notifier_responsable_nouvelle_demande(conge):
 
 
 def notifier_rh_demande_transmise(conge):
-    """Notifie les RH qu'une demande a été validée par le responsable et est en attente de validation niveau 2."""
+    """Notifie les RH qu'une demande a été validée par le responsable et est en attente de validation niveau 2.
+
+    Pas d'email individuel : l'email à la boîte RH entreprise est désormais envoyé
+    via le récap hebdomadaire (scripts/recap_hebdo.py).
+    """
     rh_users = User.query.filter(db.func.lower(User.role) == "rh", User.actif == True).all()
     if not rh_users:
         logger.warning("notifier_rh_demande_transmise: aucun utilisateur RH actif")
@@ -97,22 +101,15 @@ def notifier_rh_demande_transmise(conge):
             message=message,
             conge_id=conge.id,
         )
-    try:
-        from flask import current_app
-        if current_app.config.get("MAIL_RH"):
-            from services.email import envoyer_notification_rh_nouvelle_demande
-            envoyer_notification_rh_nouvelle_demande(
-                nom_salarie=nom_salarie,
-                periode=periode,
-                nb_jours=conge.nb_jours_ouvrables,
-                type_conge=conge.type_conge or "CP",
-            )
-    except Exception as e:
-        logger.warning("Email RH (demande transmise) non envoyé: %s", e)
 
 
 def notifier_rh_nouvelle_demande(conge):
-    """Notifie tous les utilisateurs RH (in-app + Web Push) et envoie un email à la boîte RH entreprise si MAIL_RH est configuré."""
+    """Notifie tous les utilisateurs RH (in-app + Web Push).
+
+    Pas d'email individuel : l'email à la boîte RH entreprise est désormais envoyé
+    une fois par semaine via le récap hebdomadaire (scripts/recap_hebdo.py), pour
+    éviter le bruit d'un email par demande.
+    """
     rh_users = User.query.filter(db.func.lower(User.role) == "rh", User.actif == True).all()
     if not rh_users:
         logger.warning("notifier_rh_nouvelle_demande: aucun utilisateur RH actif trouvé")
@@ -131,19 +128,6 @@ def notifier_rh_nouvelle_demande(conge):
             message=message,
             conge_id=conge.id,
         )
-    # Email vers la boîte mail entreprise RH (adresse configurée, pas de donnée personnelle employé)
-    try:
-        from flask import current_app
-        if current_app.config.get("MAIL_RH"):
-            from services.email import envoyer_notification_rh_nouvelle_demande
-            envoyer_notification_rh_nouvelle_demande(
-                nom_salarie=nom_salarie,
-                periode=periode,
-                nb_jours=conge.nb_jours_ouvrables,
-                type_conge=conge.type_conge or "CP",
-            )
-    except Exception as e:
-        logger.warning("Email RH (nouvelle demande) non envoyé: %s", e)
 
 
 def compter_non_lues(user_id: int) -> int:
