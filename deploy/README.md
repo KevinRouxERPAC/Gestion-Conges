@@ -101,6 +101,16 @@ Variables d'environnement requises : `SECRET_KEY`, `MAIL_RH` et la configuration
 
 La base SQLite `gestion_conges.db` est créée automatiquement dans le répertoire du projet au premier lancement. L’utilisateur du service (`freebox`) doit avoir les droits en lecture/écriture sur ce répertoire.
 
+À **chaque mise à jour** de l’application, appliquer les migrations Alembic avant de redémarrer le service :
+
+```bash
+cd /home/freebox/Gestion-Conges
+FLASK_APP=app.py:create_app venv/bin/flask db upgrade
+sudo systemctl restart gestion-conges
+```
+
+Sur une base mise à niveau depuis l’ancien système (`scripts/migrations/*`), exécuter une seule fois `flask db stamp head` à la place du premier `flask db upgrade`.
+
 ### Premier utilisateur (base vide)
 
 Au premier déploiement, la base ne contient aucun utilisateur. Il faut créer un compte **RH** pour pouvoir se connecter et gérer les salariés / congés.

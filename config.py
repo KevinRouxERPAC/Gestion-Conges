@@ -12,7 +12,11 @@ class Config:
             "(ex: dans web.config ou .env). Générez-en une avec : python -c \"import secrets; print(secrets.token_urlsafe(32))\""
         )
     # timeout=15 : SQLite attend jusqu'à 15 s si la base est verrouillée (écritures concurrentes multi-utilisateurs)
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
+    # Surcharge possible via env var SQLALCHEMY_DATABASE_URI (utile pour migrations Alembic
+    # et tests pointant sur une BDD temporaire).
+    SQLALCHEMY_DATABASE_URI = os.environ.get("SQLALCHEMY_DATABASE_URI") or (
+        "sqlite:///" + os.path.join(BASE_DIR, "gestion_conges.db") + "?timeout=15"
+    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = 1800  # 30 minutes en secondes
 

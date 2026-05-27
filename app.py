@@ -3,12 +3,14 @@ import sys
 from datetime import timedelta
 from flask import Flask, redirect, url_for, Response, send_from_directory
 from flask_login import LoginManager
+from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.middleware.proxy_fix import ProxyFix
 from config import Config
 from models import db
 
 csrf = CSRFProtect()
+migrate = Migrate()
 
 
 def create_app():
@@ -20,6 +22,9 @@ def create_app():
     # Init extensions
     db.init_app(app)
     csrf.init_app(app)
+    # Migrations Alembic via Flask-Migrate. Dossier "migrations/" à la racine.
+    # Commandes : flask db migrate -m "..."  /  flask db upgrade  /  flask db stamp head
+    migrate.init_app(app, db)
 
     # Flask-Login
     login_manager = LoginManager()
@@ -79,18 +84,17 @@ def create_app():
             response.headers.pop("Strict-Transport-Security", None)
         return response
 
-    # Create tables
-    with app.app_context():
-        db.create_all()
-        _migrations_dir = os.path.join(os.path.dirname(__file__), "scripts", "migrations")
-        if _migrations_dir not in sys.path:
-            sys.path.insert(0, _migrations_dir)
-        for mig in ("migrate_conges_statut", "migrate_user_email", "migrate_validation_2_niveaux", "migrate_rtt_columns", "migrate_conges_exceptionnels", "migrate_heures_payees", "migrate_rtt_calc_heures", "migrate_interessement"):
-            try:
-                __import__(mig).migrate()
-            except Exception as e:
-                import logging
-                logging.getLogger(__name__).warning("Migration %s echouee: %s", mig, e)
+    # Schéma de base : laissé pour les environnements de test (SQLite in-memory) et
+    # le tout premier démarrage en l'absence de fichier de BDD. En production,
+    # les évolutions de schéma doivent passer par Alembic : `flask db upgrade`.
+    # Les anciens scripts scripts/migrations/migrate_*.py sont conservés pour
+    # référence historique mais ne sont plus rejoués automatiquement.
+    #
+    # Variable d'env SKIP_DB_CREATE_ALL=1 : utilisée lors de la génération
+    # autogen d'une migration Alembic pour partir d'une base vide.
+    if os.environ.get("SKIP_DB_CREATE_ALL") != "1":
+        with app.app_context():
+            db.create_all()
 
     return app
 

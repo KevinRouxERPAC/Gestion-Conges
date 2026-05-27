@@ -78,6 +78,12 @@ Exemple pour ajouter le SMTP :
 ## 6. Base de données et premier utilisateur
 
 - La base SQLite **gestion_conges.db** est créée automatiquement au premier lancement dans le répertoire du projet. Le compte du pool IIS doit avoir les droits en **lecture/écriture** sur ce dossier.
+- À **chaque mise à jour** de l'application, appliquer les migrations Alembic en attente avant de redémarrer le pool IIS :
+  ```powershell
+  $env:FLASK_APP="app.py:create_app"
+  .\venv\Scripts\python.exe -m flask db upgrade
+  ```
+  Sur une base mise à niveau depuis l'ancien système de migrations (`scripts/migrations/*`), exécuter une seule fois `flask db stamp head` au lieu de `flask db upgrade` pour marquer la base comme à jour.
 - Pour créer un premier utilisateur RH sur une base vide, exécuter (depuis le dossier du projet) :
   ```powershell
   .\venv\Scripts\python.exe scripts\create_admin.py

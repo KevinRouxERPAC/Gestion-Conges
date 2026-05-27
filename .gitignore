@@ -27,6 +27,8 @@ debug*.log
 
 # Base de données locale (ne doit pas être versionnée)
 gestion_conges.db
+empty_for_migration.db
+instance/
 
 # Logs IIS / déploiement Windows
 logs/

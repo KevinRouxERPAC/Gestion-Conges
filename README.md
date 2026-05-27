@@ -55,7 +55,24 @@ python run_wsgi.py
 
 Port lu depuis `HTTP_PLATFORM_PORT` (IIS) ou `PORT`, sinon 5000.
 
-### 3. Premier utilisateur (base vide)
+### 3. Migrations BDD (Alembic / Flask-Migrate)
+
+Les évolutions de schéma passent par Alembic :
+
+```bash
+# Voir l'état courant
+FLASK_APP=app.py:create_app flask db current
+
+# Appliquer les migrations en attente
+FLASK_APP=app.py:create_app flask db upgrade
+
+# Sur une base déjà existante (premier passage à Alembic) : marquer comme à jour
+FLASK_APP=app.py:create_app flask db stamp head
+```
+
+Voir [scripts/migrations/README.md](scripts/migrations/README.md) pour l'historique et la commande de génération.
+
+### 4. Premier utilisateur (base vide)
 
 Creer un compte **RH** pour se connecter :
 
@@ -98,7 +115,8 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 - **services/** : calcul_jours, jours_feries, solde, notifications, webpush, export
 - **templates/** : Jinja2 (base, auth, rh, salarie, notifications)
 - **static/** : CSS, JS (Alpine.js), sw.js (Service Worker Web Push)
-- **scripts/** : create_admin.py, gen_vapid_keys.py, verifier_webpush.py ; **scripts/migrations/** : scripts de migration BDD (migrate_*.py)
+- **scripts/** : create_admin.py, gen_vapid_keys.py, verifier_webpush.py, recap_hebdo.py ; **scripts/migrations/** : anciens scripts de migration (legacy, non rejoués)
+- **migrations/** : migrations Alembic (Flask-Migrate). `flask db upgrade` à chaque déploiement.
 - **deploy/** : Linux (systemd, nginx), Windows (IIS)
 - **docs/** : documentation complementaire (voir [docs/README.md](docs/README.md))
 
