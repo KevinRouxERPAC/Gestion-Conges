@@ -86,7 +86,7 @@
                                 {% if e.type == 'RTT' %}
                                     {{ e.heures_rtt|default(0) }} h
                                 {% else %}
-                                    {{ e.jours }} j
+                                    {{ e.jours|nb_jours }} j
                                 {% endif %}
                             </td>
                             <td class="px-3 py-2">

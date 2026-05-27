@@ -69,7 +69,7 @@
                         {{ c.type_conge }}
                     </span>
                 </td>
-                <td class="py-3">{{ c.nb_jours_ouvrables }} j</td>
+                <td class="py-3">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
                 <td class="py-3 text-right space-x-2">
                     <form method="POST" action="{{ url_for('responsable.valider_conge', conge_id=c.id) }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

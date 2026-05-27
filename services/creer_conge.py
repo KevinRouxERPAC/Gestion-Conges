@@ -18,9 +18,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 
-from models.conge import Conge
+from models.conge import Conge, DEMI_VALEURS
 from models.user import User
-from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
+from services.calcul_jours import compter_jours_ouvrables_avec_demi, detecter_chevauchement
 from services.conges_exceptionnels import (
     get_type_exceptionnel,
     parse_code,
@@ -125,13 +125,26 @@ def construire_conge(
         result.errors.append(("error", "Merci de sélectionner un type de congé valide."))
         return result
 
-    # 3. Calcul des jours ouvrables
-    nb_jours = compter_jours_ouvrables(date_debut, date_fin)
+    # 3. Demi-journées aux bordures (validation des valeurs autorisées)
+    demi_debut_raw = (payload.get("demi_journee_debut") or "").strip().lower()
+    demi_fin_raw = (payload.get("demi_journee_fin") or "").strip().lower()
+    demi_debut = demi_debut_raw if demi_debut_raw in DEMI_VALEURS else None
+    demi_fin = demi_fin_raw if demi_fin_raw in DEMI_VALEURS else None
+
+    # Sur un congé mono-jour, on garde au plus une des deux bornes pour éviter
+    # une ambiguïté (matin ET après-midi = journée complète, autant ne rien mettre).
+    if date_debut == date_fin and demi_debut and demi_fin and demi_debut != demi_fin:
+        demi_debut = demi_fin = None  # journée complète
+    elif date_debut == date_fin and demi_debut and demi_fin and demi_debut == demi_fin:
+        demi_fin = None  # on conserve uniquement debut pour cohérence
+
+    # 4. Calcul des jours ouvrables (avec demi-journées)
+    nb_jours = compter_jours_ouvrables_avec_demi(date_debut, date_fin, demi_debut, demi_fin)
     if nb_jours == 0:
         result.errors.append(("error", "Aucun jour ouvrable dans la période sélectionnée."))
         return result
 
-    # 4. Chevauchement avec un congé existant (en attente ou validé)
+    # 5. Chevauchement avec un congé existant (en attente ou validé)
     conge_id_exclu = conge_existant.id if conge_existant else None
     chevauchement = detecter_chevauchement(salarie.id, date_debut, date_fin, conge_id_exclu=conge_id_exclu)
     if chevauchement:
@@ -142,7 +155,7 @@ def construire_conge(
         ))
         return result
 
-    # 5. Validation par type + warnings de solde négatif (non bloquants pour CP/RTT,
+    # 6. Validation par type + warnings de solde négatif (non bloquants pour CP/RTT,
     #    bloquant pour les exceptionnels via plafond)
     nb_heures_rtt: Optional[int] = None
     nb_heures_exceptionnelles: Optional[int] = None
@@ -211,11 +224,13 @@ def construire_conge(
 
     commentaire = (payload.get("commentaire") or "").strip()
 
-    # 6. Construction du Conge (mise à jour ou nouveau)
+    # 7. Construction du Conge (mise à jour ou nouveau)
     if conge_existant is not None:
         conge_existant.date_debut = date_debut
         conge_existant.date_fin = date_fin
         conge_existant.nb_jours_ouvrables = nb_jours
+        conge_existant.demi_journee_debut = demi_debut
+        conge_existant.demi_journee_fin = demi_fin
         conge_existant.type_conge = type_conge
         conge_existant.commentaire = commentaire
         conge_existant.nb_heures_rtt = nb_heures_rtt
@@ -228,6 +243,8 @@ def construire_conge(
             date_debut=date_debut,
             date_fin=date_fin,
             nb_jours_ouvrables=nb_jours,
+            demi_journee_debut=demi_debut,
+            demi_journee_fin=demi_fin,
             type_conge=type_conge,
             commentaire=commentaire,
             statut=statut_initial,

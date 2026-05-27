@@ -13,6 +13,8 @@
 
     const dateDebut = document.getElementById("date_debut");
     const dateFin = document.getElementById("date_fin");
+    const demiDebut = document.getElementById("demi_journee_debut");
+    const demiFin = document.getElementById("demi_journee_fin");
     const output = document.querySelector("[data-conge-jours-ouvrables]");
 
     if (!dateDebut || !dateFin || !output) {
@@ -45,21 +47,35 @@
         return `${y}-${m}-${j}`;
     }
 
-    function compterJoursOuvrables(debut, fin) {
-        // debut et fin sont des Date locales.
+    function estOuvrable(d) {
+        const jour = d.getDay();
+        if (jour === 0 || jour === 6) return false;
+        return !feriesSet.has(toISODate(d));
+    }
+
+    function compterJoursOuvrables(debut, fin, dDebut, dFin) {
+        // debut et fin sont des Date locales. dDebut/dFin : "matin", "apres_midi" ou null.
         if (fin < debut) return 0;
+
+        // Mono-jour
+        if (debut.getTime() === fin.getTime()) {
+            if (!estOuvrable(debut)) return 0;
+            if (dDebut === "matin" || dDebut === "apres_midi" || dFin === "matin" || dFin === "apres_midi") {
+                return 0.5;
+            }
+            return 1;
+        }
+
+        // Multi-jours
         let jours = 0;
         const current = new Date(debut.getTime());
         while (current <= fin) {
-            const jourSemaine = current.getDay(); // 0=dim, 6=sam
-            if (jourSemaine !== 0 && jourSemaine !== 6) {
-                if (!feriesSet.has(toISODate(current))) {
-                    jours += 1;
-                }
-            }
+            if (estOuvrable(current)) jours += 1;
             current.setDate(current.getDate() + 1);
         }
-        return jours;
+        if (dDebut === "apres_midi" && estOuvrable(debut)) jours -= 0.5;
+        if (dFin === "matin" && estOuvrable(fin)) jours -= 0.5;
+        return Math.max(0, jours);
     }
 
     function parseLocalDate(str) {
@@ -86,14 +102,20 @@
             return;
         }
 
-        const jours = compterJoursOuvrables(debut, fin);
+        const dDebut = demiDebut ? demiDebut.value || null : null;
+        const dFin = demiFin ? demiFin.value || null : null;
+        const jours = compterJoursOuvrables(debut, fin, dDebut, dFin);
         const suffixe = feriesLoaded ? "" : " (estimation, jours fériés non chargés)";
-        output.textContent = `${jours} jour(s) ouvrable(s)${suffixe}`;
+        // Format français : "1,5" plutôt que "1.5"
+        const joursFmt = Number.isInteger(jours) ? String(jours) : jours.toString().replace(".", ",");
+        output.textContent = `${joursFmt} jour(s) ouvrable(s)${suffixe}`;
         output.classList.remove("hidden", "text-red-600");
         output.classList.add(jours === 0 ? "text-orange-600" : "text-erpac-primary");
     }
 
     dateDebut.addEventListener("change", refresh);
     dateFin.addEventListener("change", refresh);
+    if (demiDebut) demiDebut.addEventListener("change", refresh);
+    if (demiFin) demiFin.addEventListener("change", refresh);
     fetchFeries();
 })();

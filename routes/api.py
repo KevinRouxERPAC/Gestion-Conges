@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, request
 from flask_login import login_required
 
 from models.jour_ferie import JourFerie
-from services.calcul_jours import compter_jours_ouvrables
+from services.calcul_jours import compter_jours_ouvrables_avec_demi
 
 api_bp = Blueprint("api", __name__)
 
@@ -58,5 +58,12 @@ def jours_ouvrables():
     if fin < debut:
         return jsonify({"jours": 0, "valide": False, "raison": "Date de fin avant date de début"})
 
-    nb = compter_jours_ouvrables(debut, fin)
+    demi_debut = (request.args.get("demi_debut") or "").strip().lower() or None
+    demi_fin = (request.args.get("demi_fin") or "").strip().lower() or None
+    if demi_debut not in (None, "matin", "apres_midi"):
+        demi_debut = None
+    if demi_fin not in (None, "matin", "apres_midi"):
+        demi_fin = None
+
+    nb = compter_jours_ouvrables_avec_demi(debut, fin, demi_debut, demi_fin)
     return jsonify({"jours": nb, "valide": True})

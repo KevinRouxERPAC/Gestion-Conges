@@ -27,11 +27,23 @@
                 <label for="date_debut" class="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
                 <input type="date" id="date_debut" name="date_debut" required
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                <select id="demi_journee_debut" name="demi_journee_debut"
+                        class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                    <option value="">Journée complète</option>
+                    <option value="matin">Matin seulement</option>
+                    <option value="apres_midi">Après-midi seulement</option>
+                </select>
             </div>
             <div>
                 <label for="date_fin" class="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
                 <input type="date" id="date_fin" name="date_fin" required
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                <select id="demi_journee_fin" name="demi_journee_fin"
+                        class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+                    <option value="">Journée complète</option>
+                    <option value="matin">Matin seulement</option>
+                    <option value="apres_midi">Après-midi seulement</option>
+                </select>
             </div>
         </div>
         <div class="text-sm font-medium hidden" data-conge-jours-ouvrables aria-live="polite"></div>

@@ -58,6 +58,22 @@ def create_app():
         from datetime import datetime as _dt
         return {"now": _dt.now}
 
+    @app.template_filter("nb_jours")
+    def _format_nb_jours(valeur):
+        """Affiche un nombre de jours en français (`1,5` au lieu de `1.5`).
+        Retire les zéros inutiles : 2.0 → "2", 1.5 → "1,5".
+        """
+        if valeur is None:
+            return "0"
+        try:
+            v = float(valeur)
+        except (TypeError, ValueError):
+            return str(valeur)
+        if v == int(v):
+            return str(int(v))
+        # 1 décimale suffit (demi-journées uniquement).
+        return f"{v:.1f}".replace(".", ",")
+
     @app.context_processor
     def inject_notifications():
         from flask_login import current_user

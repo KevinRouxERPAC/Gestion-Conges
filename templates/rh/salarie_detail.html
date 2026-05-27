@@ -161,7 +161,7 @@
                     {{ conge.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ conge.date_fin.strftime('%d/%m/%Y') }}
                 </td>
                 <td class="px-6 py-4">
-                    <span class="font-semibold">{{ conge.nb_jours_ouvrables }}</span> <span class="text-gray-500 text-sm">jour(s)</span>
+                    <span class="font-semibold">{{ conge.nb_jours_ouvrables|nb_jours }}</span> <span class="text-gray-500 text-sm">jour(s)</span>
                 </td>
                 <td class="px-6 py-4">
                     <span class="px-2 py-1 rounded text-xs font-medium

@@ -143,7 +143,7 @@
                         <span class="font-semibold">{{ conge.nb_heures_rtt|default(0) }}</span>
                         <span class="text-gray-500 text-sm">heure(s)</span>
                     {% else %}
-                        <span class="font-semibold">{{ conge.nb_jours_ouvrables }}</span>
+                        <span class="font-semibold">{{ conge.nb_jours_ouvrables|nb_jours }}</span>
                         <span class="text-gray-500 text-sm">jour(s)</span>
                     {% endif %}
                 </td>
