@@ -17,6 +17,8 @@ from services.solde import (
     calculer_solde,
     get_parametrage_actif,
     generer_allocations_pour_parametrage,
+    salaries_a_risque,
+    cloturer_exercice_et_reporter,
 )
 from services.jours_feries import get_jours_feries
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
@@ -152,6 +154,10 @@ def dashboard():
         compta_31_03 = date(year, 3, 31)
         compta_30_09 = date(year, 9, 30)
 
+    # Soldes "à risque" : salariés qui n'ont pas posé leurs CP à l'approche
+    # de la fin d'exercice (seuil : 10j restants à moins de 90j de la fin).
+    a_risque = salaries_a_risque(jours_min_restants=10, jours_avant_fin=90)
+
     return render_template(
         "rh/dashboard.html",
         salaries_data=salaries_data,
@@ -165,6 +171,7 @@ def dashboard():
         conges_exercice_rows=conges_exercice_rows,
         demandes_attente=demandes_attente,
         conflits_par_conge=conflits_par_conge,
+        a_risque=a_risque,
         today=today,
         compta_31_03=compta_31_03,
         compta_30_09=compta_30_09,
@@ -628,6 +635,100 @@ def parametrage():
             return redirect(url_for("rh.parametrage"))
 
     return render_template("rh/parametrage.html", parametrage=param, jours_feries=jours_feries_list)
+
+
+@rh_bp.route("/cloture-exercice", methods=["GET", "POST"])
+@rh_required
+def cloture_exercice():
+    """Clôture l'exercice actif et démarre le suivant avec report automatique des soldes."""
+    ancien = get_parametrage_actif()
+    if not ancien:
+        flash("Aucun exercice actif. Configurez d'abord le paramétrage.", "error")
+        return redirect(url_for("rh.parametrage"))
+
+    if request.method == "POST":
+        try:
+            debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
+            fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
+            jours_defaut = int(request.form["jours_conges_defaut"])
+            rtt_heures_defaut = int(request.form.get("rtt_heures_defaut") or "0")
+        except (ValueError, KeyError):
+            flash("Données du nouvel exercice invalides.", "error")
+            return redirect(url_for("rh.cloture_exercice"))
+
+        if fin <= debut:
+            flash("La date de fin doit être postérieure à la date de début.", "error")
+            return redirect(url_for("rh.cloture_exercice"))
+
+        plafond_cp_str = (request.form.get("plafond_report_cp") or "").strip()
+        plafond_rtt_str = (request.form.get("plafond_report_rtt") or "").strip()
+        try:
+            plafond_cp = int(plafond_cp_str) if plafond_cp_str else None
+            plafond_rtt = int(plafond_rtt_str) if plafond_rtt_str else None
+        except ValueError:
+            flash("Plafonds de report invalides.", "error")
+            return redirect(url_for("rh.cloture_exercice"))
+
+        nouveau = ParametrageAnnuel(
+            debut_exercice=debut,
+            fin_exercice=fin,
+            jours_conges_defaut=jours_defaut,
+            rtt_heures_defaut=rtt_heures_defaut,
+            rtt_calc_mode=ancien.rtt_calc_mode,
+            rtt_heures_reference=ancien.rtt_heures_reference,
+            rtt_coef_surplus=ancien.rtt_coef_surplus,
+            actif=False,
+        )
+        db.session.add(nouveau)
+        db.session.flush()
+
+        try:
+            res = cloturer_exercice_et_reporter(
+                nouveau,
+                report_max_jours=plafond_cp,
+                report_max_heures_rtt=plafond_rtt,
+            )
+        except Exception:
+            db.session.rollback()
+            flash("Erreur lors de la clôture. Aucune modification n'a été appliquée.", "error")
+            return redirect(url_for("rh.cloture_exercice"))
+
+        log_action(
+            "exercice.cloturer",
+            cible_type="parametrage",
+            cible_id=nouveau.id,
+            details={
+                "ancien_id": ancien.id,
+                "ancien_periode": f"{ancien.debut_exercice} → {ancien.fin_exercice}",
+                "nouveau_periode": f"{debut} → {fin}",
+                "plafond_report_cp": plafond_cp,
+                "plafond_report_rtt": plafond_rtt,
+                "report_cp_total": res["report_cp_total"],
+                "report_rtt_total": res["report_rtt_total"],
+                "nb_salaries": res["nb_salaries"],
+            },
+        )
+        db.session.commit()
+
+        flash(
+            f"Exercice clôturé. {res['nb_salaries']} salarié(s) traité(s) : "
+            f"{res['report_cp_total']} j CP et {res['report_rtt_total']} h RTT reportés.",
+            "success",
+        )
+        return redirect(url_for("rh.dashboard"))
+
+    # Prévisualisation : combien va être reporté ?
+    salaries = User.query.filter_by(actif=True).order_by(User.nom, User.prenom).all()
+    apercu = []
+    for s in salaries:
+        info = calculer_solde(s.id)
+        apercu.append({
+            "user": s,
+            "cp_restant": info.get("solde_restant", 0),
+            "rtt_restant": info.get("rtt_solde_restant", 0),
+        })
+
+    return render_template("rh/cloture_exercice.html", ancien=ancien, apercu=apercu)
 
 @rh_bp.route("/salarie/<int:user_id>/allocation", methods=["POST"])
 @rh_required

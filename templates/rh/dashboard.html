@@ -178,6 +178,43 @@ function bulkConges() {
 </script>
 {% endif %}
 
+{% if a_risque %}
+<div class="bg-orange-50 border border-orange-200 rounded-xl shadow p-6 mb-8">
+    <h2 class="text-lg font-semibold text-orange-900 mb-2">
+        Soldes à risque ({{ a_risque|length }})
+    </h2>
+    <p class="text-sm text-orange-800 mb-4">
+        Fin d'exercice dans {{ a_risque[0].jours_avant_fin_exercice }} jour(s). Ces salariés ont encore beaucoup de CP à poser.
+        Pensez à les relancer ou à <a href="{{ url_for('rh.parametrage') }}" class="underline">préparer la clôture</a> avec report.
+    </p>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-left text-orange-800 border-b border-orange-200">
+                    <th class="py-2 pr-4">Salarié</th>
+                    <th class="py-2 pr-4">Solde CP restant</th>
+                    <th class="py-2 pr-4">Solde projeté</th>
+                    <th class="py-2 text-right">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in a_risque %}
+                <tr class="border-b border-orange-100">
+                    <td class="py-3 font-medium">{{ item.user.prenom }} {{ item.user.nom }}</td>
+                    <td class="py-3 font-bold text-orange-700">{{ item.solde_restant|nb_jours }} j</td>
+                    <td class="py-3">{{ item.solde_projete|nb_jours }} j</td>
+                    <td class="py-3 text-right">
+                        <a href="{{ url_for('rh.salarie_detail', user_id=item.user.id) }}"
+                           class="text-erpac-primary hover:text-erpac-dark font-medium">Voir →</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
 <!-- Calendrier global des congés + récapitulatif -->
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
     <div class="lg:col-span-2 bg-white rounded-xl shadow p-4 md:p-6">

@@ -183,6 +183,114 @@ def verifier_solde_rtt_suffisant(user_id, nb_heures, conge_id_exclu=None):
     return solde_actuel >= nb_heures
 
 
+def salaries_a_risque(jours_min_restants=10, jours_avant_fin=90):
+    """Liste les salariés actifs qui ont encore beaucoup de CP à poser près de la fin d'exercice.
+
+    Args:
+        jours_min_restants : seuil au-delà duquel un salarié est considéré "à risque".
+        jours_avant_fin : fenêtre en jours avant la fin d'exercice où on déclenche l'alerte.
+
+    Retourne : liste de dicts {user, solde_restant, solde_projete, jours_avant_fin_exercice}.
+    Vide si l'exercice est à plus de jours_avant_fin de sa fin, ou si pas de paramétrage actif.
+    """
+    from datetime import date as _date
+    from models.user import User
+
+    param = get_parametrage_actif()
+    if param is None:
+        return []
+
+    today = _date.today()
+    delta_fin = (param.fin_exercice - today).days
+    if delta_fin > jours_avant_fin or delta_fin < 0:
+        return []
+
+    salaries = User.query.filter_by(actif=True).order_by(User.nom, User.prenom).all()
+    a_risque = []
+    for s in salaries:
+        info = calculer_solde(s.id)
+        if info["solde_restant"] >= jours_min_restants:
+            a_risque.append({
+                "user": s,
+                "solde_restant": info["solde_restant"],
+                "solde_projete": info.get("solde_projete", info["solde_restant"]),
+                "jours_avant_fin_exercice": delta_fin,
+            })
+    return a_risque
+
+
+def cloturer_exercice_et_reporter(
+    nouveau_param: ParametrageAnnuel,
+    report_max_jours=None,
+    report_max_heures_rtt=None,
+):
+    """Clôture l'exercice actif courant et crée les allocations du nouveau,
+    en reportant le solde restant (CP et RTT) selon les plafonds.
+
+    Args:
+        nouveau_param : ParametrageAnnuel déjà persisté pour le prochain exercice
+            (actif=True). L'ancien paramétrage actif sera désactivé.
+        report_max_jours : plafond de report CP. None = pas de plafond (report intégral).
+        report_max_heures_rtt : idem pour RTT.
+
+    Retourne un dict {nb_salaries, report_cp_total, report_rtt_total}.
+    """
+    from models.user import User
+
+    ancien = ParametrageAnnuel.query.filter(
+        ParametrageAnnuel.actif == True,
+        ParametrageAnnuel.id != nouveau_param.id,
+    ).first()
+
+    salaries = User.query.filter_by(actif=True).all()
+    total_cp_reporte = 0
+    total_rtt_reporte = 0
+
+    for s in salaries:
+        # Solde restant avant clôture (basé sur l'ancien paramétrage si présent,
+        # sinon le calcul retourne 0 ou utilise l'allocation courante).
+        solde_info = calculer_solde(s.id, parametrage_id=ancien.id if ancien else None)
+        cp_restant = max(0, solde_info.get("solde_restant", 0))
+        rtt_restant = max(0, solde_info.get("rtt_solde_restant", 0))
+
+        cp_a_reporter = (
+            min(cp_restant, report_max_jours) if report_max_jours is not None else cp_restant
+        )
+        rtt_a_reporter = (
+            min(rtt_restant, report_max_heures_rtt)
+            if report_max_heures_rtt is not None
+            else rtt_restant
+        )
+
+        alloc = AllocationConge.query.filter_by(
+            user_id=s.id, parametrage_id=nouveau_param.id
+        ).first()
+        if not alloc:
+            alloc = AllocationConge(
+                user_id=s.id,
+                parametrage_id=nouveau_param.id,
+                jours_alloues=nouveau_param.jours_conges_defaut,
+                jours_anciennete=0,
+                rtt_heures_allouees=nouveau_param.rtt_heures_defaut,
+            )
+            db.session.add(alloc)
+
+        alloc.jours_report = int(cp_a_reporter)
+        alloc.rtt_heures_reportees = int(rtt_a_reporter)
+        total_cp_reporte += int(cp_a_reporter)
+        total_rtt_reporte += int(rtt_a_reporter)
+
+    if ancien:
+        ancien.actif = False
+    nouveau_param.actif = True
+
+    return {
+        "nb_salaries": len(salaries),
+        "report_cp_total": total_cp_reporte,
+        "report_rtt_total": total_rtt_reporte,
+    }
+
+
 def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
     """Crée ou met à jour les allocations de congés (CP + RTT) pour tous les salariés actifs."""
     from models.user import User

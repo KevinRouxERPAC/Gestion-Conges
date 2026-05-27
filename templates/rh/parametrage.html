@@ -2,9 +2,17 @@
 {% block title %}Paramétrage annuel{% endblock %}
 
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Paramétrage annuel</h1>
-    <p class="text-gray-500 mt-1">Configuration de l'exercice fiscal et des jours fériés</p>
+<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Paramétrage annuel</h1>
+        <p class="text-gray-500 mt-1">Configuration de l'exercice fiscal et des jours fériés</p>
+    </div>
+    {% if parametrage %}
+    <a href="{{ url_for('rh.cloture_exercice') }}"
+       class="inline-flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg transition shadow text-sm">
+        Clôturer l'exercice et reporter
+    </a>
+    {% endif %}
 </div>
 
 <!-- Parametrage exercice -->
