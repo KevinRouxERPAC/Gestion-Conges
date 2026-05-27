@@ -107,6 +107,27 @@ def dashboard():
         .all()
     )
 
+    # Pour chaque demande, prépare la liste des congés chevauchants (autres salariés)
+    # afin que le RH visualise les conflits potentiels avant de valider.
+    from services.calcul_jours import conges_chevauchant
+    conflits_par_conge = {}
+    for c in demandes_attente:
+        conflits = conges_chevauchant(
+            c.date_debut, c.date_fin, exclure_user_id=c.user_id
+        )
+        conflits_par_conge[c.id] = [
+            {
+                "salarie": (
+                    f"{cc.utilisateur.prenom} {cc.utilisateur.nom}"
+                    if cc.utilisateur else "?"
+                ),
+                "periode": f"{cc.date_debut.strftime('%d/%m')} → {cc.date_fin.strftime('%d/%m')}",
+                "type_conge": cc.type_conge,
+                "statut": cc.statut,
+            }
+            for cc in conflits
+        ]
+
     # Salariés inactifs (pour le tableau en dessous)
     salaries_inactifs = User.query.filter_by(actif=False).order_by(User.nom).all()
     salaries_data_inactifs = []
@@ -138,6 +159,7 @@ def dashboard():
         calendar_events=calendar_events,
         conges_exercice_rows=conges_exercice_rows,
         demandes_attente=demandes_attente,
+        conflits_par_conge=conflits_par_conge,
         today=today,
         compta_31_03=compta_31_03,
         compta_30_09=compta_30_09,

@@ -69,6 +69,33 @@ def compter_jours_ouvrables_avec_demi(date_debut, date_fin, demi_debut=None, dem
     return max(0.0, total)
 
 
+def conges_chevauchant(
+    date_debut,
+    date_fin,
+    *,
+    exclure_user_id=None,
+    statuts=("valide", "en_attente_responsable", "en_attente_rh"),
+):
+    """Liste les congés actifs (validés ou en attente) qui chevauchent une période.
+
+    Utilisé pour montrer "qui d'autre est absent" au responsable/RH au moment
+    de valider une demande.
+
+    Args:
+        date_debut, date_fin : période à inspecter.
+        exclure_user_id : exclut les congés de ce user (typiquement le demandeur).
+        statuts : statuts considérés comme "actifs" (par défaut : validés + en attente).
+    """
+    q = Conge.query.filter(
+        Conge.date_debut <= date_fin,
+        Conge.date_fin >= date_debut,
+        Conge.statut.in_(statuts),
+    )
+    if exclure_user_id is not None:
+        q = q.filter(Conge.user_id != exclure_user_id)
+    return q.order_by(Conge.date_debut).all()
+
+
 def detecter_chevauchement(user_id, date_debut, date_fin, conge_id_exclu=None):
     """Détecte si un congé chevauche un congé existant (validé ou en attente) pour un utilisateur.
     Retourne le congé en conflit ou None.

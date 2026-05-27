@@ -41,6 +41,32 @@ def dashboard():
         .order_by(Conge.cree_le.asc()).all()
     ) if subordonne_ids else []
 
+    # Conflits équipe : pour chaque demande, qui d'autre dans l'équipe est absent
+    # sur la période ? Restreint au périmètre de subordonnés effectifs.
+    from services.calcul_jours import conges_chevauchant
+    conflits_par_conge = {}
+    for c in demandes_attente:
+        if not subordonne_ids:
+            conflits_par_conge[c.id] = []
+            continue
+        conflits = conges_chevauchant(
+            c.date_debut, c.date_fin, exclure_user_id=c.user_id
+        )
+        # On ne garde que les collègues du périmètre du responsable.
+        conflits_filtres = [cc for cc in conflits if cc.user_id in subordonne_ids]
+        conflits_par_conge[c.id] = [
+            {
+                "salarie": (
+                    f"{cc.utilisateur.prenom} {cc.utilisateur.nom}"
+                    if cc.utilisateur else "?"
+                ),
+                "periode": f"{cc.date_debut.strftime('%d/%m')} → {cc.date_fin.strftime('%d/%m')}",
+                "type_conge": cc.type_conge,
+                "statut": cc.statut,
+            }
+            for cc in conflits_filtres
+        ]
+
     today = date.today()
     start_of_year = date(today.year, 1, 1)
     end_of_year = date(today.year, 12, 31)
@@ -67,6 +93,7 @@ def dashboard():
         "responsable/dashboard.html",
         solde=solde_info,
         demandes_attente=demandes_attente,
+        conflits_par_conge=conflits_par_conge,
         subordonnes=subordonnes_actifs,
         calendar_events=calendar_events,
     )
