@@ -6,8 +6,7 @@ from models import db
 from models.conge import Conge
 from models.user import User
 from models.heures_payees import HeuresPayees
-from services.solde import calculer_solde, get_allocation, get_parametrage_actif, verifier_solde_rtt_suffisant, verifier_solde_suffisant
-from services.calcul_jours import compter_jours_ouvrables, detecter_chevauchement
+from services.solde import calculer_solde, get_allocation, get_parametrage_actif
 from services.export import export_conges_excel, export_conges_pdf
 from services.heures_rtt import calculer_rtt_depuis_heures
 
@@ -25,97 +24,39 @@ def demander_conge():
     solde_info = calculer_solde(current_user.id)
 
     if request.method == "POST":
-        try:
-            date_debut = datetime.strptime(request.form["date_debut"], "%Y-%m-%d").date()
-            date_fin = datetime.strptime(request.form["date_fin"], "%Y-%m-%d").date()
-        except (ValueError, KeyError):
-            flash("Dates invalides.", "error")
-            return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        if date_fin < date_debut:
-            flash("La date de fin doit être postérieure à la date de début.", "error")
-            return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        type_conge = request.form.get("type_conge", "").strip()
-        
-        types_standards = {"CP", "RTT", "Sans solde"}
-        if type_conge not in types_standards:
-            flash("Merci de sélectionner un type de congé.", "error")
-            return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        commentaire = request.form.get("commentaire", "").strip()
-
-        nb_jours = compter_jours_ouvrables(date_debut, date_fin)
-        if nb_jours == 0:
-            flash("Aucun jour ouvrable dans la période sélectionnée.", "error")
-            return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        chevauchement = detecter_chevauchement(current_user.id, date_debut, date_fin)
-        if chevauchement:
-            flash(
-                f"Chevauchement avec un congé existant ({chevauchement.date_debut.strftime('%d/%m/%Y')} - "
-                f"{chevauchement.date_fin.strftime('%d/%m/%Y')}).",
-                "error",
-            )
-            return render_template("salarie/demander_conge.html", solde=solde_info)
-
-        nb_heures_rtt = None
-        nb_heures_exceptionnelles = None
-
-        if type_conge == "CP":
-            # Solde négatif autorisé : on prévient sans bloquer.
-            solde_apres = solde_info["solde_restant"] - nb_jours
-            if solde_apres < 0:
-                flash(
-                    f"Attention : votre solde CP sera négatif après cette demande ({solde_apres} jour(s)). "
-                    f"La demande est tout de même envoyée pour validation.",
-                    "warning",
-                )
-
-        elif type_conge == "RTT":
-            try:
-                nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
-            except ValueError:
-                nb_heures_rtt_val = 0
-            if nb_heures_rtt_val <= 0:
-                flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
-                return render_template("salarie/demander_conge.html", solde=solde_info)
-
-            rtt_apres = solde_info.get("rtt_solde_restant", 0) - nb_heures_rtt_val
-            if rtt_apres < 0:
-                flash(
-                    f"Attention : votre solde RTT sera négatif après cette demande ({rtt_apres} heure(s)). "
-                    f"La demande est tout de même envoyée pour validation.",
-                    "warning",
-                )
-
-            nb_heures_rtt = nb_heures_rtt_val
+        from services.creer_conge import construire_conge, MODE_SALARIE
         statut_initial = "en_attente_responsable" if current_user.responsable_id else "en_attente_rh"
-        conge = Conge(
-            user_id=current_user.id,
-            date_debut=date_debut,
-            date_fin=date_fin,
-            nb_jours_ouvrables=nb_jours,
-            type_conge=type_conge,
-            commentaire=commentaire,
-            statut=statut_initial,
-            nb_heures_rtt=nb_heures_rtt,
-            nb_heures_exceptionnelles=nb_heures_exceptionnelles,
+        result = construire_conge(
+            current_user,
+            request.form,
+            mode=MODE_SALARIE,
+            statut_initial=statut_initial,
         )
-        db.session.add(conge)
+
+        for category, message in result.flashes:
+            flash(message, category)
+
+        if not result.success:
+            return render_template("salarie/demander_conge.html", solde=solde_info)
+
+        db.session.add(result.conge)
         db.session.commit()
 
-        from services.notifications import notifier_responsable_nouvelle_demande, notifier_rh_nouvelle_demande
+        from services.notifications import (
+            notifier_responsable_nouvelle_demande,
+            notifier_rh_nouvelle_demande,
+        )
         if current_user.responsable_id:
-            notifier_responsable_nouvelle_demande(conge)
+            notifier_responsable_nouvelle_demande(result.conge)
+            flash(
+                "Demande de congé envoyée à votre responsable. Après sa validation, elle sera transmise aux RH.",
+                "success",
+            )
         else:
-            notifier_rh_nouvelle_demande(conge)
-        db.session.commit()
-
-        if current_user.responsable_id:
-            flash("Demande de congé envoyée à votre responsable. Après sa validation, elle sera transmise aux RH.", "success")
-        else:
+            notifier_rh_nouvelle_demande(result.conge)
             flash("Demande de congé envoyée. Elle sera traitée par les RH.", "success")
+        db.session.commit()
+
         return redirect(url_for("salarie.accueil"))
 
     return render_template("salarie/demander_conge.html", solde=solde_info)
