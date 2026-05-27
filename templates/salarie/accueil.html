@@ -38,9 +38,14 @@
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
     <div class="bg-white rounded-xl shadow p-6">
         <div class="text-sm font-medium text-gray-500">Solde CP restant</div>
-        <div class="text-4xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
+        <div class="text-4xl font-bold {% if solde.solde_restant < 0 %}text-red-600{% elif solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
             {{ solde.solde_restant }}
         </div>
+        {% if solde.cp_en_attente and solde.cp_en_attente > 0 %}
+        <div class="text-xs font-medium text-amber-700 mt-1">
+            {{ solde.cp_en_attente }} jour(s) en attente · solde projeté : <span class="{% if solde.solde_projete < 0 %}text-red-600 font-semibold{% endif %}">{{ solde.solde_projete }}</span>
+        </div>
+        {% endif %}
         <div class="text-xs text-gray-400 mt-1">
             Congés restants (CP / ancienneté) : {{ solde.solde_restant }}
             {% if solde.rtt_total_alloue is defined %}
@@ -102,6 +107,10 @@
         </div>
         <div class="text-xs text-gray-400 mt-1">
             Restant : {{ solde.rtt_solde_restant|default(0) }} heure(s)
+            {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}
+                · <span class="text-amber-700 font-medium">{{ solde.rtt_en_attente }} h en attente</span>
+                (projeté : <span class="{% if solde.rtt_solde_projete < 0 %}text-red-600 font-semibold{% endif %}">{{ solde.rtt_solde_projete }} h</span>)
+            {% endif %}
         </div>
     </div>
 </div>

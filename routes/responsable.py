@@ -178,13 +178,13 @@ def ajouter_conge_subordonne(user_id):
         nb_heures_rtt = None
 
         if type_conge in ("CP", "Anciennete"):
-            if not verifier_solde_suffisant(user.id, nb_jours):
+            # Solde négatif autorisé : on informe sans bloquer.
+            solde_apres = solde_info["solde_restant"] - nb_jours
+            if solde_apres < 0:
                 flash(
-                    f"Solde CP insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
-                    f"{nb_jours} jour(s) demandé(s).",
-                    "error",
+                    f"Solde CP de {user.prenom} {user.nom} négatif après cette demande : {solde_apres} jour(s).",
+                    "warning",
                 )
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
         elif type_conge == "RTT":
             try:
                 nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
@@ -193,14 +193,12 @@ def ajouter_conge_subordonne(user_id):
             if nb_heures_rtt_val <= 0:
                 flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
                 return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
-            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+            rtt_apres = solde_info.get("rtt_solde_restant", 0) - nb_heures_rtt_val
+            if rtt_apres < 0:
                 flash(
-                    f"Solde RTT insuffisant. {solde_rtt} heure(s) restante(s), "
-                    f"{nb_heures_rtt_val} heure(s) demandée(s).",
-                    "error",
+                    f"Solde RTT de {user.prenom} {user.nom} négatif après cette demande : {rtt_apres} heure(s).",
+                    "warning",
                 )
-                return render_template("responsable/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
             nb_heures_rtt = nb_heures_rtt_val
         elif exc_code and exc_type:
             nb_heures_exceptionnelles = None

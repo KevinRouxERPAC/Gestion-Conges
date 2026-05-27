@@ -63,12 +63,14 @@ def demander_conge():
         nb_heures_exceptionnelles = None
 
         if type_conge == "CP":
-            if not verifier_solde_suffisant(current_user.id, nb_jours):
+            # Solde négatif autorisé : on prévient sans bloquer.
+            solde_apres = solde_info["solde_restant"] - nb_jours
+            if solde_apres < 0:
                 flash(
-                    f"Solde CP insuffisant. Reste {solde_info['solde_restant']} jour(s), vous en demandez {nb_jours}.",
-                    "error",
+                    f"Attention : votre solde CP sera négatif après cette demande ({solde_apres} jour(s)). "
+                    f"La demande est tout de même envoyée pour validation.",
+                    "warning",
                 )
-                return render_template("salarie/demander_conge.html", solde=solde_info)
 
         elif type_conge == "RTT":
             try:
@@ -79,13 +81,13 @@ def demander_conge():
                 flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
                 return render_template("salarie/demander_conge.html", solde=solde_info)
 
-            if not verifier_solde_rtt_suffisant(current_user.id, nb_heures_rtt_val):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+            rtt_apres = solde_info.get("rtt_solde_restant", 0) - nb_heures_rtt_val
+            if rtt_apres < 0:
                 flash(
-                    f"Solde RTT insuffisant. Reste {solde_rtt} heure(s), vous en demandez {nb_heures_rtt_val}.",
-                    "error",
+                    f"Attention : votre solde RTT sera négatif après cette demande ({rtt_apres} heure(s)). "
+                    f"La demande est tout de même envoyée pour validation.",
+                    "warning",
                 )
-                return render_template("salarie/demander_conge.html", solde=solde_info)
 
             nb_heures_rtt = nb_heures_rtt_val
         statut_initial = "en_attente_responsable" if current_user.responsable_id else "en_attente_rh"

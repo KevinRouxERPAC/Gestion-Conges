@@ -13,7 +13,7 @@ class TestGestionUtilisateurs:
             "nom": "Nouveau",
             "prenom": "Test",
             "identifiant": "nouveau1",
-            "mot_de_passe": "test123",
+            "mot_de_passe": "motdepasse-solide",
             "role": "salarie",
             "responsable_id": str(users["responsable"].id),
         }, follow_redirects=True)
@@ -24,6 +24,32 @@ class TestGestionUtilisateurs:
         assert u.nom == "Nouveau"
         assert u.role == "salarie"
         assert u.responsable_id == users["responsable"].id
+
+    def test_creer_salarie_mdp_trop_court_refuse(self, client, db_session, users):
+        """Le mot de passe doit respecter la politique (8 caractères min)."""
+        login(client, "rh1", "rh123")
+        resp = client.post("/rh/salarie/nouveau", data={
+            "nom": "Court",
+            "prenom": "MDP",
+            "identifiant": "courtmdp",
+            "mot_de_passe": "abc",
+            "role": "salarie",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert User.query.filter_by(identifiant="courtmdp").first() is None
+
+    def test_creer_salarie_role_invalide_refuse(self, client, db_session, users):
+        """Un rôle hors liste blanche doit être rejeté (évite escalade de privilèges)."""
+        login(client, "rh1", "rh123")
+        resp = client.post("/rh/salarie/nouveau", data={
+            "nom": "Pirate",
+            "prenom": "Test",
+            "identifiant": "pirate1",
+            "mot_de_passe": "motdepasse-solide",
+            "role": "admin",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        assert User.query.filter_by(identifiant="pirate1").first() is None
 
     def test_modifier_salarie(self, client, db_session, users):
         login(client, "rh1", "rh123")
@@ -82,7 +108,8 @@ class TestAjoutCongeRH:
         assert conge is not None
         assert conge.nb_heures_rtt == 4
 
-    def test_ajouter_conge_solde_insuffisant(self, client, db_session, users, parametrage, allocations):
+    def test_ajouter_conge_solde_negatif_autorise(self, client, db_session, users, parametrage, allocations):
+        """Le solde peut devenir négatif : la création n'est pas bloquée, un avertissement est affiché."""
         login(client, "rh1", "rh123")
         resp = client.post(f"/rh/salarie/{users['salarie'].id}/conge/ajouter", data={
             "date_debut": "2026-01-05",
@@ -90,7 +117,16 @@ class TestAjoutCongeRH:
             "type_conge": "CP",
         }, follow_redirects=True)
         assert resp.status_code == 200
-        assert b"insuffisant" in resp.data
+        # Avertissement de solde négatif
+        assert "négatif".encode("utf-8") in resp.data
+        # Le congé a bien été créé
+        conge = (
+            Conge.query.filter_by(user_id=users["salarie"].id, type_conge="CP")
+            .order_by(Conge.id.desc())
+            .first()
+        )
+        assert conge is not None
+        assert conge.statut == "valide"
 
 
 class TestModificationAllocation:
@@ -114,8 +150,8 @@ class TestModificationAllocation:
 
 
 class TestValidationCongeRH:
-    def test_validation_verifie_solde(self, client, db_session, users, parametrage, allocations):
-        """La validation RH vérifie aussi le solde CP."""
+    def test_validation_solde_negatif_passe(self, client, db_session, users, parametrage, allocations):
+        """La validation RH n'est pas bloquée par un solde négatif (signalé en avertissement)."""
         for i in range(3):
             c = Conge(
                 user_id=users["salarie"].id,
@@ -142,7 +178,9 @@ class TestValidationCongeRH:
         login(client, "rh1", "rh123")
         resp = client.post(f"/rh/conge/{conge_test.id}/valider", follow_redirects=True)
         assert resp.status_code == 200
-        assert b"insuffisant" in resp.data
+        # Avertissement de solde négatif présent dans la réponse
+        assert "négatif".encode("utf-8") in resp.data
 
         db_session.session.refresh(conge_test)
-        assert conge_test.statut == "en_attente_rh"
+        # Le congé est validé malgré le solde négatif
+        assert conge_test.statut == "valide"

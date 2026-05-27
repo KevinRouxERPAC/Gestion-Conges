@@ -206,13 +206,16 @@
                     <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
                 </td>
                 <td class="px-6 py-4">
-                    <span class="text-lg font-bold {% if data.solde.solde_restant <= 5 %}text-red-600{% elif data.solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+                    <span class="text-lg font-bold {% if data.solde.solde_restant < 0 %}text-red-600{% elif data.solde.solde_restant <= 5 %}text-red-600{% elif data.solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
                         {{ data.solde.solde_restant }}
                     </span>
                     <span class="text-sm text-gray-500">jour(s)</span>
+                    {% if data.solde.cp_en_attente and data.solde.cp_en_attente > 0 %}
+                        <div class="text-xs text-amber-700 font-medium">{{ data.solde.cp_en_attente }} j en attente</div>
+                    {% endif %}
                     {% if data.solde.rtt_total_alloue is defined %}
                         <div class="text-xs text-gray-500">
-                            RTT : {{ data.solde.rtt_solde_restant }} h restantes
+                            RTT : {{ data.solde.rtt_solde_restant }} h restantes{% if data.solde.rtt_en_attente and data.solde.rtt_en_attente > 0 %} · <span class="text-amber-700">{{ data.solde.rtt_en_attente }} h en attente</span>{% endif %}
                         </div>
                     {% endif %}
                 </td>

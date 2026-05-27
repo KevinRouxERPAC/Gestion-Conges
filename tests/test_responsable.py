@@ -72,8 +72,8 @@ class TestAjoutCongeParResponsable:
         assert resp.status_code == 200
         assert b"pas dans votre" in resp.data or b"quipe" in resp.data
 
-    def test_solde_insuffisant_bloque(self, client, db_session, users, parametrage, allocations):
-        """Ajout refusé si solde CP insuffisant."""
+    def test_solde_negatif_autorise(self, client, db_session, users, parametrage, allocations):
+        """Solde négatif autorisé : ajout effectué + avertissement, congé envoyé en attente RH."""
         login(client, "resp1", "resp123")
         resp = client.post(
             f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
@@ -85,4 +85,8 @@ class TestAjoutCongeParResponsable:
             follow_redirects=True,
         )
         assert resp.status_code == 200
-        assert b"insuffisant" in resp.data
+        assert "négatif".encode("utf-8") in resp.data
+        from models.conge import Conge as _C
+        conge = _C.query.filter_by(user_id=users["salarie"].id, type_conge="CP").order_by(_C.id.desc()).first()
+        assert conge is not None
+        assert conge.statut == "en_attente_rh"

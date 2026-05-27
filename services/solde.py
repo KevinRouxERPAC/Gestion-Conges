@@ -29,8 +29,11 @@ def _get_param(parametrage_id):
     return get_parametrage_actif()
 
 
+_STATUTS_EN_ATTENTE = ("en_attente_responsable", "en_attente_rh")
+
+
 def calculer_jours_cps_consommes(user_id, parametrage_id=None):
-    """Calcule le nombre de jours consommés (CP + Ancienneté) pour l'exercice actif."""
+    """Calcule le nombre de jours consommés (CP + Ancienneté) pour l'exercice actif (validés uniquement)."""
     param = _get_param(parametrage_id)
     if param is None:
         return 0
@@ -46,8 +49,25 @@ def calculer_jours_cps_consommes(user_id, parametrage_id=None):
     return result
 
 
+def calculer_jours_cps_en_attente(user_id, parametrage_id=None):
+    """Jours CP/Ancienneté en attente de validation (responsable ou RH) pour l'exercice actif."""
+    param = _get_param(parametrage_id)
+    if param is None:
+        return 0
+
+    result = db.session.query(func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0)).filter(
+        Conge.user_id == user_id,
+        Conge.date_debut >= param.debut_exercice,
+        Conge.date_fin <= param.fin_exercice,
+        Conge.type_conge.in_(["CP", "Anciennete"]),
+        Conge.statut.in_(_STATUTS_EN_ATTENTE),
+    ).scalar()
+
+    return result
+
+
 def calculer_heures_rtt_consommes(user_id, parametrage_id=None):
-    """Calcule le nombre d'heures RTT consommées pour l'exercice actif."""
+    """Calcule le nombre d'heures RTT consommées pour l'exercice actif (validés uniquement)."""
     param = _get_param(parametrage_id)
     if param is None:
         return 0
@@ -63,8 +83,29 @@ def calculer_heures_rtt_consommes(user_id, parametrage_id=None):
     return result
 
 
+def calculer_heures_rtt_en_attente(user_id, parametrage_id=None):
+    """Heures RTT en attente de validation (responsable ou RH) pour l'exercice actif."""
+    param = _get_param(parametrage_id)
+    if param is None:
+        return 0
+
+    result = db.session.query(func.coalesce(func.sum(Conge.nb_heures_rtt), 0)).filter(
+        Conge.user_id == user_id,
+        Conge.date_debut >= param.debut_exercice,
+        Conge.date_fin <= param.fin_exercice,
+        Conge.type_conge == "RTT",
+        Conge.statut.in_(_STATUTS_EN_ATTENTE),
+    ).scalar()
+
+    return result
+
+
 def calculer_solde(user_id, parametrage_id=None):
-    """Calcule les soldes restant d'un utilisateur pour CP (jours) et RTT (heures)."""
+    """Calcule les soldes restants d'un utilisateur pour CP (jours) et RTT (heures).
+
+    Inclut les demandes en attente pour transparence (clés *_en_attente). Le solde
+    autorisé peut être négatif : c'est un avertissement, pas un blocage.
+    """
     allocation = get_allocation(user_id, parametrage_id)
     if allocation is None:
         return {
@@ -74,20 +115,26 @@ def calculer_solde(user_id, parametrage_id=None):
             "jours_report": 0,
             "total_consomme": 0,
             "solde_restant": 0,
+            "cp_en_attente": 0,
+            "solde_projete": 0,
             "rtt_heures_allouees": 0,
             "rtt_heures_reportees": 0,
             "rtt_total_alloue": 0,
             "rtt_total_consomme": 0,
             "rtt_solde_restant": 0,
+            "rtt_en_attente": 0,
+            "rtt_solde_projete": 0,
         }
 
     pid = allocation.parametrage_id
 
     cp_consomme = calculer_jours_cps_consommes(user_id, pid)
+    cp_en_attente = calculer_jours_cps_en_attente(user_id, pid)
     cp_total = allocation.total_jours
 
     rtt_total = allocation.total_rtt_heures
     rtt_consomme = calculer_heures_rtt_consommes(user_id, pid)
+    rtt_en_attente = calculer_heures_rtt_en_attente(user_id, pid)
 
     return {
         # CP (jours) - clés compatibles avec l'existant
@@ -97,12 +144,16 @@ def calculer_solde(user_id, parametrage_id=None):
         "jours_report": allocation.jours_report,
         "total_consomme": cp_consomme,
         "solde_restant": cp_total - cp_consomme,
+        "cp_en_attente": cp_en_attente,
+        "solde_projete": cp_total - cp_consomme - cp_en_attente,
         # RTT (heures)
         "rtt_heures_allouees": allocation.rtt_heures_allouees,
         "rtt_heures_reportees": allocation.rtt_heures_reportees,
         "rtt_total_alloue": rtt_total,
         "rtt_total_consomme": rtt_consomme,
         "rtt_solde_restant": rtt_total - rtt_consomme,
+        "rtt_en_attente": rtt_en_attente,
+        "rtt_solde_projete": rtt_total - rtt_consomme - rtt_en_attente,
     }
 
 

@@ -32,9 +32,14 @@
 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
     <div class="bg-white rounded-xl shadow p-5">
         <div class="text-sm text-gray-500">Solde CP restant</div>
-        <div class="text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+        <div class="text-3xl font-bold {% if solde.solde_restant < 0 %}text-red-600{% elif solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
             {{ solde.solde_restant }} <span class="text-base text-gray-500">jour(s)</span>
         </div>
+        {% if solde.cp_en_attente and solde.cp_en_attente > 0 %}
+        <div class="text-xs text-amber-700 mt-1">
+            {{ solde.cp_en_attente }} j en attente · projeté : <span class="{% if solde.solde_projete < 0 %}text-red-600 font-semibold{% endif %}">{{ solde.solde_projete }}</span>
+        </div>
+        {% endif %}
     </div>
     <div class="bg-white rounded-xl shadow p-5">
         <div class="text-sm text-gray-500">Total CP alloué</div>
@@ -53,6 +58,9 @@
         {% if solde.rtt_total_alloue is defined %}
         <div class="text-xs text-gray-500 mt-2">
             RTT allouées : {{ solde.rtt_total_alloue }} h · RTT consommées : {{ solde.rtt_total_consomme }} h · RTT restantes : {{ solde.rtt_solde_restant }} h
+            {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}
+            · <span class="text-amber-700 font-medium">{{ solde.rtt_en_attente }} h en attente</span>
+            {% endif %}
         </div>
         {% endif %}
     </div>

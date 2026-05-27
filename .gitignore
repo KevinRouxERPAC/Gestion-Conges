@@ -11,6 +11,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Sorties pytest
+pytest_out.txt
+.pytest_cache/
+
 # IDE / OS
 .idea/
 .vscode/

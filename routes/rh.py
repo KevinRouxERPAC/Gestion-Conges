@@ -2,7 +2,7 @@ from datetime import datetime, timezone, date
 from functools import wraps
 
 import bcrypt
-from services.auth_utils import hash_password
+from services.auth_utils import hash_password, normaliser_role, valider_mot_de_passe
 from flask import Blueprint, render_template, redirect, url_for, request, flash, send_file
 from flask_login import login_required, current_user
 
@@ -220,13 +220,13 @@ def ajouter_conge(user_id):
         nb_heures_exceptionnelles = None
 
         if type_conge in ("CP", "Anciennete"):
-            if not verifier_solde_suffisant(user.id, nb_jours):
+            # Solde négatif autorisé : on informe sans bloquer.
+            solde_apres = solde_info["solde_restant"] - nb_jours
+            if solde_apres < 0:
                 flash(
-                    f"Solde CP insuffisant. {solde_info['solde_restant']} jour(s) restant(s), "
-                    f"{nb_jours} jour(s) demandé(s).",
-                    "error",
+                    f"Solde CP négatif après cette demande : {solde_apres} jour(s).",
+                    "warning",
                 )
-                return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
         elif type_conge == "RTT":
             try:
                 nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", "0"))
@@ -236,14 +236,12 @@ def ajouter_conge(user_id):
                 flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
                 return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
-            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+            rtt_apres = solde_info.get("rtt_solde_restant", 0) - nb_heures_rtt_val
+            if rtt_apres < 0:
                 flash(
-                    f"Solde RTT insuffisant. {solde_rtt} heure(s) restant(s), "
-                    f"{nb_heures_rtt_val} heure(s) demandé(s).",
-                    "error",
+                    f"Solde RTT négatif après cette demande : {rtt_apres} heure(s).",
+                    "warning",
                 )
-                return render_template("rh/ajouter_conge.html", salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
             nb_heures_rtt = nb_heures_rtt_val
         elif exc_code and exc_type:
@@ -278,6 +276,10 @@ def ajouter_conge(user_id):
             nb_heures_exceptionnelles=nb_heures_exceptionnelles if exc_code else None,
         )
         db.session.add(conge)
+        db.session.commit()
+
+        # Le congé est créé directement validé par le RH : on informe le salarié (B9).
+        notifier_conge_valide(conge)
         db.session.commit()
 
         flash(f"Congé ajouté : {nb_jours} jour(s) ouvrable(s).", "success")
@@ -340,9 +342,14 @@ def modifier_conge(conge_id):
         nb_heures_exceptionnelles = None
 
         if type_conge in ("CP", "Anciennete"):
-            if not verifier_solde_suffisant(user.id, nb_jours, conge_id_exclu=conge.id):
-                flash("Solde CP insuffisant pour cette modification.", "error")
-                return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
+            # Solde négatif autorisé : on informe sans bloquer.
+            jours_actuels = conge.nb_jours_ouvrables if conge.statut == "valide" and conge.type_conge in ("CP", "Anciennete") else 0
+            solde_apres = solde_info["solde_restant"] + jours_actuels - nb_jours
+            if solde_apres < 0:
+                flash(
+                    f"Solde CP négatif après cette modification : {solde_apres} jour(s).",
+                    "warning",
+                )
         elif type_conge == "RTT":
             try:
                 nb_heures_rtt_val = int(request.form.get("nb_heures_rtt", str(conge.nb_heures_rtt or 0)))
@@ -352,14 +359,13 @@ def modifier_conge(conge_id):
                 flash("Merci de saisir un nombre d'heures RTT valide (>= 1).", "error")
                 return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
-            if not verifier_solde_rtt_suffisant(user.id, nb_heures_rtt_val, conge_id_exclu=conge.id):
-                solde_rtt = solde_info.get("rtt_solde_restant", 0)
+            heures_actuelles = conge.nb_heures_rtt if conge.statut == "valide" and conge.type_conge == "RTT" else 0
+            rtt_apres = solde_info.get("rtt_solde_restant", 0) + (heures_actuelles or 0) - nb_heures_rtt_val
+            if rtt_apres < 0:
                 flash(
-                    f"Solde RTT insuffisant pour cette modification. {solde_rtt} heure(s) restant(s), "
-                    f"{nb_heures_rtt_val} heure(s) demandé(s).",
-                    "error",
+                    f"Solde RTT négatif après cette modification : {rtt_apres} heure(s).",
+                    "warning",
                 )
-                return render_template("rh/modifier_conge.html", conge=conge, salarie=user, solde=solde_info, types_exceptionnels=types_exceptionnels)
 
             nb_heures_rtt = nb_heures_rtt_val
         elif exc_code and exc_type:
@@ -406,20 +412,43 @@ def supprimer_conge(conge_id):
 @rh_bp.route("/conge/<int:conge_id>/valider", methods=["POST"])
 @rh_required
 def valider_conge(conge_id):
-    """Valider une demande de congé en attente."""
+    """Valider une demande de congé en attente. Solde CP/RTT peut être négatif (informatif).
+    Pour un congé exceptionnel, on re-vérifie le plafond car la consommation peut avoir bougé
+    entre la soumission et la validation RH.
+    """
     conge = Conge.query.get_or_404(conge_id)
     if conge.statut != "en_attente_rh":
         flash("Ce congé n'est pas en attente de validation RH.", "warning")
         return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
 
+    # Plafond exceptionnel : seul cas où on bloque réellement à la validation.
+    from services.conges_exceptionnels import parse_code, get_type_exceptionnel, verifier_plafond
+    exc_code = parse_code(conge.type_conge)
+    if exc_code:
+        exc_type = get_type_exceptionnel(exc_code)
+        if exc_type and exc_type.plafond_annuel is not None:
+            if exc_type.unite == "heures":
+                quantite = conge.nb_heures_exceptionnelles or 0
+            else:
+                quantite = conge.nb_jours_ouvrables or 0
+            if not verifier_plafond(conge.user_id, exc_type, quantite, conge_id_exclu=conge.id):
+                flash(
+                    f"Plafond annuel dépassé pour « {exc_type.libelle} » : impossible de valider.",
+                    "error",
+                )
+                return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+
+    # CP/RTT : solde négatif autorisé, on signale uniquement.
     if conge.type_conge in ("CP", "Anciennete"):
-        if not verifier_solde_suffisant(conge.user_id, conge.nb_jours_ouvrables):
-            flash("Solde CP insuffisant pour valider ce congé.", "error")
-            return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+        solde_info = calculer_solde(conge.user_id)
+        solde_apres = solde_info["solde_restant"] - (conge.nb_jours_ouvrables or 0)
+        if solde_apres < 0:
+            flash(f"Validation effectuée. Solde CP négatif : {solde_apres} jour(s).", "warning")
     elif conge.type_conge == "RTT":
-        if not verifier_solde_rtt_suffisant(conge.user_id, conge.nb_heures_rtt or 0):
-            flash("Solde RTT insuffisant pour valider ce congé.", "error")
-            return redirect(url_for("rh.salarie_detail", user_id=conge.user_id))
+        solde_info = calculer_solde(conge.user_id)
+        rtt_apres = solde_info.get("rtt_solde_restant", 0) - (conge.nb_heures_rtt or 0)
+        if rtt_apres < 0:
+            flash(f"Validation effectuée. Solde RTT négatif : {rtt_apres} heure(s).", "warning")
 
     conge.statut = "valide"
     conge.valide_par_id = current_user.id
@@ -731,11 +760,20 @@ def creer_salarie():
         prenom = request.form.get("prenom", "").strip()
         identifiant = request.form.get("identifiant", "").strip()
         mot_de_passe = request.form.get("mot_de_passe", "")
-        role = request.form.get("role", "salarie").strip() or "salarie"
+        role = normaliser_role(request.form.get("role", "salarie"))
         date_embauche_str = request.form.get("date_embauche", "").strip()
 
         if not nom or not prenom or not identifiant or not mot_de_passe:
             flash("Nom, prénom, identifiant et mot de passe sont obligatoires.", "error")
+            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+        if role is None:
+            flash("Rôle invalide.", "error")
+            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+
+        err_pwd = valider_mot_de_passe(mot_de_passe)
+        if err_pwd:
+            flash(err_pwd, "error")
             return render_template("rh/salarie_form.html", salarie=None, mode="create")
 
         existing = User.query.filter_by(identifiant=identifiant).first()
@@ -784,13 +822,23 @@ def modifier_salarie(user_id):
         prenom = request.form.get("prenom", "").strip()
         identifiant = request.form.get("identifiant", "").strip()
         mot_de_passe = request.form.get("mot_de_passe", "")
-        role = request.form.get("role", "salarie").strip() or "salarie"
+        role = normaliser_role(request.form.get("role", "salarie"))
         date_embauche_str = request.form.get("date_embauche", "").strip()
         actif_str = request.form.get("actif", "off")
 
         if not nom or not prenom or not identifiant:
             flash("Nom, prénom et identifiant sont obligatoires.", "error")
             return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
+
+        if role is None:
+            flash("Rôle invalide.", "error")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
+
+        if mot_de_passe:
+            err_pwd = valider_mot_de_passe(mot_de_passe)
+            if err_pwd:
+                flash(err_pwd, "error")
+                return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
         existing = User.query.filter(
             User.identifiant == identifiant,

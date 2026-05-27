@@ -6,9 +6,15 @@
     <a href="{{ url_for('salarie.accueil') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour à mes congés</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Demander un congé</h1>
     <p class="text-gray-500">
-        Solde CP : <strong>{{ solde.solde_restant }}</strong> jour(s) restant(s)
+        Solde CP : <strong class="{% if solde.solde_restant < 0 %}text-red-600{% endif %}">{{ solde.solde_restant }}</strong> jour(s) restant(s)
+        {% if solde.cp_en_attente and solde.cp_en_attente > 0 %}
+            <span class="text-amber-700">({{ solde.cp_en_attente }} j en attente · projeté : <strong class="{% if solde.solde_projete < 0 %}text-red-600{% endif %}">{{ solde.solde_projete }}</strong>)</span>
+        {% endif %}
         {% if solde.rtt_total_alloue is defined %}
-            · Solde RTT : <strong>{{ solde.rtt_solde_restant }}</strong> heure(s) restante(s)
+            · Solde RTT : <strong class="{% if solde.rtt_solde_restant < 0 %}text-red-600{% endif %}">{{ solde.rtt_solde_restant }}</strong> heure(s) restante(s)
+            {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}
+                <span class="text-amber-700">({{ solde.rtt_en_attente }} h en attente)</span>
+            {% endif %}
         {% endif %}
     </p>
 </div>
