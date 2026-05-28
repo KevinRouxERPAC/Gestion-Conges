@@ -118,19 +118,23 @@ def create_app():
 
         Politique adaptée à un intranet :
         - default-src 'self' : tout doit venir du même domaine.
-        - 'unsafe-inline' sur script-src + style-src : compromis pour rester
-          compatible avec Alpine.js et les <script>/style inline existants.
-          Une refactorisation pour utiliser des nonces serait préférable, mais
-          le risque XSS reste limité grâce à l'échappement Jinja + CSRF.
+        - 'unsafe-inline' + 'unsafe-eval' sur script-src : compromis nécessaire
+          car Alpine.js v3 (build standard) et FullCalendar compilent leurs
+          expressions/templates via `new Function(...)` ; sans 'unsafe-eval'
+          la navigation et les calendriers sont cassés. Une refactorisation
+          vers Alpine CSP build + nonces serait préférable, mais le risque
+          XSS reste limité grâce à l'échappement Jinja + CSRF.
+        - Google Fonts (fonts.googleapis.com + fonts.gstatic.com) autorisé
+          pour la feuille de style et les fichiers de police (Inter).
         - frame-ancestors 'none' : remplace X-Frame-Options DENY.
         - HSTS uniquement si PREFERRED_URL_SCHEME=https (cf. no_hsts ci-dessus).
         """
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline'; "
-            "style-src 'self' 'unsafe-inline'; "
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data:; "
-            "font-src 'self' data:; "
+            "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self'; "
             "frame-ancestors 'none'; "
             "base-uri 'self'; "

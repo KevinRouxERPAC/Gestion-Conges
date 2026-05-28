@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_macros.html" as M %}
 {% block title %}Calendrier des congés{% endblock %}
 
 {% block content %}
@@ -39,14 +40,29 @@
                     <span>Congés</span>
                 </label>
                 <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
-                    <input type="checkbox" name="type_filter" value="Sans solde" checked
+                    <input type="checkbox" name="type_filter" value="Anciennete" checked
                            class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
-                    <span>Sans solde</span>
+                    <span>Ancienneté</span>
                 </label>
                 <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
                     <input type="checkbox" name="type_filter" value="RTT" checked
                            class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
                     <span>RTT (heures)</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="Sans solde" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>Sans solde</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="Maladie" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>Maladie</span>
+                </label>
+                <label class="flex items-center gap-3 cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox" name="type_filter" value="Exceptionnel" checked
+                           class="rounded border-gray-300 text-erpac-primary focus:ring-erpac-primary">
+                    <span>Exceptionnel</span>
                 </label>
             </div>
         </div>
@@ -78,7 +94,7 @@
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         {% for e in events %}
-                        <tr data-type="{{ e.type }}">
+                        <tr data-type="{{ e.filter_group }}">
                             <td class="px-3 py-2 whitespace-nowrap">
                                 {{ e.label }}
                             </td>
@@ -90,14 +106,7 @@
                                 {% endif %}
                             </td>
                             <td class="px-3 py-2">
-                                <span class="px-2 py-1 rounded text-xs font-medium
-                                    {% if e.type == 'CP' %}bg-erpac-100 text-erpac-800
-                                    {% elif e.type == 'RTT' %}bg-purple-100 text-purple-800
-                                    {% elif e.type == 'Sans solde' %}bg-yellow-100 text-yellow-900
-
-                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                    {{ 'Congés' if e.type == 'CP' else e.type }}
-                                </span>
+                                {{ M.badge_type_conge(e.type) }}
                             </td>
                             <td class="px-3 py-2">
                                 {% if e.statut == 'valide' or not e.statut %}
@@ -129,6 +138,10 @@
                     <span>Congés</span>
                 </div>
                 <div class="flex items-center gap-2">
+                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #16a34a;"></span>
+                    <span>Ancienneté</span>
+                </div>
+                <div class="flex items-center gap-2">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #9333ea;"></span>
                     <span>RTT (heures)</span>
                 </div>
@@ -137,12 +150,12 @@
                     <span>Sans solde</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #16a34a;"></span>
-                    <span class="hidden">Ancienneté</span>
+                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #ef4444;"></span>
+                    <span>Maladie</span>
                 </div>
                 <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #6b7280;"></span>
-                    <span class="hidden">Autre</span>
+                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #6366f1;"></span>
+                    <span>Exceptionnel</span>
                 </div>
                 <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
                     <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #fef3c7; border: 2px dashed #f59e0b;"></span>
@@ -177,110 +190,169 @@
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
 <script type="application/json" id="calendar-events-data">{{ events|tojson }}</script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    var cb = document.getElementById('voir-tous');
-    if (cb) {
-        cb.addEventListener('change', function() {
-            window.location.href = this.checked ? this.dataset.urlTous : this.dataset.urlMoi;
+(function() {
+    function init() {
+        var cb = document.getElementById('voir-tous');
+        if (cb) {
+            cb.addEventListener('change', function() {
+                window.location.href = this.checked ? this.dataset.urlTous : this.dataset.urlMoi;
+            });
+        }
+
+        if (typeof FullCalendar === 'undefined') {
+            console.error('[calendrier] FullCalendar non chargé');
+            return;
+        }
+
+        var dataEl = document.getElementById('calendar-events-data');
+        var eventsData = [];
+        try {
+            eventsData = dataEl ? JSON.parse(dataEl.textContent) : [];
+        } catch (err) {
+            console.error('[calendrier] JSON événements invalide', err);
+            eventsData = [];
+        }
+
+        var typeColors = {
+            'CP': '#008C3A',
+            'Anciennete': '#16a34a',
+            'RTT': '#9333ea',
+            'Sans solde': '#f59e0b',
+            'Maladie': '#ef4444',
+            'default': '#6b7280'
+        };
+
+        function filterGroup(type) {
+            if (!type) return 'default';
+            if (type === 'CP' || type === 'Anciennete' || type === 'RTT'
+                || type === 'Sans solde' || type === 'Maladie') {
+                return type;
+            }
+            if (type.indexOf('EXC:') === 0) return 'Exceptionnel';
+            return 'default';
+        }
+
+        function colorFor(type) {
+            if (typeColors[type]) return typeColors[type];
+            if (type && type.indexOf('EXC:') === 0) return '#6366f1';
+            return typeColors['default'];
+        }
+
+        function displayType(type) {
+            if (type === 'CP') return 'Congés';
+            if (type === 'Anciennete') return 'Ancienneté';
+            if (type && type.indexOf('EXC:') === 0) return type.slice(4);
+            return type || '';
+        }
+
+        function addOneDayISO(iso) {
+            // Évite les pièges de fuseau : parse en composantes, ajoute 1 jour, ressort en YYYY-MM-DD.
+            var parts = (iso || '').split('-');
+            if (parts.length !== 3) return iso;
+            var d = new Date(Date.UTC(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+            d.setUTCDate(d.getUTCDate() + 1);
+            var y = d.getUTCFullYear();
+            var m = String(d.getUTCMonth() + 1).padStart(2, '0');
+            var j = String(d.getUTCDate()).padStart(2, '0');
+            return y + '-' + m + '-' + j;
+        }
+
+        function toCalendarEvent(e) {
+            var isEnAttente = e.statut === 'en_attente_responsable' || e.statut === 'en_attente_rh';
+            var color = colorFor(e.type);
+            var label = displayType(e.type);
+
+            var isRTT = e.type === 'RTT';
+            var unitValide = isRTT ? ((e.heures_rtt || 0) + ' h') : (e.jours + ' jour(s)');
+            var unitAttente = isRTT ? ((e.heures_rtt || 0) + ' h') : (e.jours + ' j');
+
+            var baseTitle = isEnAttente
+                ? (label + ' - ' + unitAttente + ' (en attente)')
+                : (label + ' - ' + unitValide);
+            var title = e.salarie ? (e.salarie + ' – ' + baseTitle) : baseTitle;
+
+            return {
+                title: title,
+                start: e.start,
+                end: addOneDayISO(e.end),
+                allDay: true,
+                backgroundColor: isEnAttente ? '#fef3c7' : color,
+                borderColor: isEnAttente ? '#f59e0b' : color,
+                textColor: isEnAttente ? '#92400e' : '#ffffff',
+                extendedProps: {
+                    type: e.type,
+                    filterGroup: filterGroup(e.type),
+                    statut: e.statut || 'valide'
+                }
+            };
+        }
+
+        var calendarEl = document.getElementById('calendar-salarie');
+        if (!calendarEl) return;
+
+        var currentYear = new Date().getFullYear();
+        var yearEl = document.getElementById('calendar-year');
+        var requestedYear = yearEl ? parseInt(yearEl.textContent, 10) : currentYear;
+        var initialDate = (currentYear === requestedYear)
+            ? new Date()
+            : new Date(requestedYear, 0, 1);
+
+        var allCalendarEvents = eventsData.map(toCalendarEvent);
+
+        var calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            locale: 'fr',
+            firstDay: 1,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth'
+            },
+            buttonText: {
+                today: "Aujourd'hui",
+                month: 'Mois'
+            },
+            events: allCalendarEvents,
+            initialDate: initialDate,
+            height: 'auto',
+            eventClick: function(info) { info.jsEvent.preventDefault(); }
         });
+
+        calendar.render();
+
+        var typeInputs = Array.from(document.querySelectorAll('input[name="type_filter"]'));
+        function getSelectedGroups() {
+            var s = new Set();
+            typeInputs.forEach(function(el) { if (el.checked) s.add(el.value); });
+            return s;
+        }
+
+        function applyFilters() {
+            var selected = getSelectedGroups();
+
+            document.querySelectorAll('tr[data-type]').forEach(function(row) {
+                var grp = row.getAttribute('data-type');
+                row.hidden = selected.size === 0 ? true : !selected.has(grp);
+            });
+
+            calendar.getEvents().forEach(function(ev) {
+                var grp = ev.extendedProps.filterGroup;
+                var visible = selected.size > 0 && selected.has(grp);
+                ev.setProp('display', visible ? 'auto' : 'none');
+            });
+        }
+
+        typeInputs.forEach(function(el) { el.addEventListener('change', applyFilters); });
+        applyFilters();
     }
 
-    var dataEl = document.getElementById('calendar-events-data');
-    const eventsData = dataEl ? JSON.parse(dataEl.textContent) : [];
-
-    const typeColors = {
-        'CP': '#008C3A',
-        'Sans solde': '#f59e0b',
-        'RTT': '#9333ea',
-        'default': '#6b7280'
-    };
-
-    const getDisplayType = (type) => (type === 'CP') ? 'Congés' : type;
-
-    const mapToCalendarEvents = (list) => list.map(e => {
-        const endDate = new Date(e.end);
-        endDate.setDate(endDate.getDate() + 1);
-
-        const isEnAttente = e.statut === 'en_attente_responsable' || e.statut === 'en_attente_rh';
-        const color = typeColors[e.type] || typeColors['default'];
-        const displayType = getDisplayType(e.type);
-
-        const isRTT = e.type === 'RTT';
-        const unitTextValide = isRTT ? `${e.heures_rtt || 0} h` : `${e.jours} jour(s)`;
-        const unitTextAttente = isRTT ? `${e.heures_rtt || 0} h` : `${e.jours} j`;
-
-        const baseTitle = isEnAttente
-            ? `${displayType} - ${unitTextAttente} (en attente)`
-            : `${displayType} - ${unitTextValide}`;
-
-        const title = e.salarie ? `${e.salarie} – ${baseTitle}` : baseTitle;
-
-        return {
-            title: title,
-            start: e.start,
-            end: endDate.toISOString().split('T')[0],
-            backgroundColor: isEnAttente ? '#fef3c7' : color,
-            borderColor: isEnAttente ? '#f59e0b' : color,
-            textColor: isEnAttente ? '#92400e' : '#fff',
-            extendedProps: { type: e.type, jours: e.jours, heures_rtt: e.heures_rtt, statut: e.statut || 'valide' }
-        };
-    });
-
-    const calendarEl = document.getElementById('calendar-salarie');
-
-    const currentYear = new Date().getFullYear();
-    const requestedYear = parseInt(document.getElementById('calendar-year').textContent, 10);
-    const initialDate = currentYear === requestedYear
-        ? new Date()
-        : new Date(requestedYear, 0, 1);
-
-    const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'dayGridMonth',
-        locale: 'fr',
-        firstDay: 1,
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth'
-        },
-        buttonText: {
-            today: 'Aujourd\'hui',
-            month: 'Mois'
-        },
-        events: [],
-        initialDate: initialDate,
-        height: 'auto',
-        eventClick: function(info) {
-            info.jsEvent.preventDefault();
-        }
-    });
-
-    calendar.render();
-
-    const typeInputs = Array.from(document.querySelectorAll('input[name="type_filter"]'));
-    const getSelectedTypes = () => {
-        const selected = new Set();
-        typeInputs.forEach(el => { if (el.checked) selected.add(el.value); });
-        return selected;
-    };
-
-    const applyTypeFilters = () => {
-        const selected = getSelectedTypes();
-        const selectedSize = selected.size;
-
-        document.querySelectorAll('tr[data-type]').forEach(row => {
-            const t = row.getAttribute('data-type');
-            row.hidden = selectedSize > 0 ? !selected.has(t) : true;
-        });
-
-        const filteredEvents = selectedSize > 0 ? eventsData.filter(e => selected.has(e.type)) : [];
-        calendar.removeAllEvents();
-        calendar.addEventSource(mapToCalendarEvents(filteredEvents));
-    };
-
-    typeInputs.forEach(el => el.addEventListener('change', applyTypeFilters));
-    applyTypeFilters();
-});</script>
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+</script>
 {% endblock %}
 
 

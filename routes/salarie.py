@@ -131,6 +131,16 @@ def calendrier():
             Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
         ).all()
 
+    def _filter_group(type_conge: str) -> str:
+        """Groupe de filtrage utilisé par la légende/cases à cocher du calendrier."""
+        if not type_conge:
+            return "default"
+        if type_conge in ("CP", "Anciennete", "RTT", "Sans solde", "Maladie"):
+            return type_conge
+        if type_conge.startswith("EXC:"):
+            return "Exceptionnel"
+        return "default"
+
     events = []
     for c in conges_annee:
         salarie_nom = ""
@@ -140,6 +150,7 @@ def calendrier():
             "start": c.date_debut.isoformat(),
             "end": c.date_fin.isoformat(),
             "type": c.type_conge,
+            "filter_group": _filter_group(c.type_conge),
             "statut": c.statut,
             "label": f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}",
             "jours": c.nb_jours_ouvrables,
