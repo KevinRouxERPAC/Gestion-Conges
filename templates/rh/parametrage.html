@@ -50,7 +50,8 @@
             <select name="rtt_calc_mode" class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
                 {% set mode = (parametrage.rtt_calc_mode if parametrage and parametrage.rtt_calc_mode else 'fixe') %}
                 <option value="fixe" {% if mode == 'fixe' %}selected{% endif %}>Fixe (heures par défaut)</option>
-                <option value="heures" {% if mode == 'heures' %}selected{% endif %}>Calculé depuis heures</option>
+                <option value="heures" {% if mode == 'heures' %}selected{% endif %}>Calculé depuis heures (mensuel)</option>
+                <option value="hebdo" {% if mode == 'hebdo' %}selected{% endif %}>Calculé depuis heures (hebdomadaire, tient compte des absences)</option>
             </select>
         </div>
         <div>

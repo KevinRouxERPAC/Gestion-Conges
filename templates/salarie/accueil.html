@@ -139,15 +139,7 @@
                 <td class="px-6 py-4 text-sm">
                     {{ conge.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ conge.date_fin.strftime('%d/%m/%Y') }}
                 </td>
-                                <td class="px-6 py-4">
-                    {% if conge.type_conge == 'RTT' %}
-                        <span class="font-semibold">{{ conge.nb_heures_rtt|default(0) }}</span>
-                        <span class="text-gray-500 text-sm">heure(s)</span>
-                    {% else %}
-                        <span class="font-semibold">{{ conge.nb_jours_ouvrables|nb_jours }}</span>
-                        <span class="text-gray-500 text-sm">jour(s)</span>
-                    {% endif %}
-                </td>
+                <td class="px-6 py-4">{{ M.quantite_conge(conge) }}</td>
                 <td class="px-6 py-4">{{ M.badge_type_conge(conge.type_conge) }}</td>
                 <td class="px-6 py-4">{{ M.badge_statut(conge.statut, conge.motif_refus) }}</td>
                 <td class="px-6 py-4 text-sm text-gray-500">

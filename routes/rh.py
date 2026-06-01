@@ -13,6 +13,7 @@ from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.user import User
 from models.conge_exceptionnel_type import CongeExceptionnelType
 from models.heures_payees import HeuresPayees
+from models.heures_hebdo import HeuresHebdo
 from services.solde import (
     calculer_solde,
     get_parametrage_actif,
@@ -254,6 +255,15 @@ def modifier_conge(conge_id):
 
     if request.method == "POST":
         from services.creer_conge import construire_conge, MODE_RH
+        # On capture l'état "avant" pour l'audit et la notification de modification.
+        avant = {
+            "type_conge": conge.type_conge,
+            "date_debut": str(conge.date_debut),
+            "date_fin": str(conge.date_fin),
+            "nb_jours_ouvrables": conge.nb_jours_ouvrables,
+            "nb_heures_rtt": conge.nb_heures_rtt,
+        }
+        ancien_type = conge.type_conge
         result = construire_conge(
             user,
             request.form,
@@ -274,7 +284,28 @@ def modifier_conge(conge_id):
                 types_exceptionnels=types_exceptionnels,
             )
 
+        apres = {
+            "type_conge": conge.type_conge,
+            "date_debut": str(conge.date_debut),
+            "date_fin": str(conge.date_fin),
+            "nb_jours_ouvrables": conge.nb_jours_ouvrables,
+            "nb_heures_rtt": conge.nb_heures_rtt,
+        }
+        a_change = avant != apres
+        log_action(
+            "conge.modifier",
+            cible_type="conge",
+            cible_id=conge.id,
+            details={"user_id": user.id, "avant": avant, "apres": apres},
+        )
         db.session.commit()
+
+        # Informe le salarié de la modification (en particulier d'un changement de type).
+        if a_change:
+            from services.notifications import notifier_conge_modifie
+            notifier_conge_modifie(conge, ancien_type=ancien_type)
+            db.session.commit()
+
         flash("Congé modifié avec succès.", "success")
         return redirect(url_for("rh.salarie_detail", user_id=user.id))
 
@@ -519,7 +550,7 @@ def parametrage():
                 jours_defaut = int(request.form["jours_conges_defaut"])
                 rtt_heures_defaut = int(request.form['rtt_heures_defaut'])
                 rtt_calc_mode = (request.form.get('rtt_calc_mode') or 'fixe').strip() or 'fixe'
-                if rtt_calc_mode not in ('fixe', 'heures'):
+                if rtt_calc_mode not in ('fixe', 'heures', 'hebdo'):
                     rtt_calc_mode = 'fixe'
                 rtt_heures_reference = int((request.form.get('rtt_heures_reference') or '0').strip() or '0')
                 rtt_coef_surplus = float((request.form.get('rtt_coef_surplus') or '0').replace(',', '.').strip() or '0')
@@ -952,6 +983,8 @@ def importer_salaries():
 @rh_required
 def creer_salarie():
     """Création d'un nouveau salarié côté RH."""
+    responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
+
     if request.method == "POST":
         nom = request.form.get("nom", "").strip()
         prenom = request.form.get("prenom", "").strip()
@@ -960,23 +993,26 @@ def creer_salarie():
         role = normaliser_role(request.form.get("role", "salarie"))
         date_embauche_str = request.form.get("date_embauche", "").strip()
 
+        def _reafficher_formulaire():
+            return render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=responsables)
+
         if not nom or not prenom or not identifiant or not mot_de_passe:
             flash("Nom, prénom, identifiant et mot de passe sont obligatoires.", "error")
-            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+            return _reafficher_formulaire()
 
         if role is None:
             flash("Rôle invalide.", "error")
-            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+            return _reafficher_formulaire()
 
         err_pwd = valider_mot_de_passe(mot_de_passe)
         if err_pwd:
             flash(err_pwd, "error")
-            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+            return _reafficher_formulaire()
 
         existing = User.query.filter_by(identifiant=identifiant).first()
         if existing:
             flash("Un utilisateur avec cet identifiant existe déjà.", "error")
-            return render_template("rh/salarie_form.html", salarie=None, mode="create")
+            return _reafficher_formulaire()
 
         date_embauche = None
         if date_embauche_str:
@@ -984,7 +1020,7 @@ def creer_salarie():
                 date_embauche = datetime.strptime(date_embauche_str, "%Y-%m-%d").date()
             except ValueError:
                 flash("Date d'embauche invalide.", "error")
-                return render_template("rh/salarie_form.html", salarie=None, mode="create")
+                return _reafficher_formulaire()
 
         r_id = request.form.get("responsable_id", "").strip()
         user = User(
@@ -1016,7 +1052,6 @@ def creer_salarie():
         flash("Salarié créé avec succès.", "success")
         return redirect(url_for("rh.liste_salaries"))
 
-    responsables = User.query.filter(User.role.in_(["responsable", "rh"]), User.actif == True).order_by(User.nom, User.prenom).all()
     return render_template("rh/salarie_form.html", salarie=None, mode="create", responsables=responsables)
 
 
@@ -1110,10 +1145,18 @@ def modifier_salarie(user_id):
 @rh_bp.route("/types-exceptionnels", methods=["GET", "POST"])
 @rh_required
 def types_exceptionnels():
-    from services.conges_exceptionnels import get_types_exceptionnels
+    from services.conges_exceptionnels import get_types_exceptionnels, creer_types_par_defaut
 
     if request.method == "POST":
         action = request.form.get("action")
+
+        if action == "seed_defaults":
+            nb = creer_types_par_defaut()
+            if nb:
+                flash(f"{nb} type(s) de congés exceptionnels par défaut ajouté(s).", "success")
+            else:
+                flash("Les types par défaut existent déjà.", "info")
+            return redirect(url_for("rh.types_exceptionnels"))
 
         if action == "create":
             code = (request.form.get("code") or "").strip().upper()
@@ -1284,6 +1327,97 @@ def heures():
         mois=mois,
         salaries=salaries,
         heures_by_user=by_user,
+    )
+
+
+@rh_bp.route("/heures-hebdo", methods=["GET", "POST"])
+@rh_required
+def heures_hebdo():
+    """Saisie hebdomadaire des heures travaillées + recalcul RTT (mode 'hebdo').
+
+    Le RTT tient compte des absences de la semaine : une absence réduit le seuil
+    hebdomadaire pour ne pas pénaliser le salarié (cf. services/rtt_hebdo.py).
+    """
+    from datetime import timedelta
+    from services.rtt_hebdo import (
+        jours_absence_semaine,
+        maj_rtt_allocations_hebdo,
+        _lundi,
+        SEUIL_HEBDO_DEFAUT,
+    )
+
+    param = get_parametrage_actif()
+    if not param:
+        flash("Aucun paramétrage actif. Configurez d'abord l'exercice.", "error")
+        return redirect(url_for("rh.parametrage"))
+
+    lundi_str = (request.values.get("lundi") or "").strip()
+    if lundi_str:
+        try:
+            ref = datetime.strptime(lundi_str, "%Y-%m-%d").date()
+        except ValueError:
+            ref = date.today()
+    else:
+        ref = date.today()
+    lundi = _lundi(ref)
+
+    salaries = User.query.filter_by(actif=True).order_by(User.nom).all()
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "save").strip() or "save"
+        saved_user_ids = []
+
+        for s in salaries:
+            hw_str = (request.form.get(f"u{s.id}_heures") or "").strip()
+            if hw_str == "":
+                continue
+            try:
+                heures = int(hw_str)
+            except ValueError:
+                flash(f"Valeur invalide pour {s.prenom} {s.nom}.", "error")
+                return redirect(url_for("rh.heures_hebdo", lundi=lundi.isoformat()))
+
+            row = HeuresHebdo.query.filter_by(user_id=s.id, date_lundi=lundi).first()
+            if not row:
+                row = HeuresHebdo(user_id=s.id, date_lundi=lundi)
+                db.session.add(row)
+            row.heures_travaillees = max(0, heures)
+            row.source = "manuel"
+            row.saisi_par_id = current_user.id
+            saved_user_ids.append(s.id)
+
+        db.session.commit()
+        flash("Heures hebdomadaires enregistrées." if saved_user_ids else "Aucune donnée à enregistrer.",
+              "success" if saved_user_ids else "info")
+
+        if action == "save_recalc":
+            if getattr(param, "rtt_calc_mode", "fixe") != "hebdo":
+                flash("Le mode RTT n'est pas 'hebdomadaire' : recalcul ignoré (voir Paramétrage).", "warning")
+            else:
+                try:
+                    res = maj_rtt_allocations_hebdo(param)
+                    flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
+                except Exception:
+                    db.session.rollback()
+                    flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
+
+        return redirect(url_for("rh.heures_hebdo", lundi=lundi.isoformat()))
+
+    existing = HeuresHebdo.query.filter_by(date_lundi=lundi).all()
+    by_user = {e.user_id: e for e in existing}
+    absences = {s.id: jours_absence_semaine(s.id, lundi) for s in salaries}
+
+    return render_template(
+        "rh/heures_hebdo.html",
+        parametrage=param,
+        lundi=lundi,
+        lundi_prec=(lundi - timedelta(days=7)),
+        lundi_suiv=(lundi + timedelta(days=7)),
+        dimanche=(lundi + timedelta(days=6)),
+        salaries=salaries,
+        heures_by_user=by_user,
+        absences=absences,
+        seuil_hebdo=SEUIL_HEBDO_DEFAUT,
     )
 
 

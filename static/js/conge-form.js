@@ -15,10 +15,28 @@
     const dateFin = document.getElementById("date_fin");
     const demiDebut = document.getElementById("demi_journee_debut");
     const demiFin = document.getElementById("demi_journee_fin");
+    const typeConge = document.getElementById("type_conge");
     const output = document.querySelector("[data-conge-jours-ouvrables]");
 
     if (!dateDebut || !dateFin || !output) {
         return;
+    }
+
+    // Règle métier : une demi-journée doit obligatoirement être posée en RTT.
+    // Quand une demi-journée est sélectionnée, on force le type sur RTT et on
+    // désactive les autres types ; on réactive tout quand la demi-journée est retirée.
+    function enforceDemiRtt() {
+        if (!typeConge) return;
+        const hasDemi = (demiDebut && demiDebut.value) || (demiFin && demiFin.value);
+        Array.prototype.forEach.call(typeConge.options, function (opt) {
+            if (!opt.value) return; // garde le placeholder éventuel
+            opt.disabled = !!hasDemi && opt.value !== "RTT";
+        });
+        if (hasDemi && typeConge.value !== "RTT") {
+            typeConge.value = "RTT";
+            // Notifie les scripts inline (affichage du bloc heures RTT).
+            typeConge.dispatchEvent(new Event("change"));
+        }
     }
 
     let feriesSet = new Set();
@@ -113,9 +131,15 @@
         output.classList.add(jours === 0 ? "text-orange-600" : "text-erpac-primary");
     }
 
+    function onDemiChange() {
+        enforceDemiRtt();
+        refresh();
+    }
+
     dateDebut.addEventListener("change", refresh);
     dateFin.addEventListener("change", refresh);
-    if (demiDebut) demiDebut.addEventListener("change", refresh);
-    if (demiFin) demiFin.addEventListener("change", refresh);
+    if (demiDebut) demiDebut.addEventListener("change", onDemiChange);
+    if (demiFin) demiFin.addEventListener("change", onDemiChange);
+    enforceDemiRtt();
     fetchFeries();
 })();

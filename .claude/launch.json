@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Flask dev (app.py)",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["app.py"],
+      "port": 5000
+    },
+    {
+      "name": "Waitress production (run_wsgi.py)",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "scripts\\run_dev.cmd"],
+      "port": 5000
+    },
+    {
+      "name": "Tailwind CSS watcher",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "watch:css"],
+      "port": 0
+    }
+  ]
+}

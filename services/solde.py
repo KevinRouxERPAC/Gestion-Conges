@@ -249,10 +249,13 @@ def cloturer_exercice_et_reporter(
     for s in salaries:
         # Solde restant avant clôture (basé sur l'ancien paramétrage si présent,
         # sinon le calcul retourne 0 ou utilise l'allocation courante).
+        # Un solde négatif (déficit) est désormais reporté tel quel sur l'exercice
+        # suivant (report négatif), au lieu d'être écrêté à 0.
         solde_info = calculer_solde(s.id, parametrage_id=ancien.id if ancien else None)
-        cp_restant = max(0, solde_info.get("solde_restant", 0))
-        rtt_restant = max(0, solde_info.get("rtt_solde_restant", 0))
+        cp_restant = solde_info.get("solde_restant", 0)
+        rtt_restant = solde_info.get("rtt_solde_restant", 0)
 
+        # Le plafond ne s'applique qu'au report positif : un déficit passe tel quel.
         cp_a_reporter = (
             min(cp_restant, report_max_jours) if report_max_jours is not None else cp_restant
         )

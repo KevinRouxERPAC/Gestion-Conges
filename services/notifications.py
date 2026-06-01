@@ -59,6 +59,35 @@ def notifier_conge_refuse(conge, motif: str):
     )
 
 
+def notifier_conge_modifie(conge, ancien_type=None):
+    """Notifie le salarié que son congé a été modifié par les RH (in-app + Web Push).
+
+    Mentionne explicitement le changement de type de congé lorsqu'il a lieu, car
+    c'est l'information la plus sensible pour le salarié (un CP transformé en RTT,
+    par exemple, change la nature de son absence).
+    """
+    u = conge.utilisateur
+    if not u:
+        return
+    periode = f"{conge.date_debut.strftime('%d/%m/%Y')} - {conge.date_fin.strftime('%d/%m/%Y')}"
+    if ancien_type and ancien_type != conge.type_conge:
+        message = (
+            f"Votre congé du {periode} a été modifié par les RH : "
+            f"type changé de {ancien_type} à {conge.type_conge}."
+        )
+    else:
+        message = (
+            f"Votre congé du {periode} ({conge.type_conge}) a été modifié par les RH."
+        )
+    creer_notification(
+        user_id=conge.user_id,
+        type_notif="conge_modifie",
+        titre="Congé modifié",
+        message=message,
+        conge_id=conge.id,
+    )
+
+
 def notifier_responsable_nouvelle_demande(conge):
     """Notifie le responsable + ses suppléants actifs (délégations) qu'une nouvelle demande est en attente niveau 1."""
     u = conge.utilisateur
