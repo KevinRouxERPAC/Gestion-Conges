@@ -63,6 +63,24 @@ def _coef_param(param: ParametrageAnnuel) -> float:
     return coef if coef > 0 else 1.0
 
 
+def seuil_hebdo_param(param: ParametrageAnnuel | None) -> float:
+    """Seuil hebdomadaire RTT depuis le paramétrage actif, sinon constante par défaut."""
+    if param is not None:
+        val = getattr(param, "rtt_seuil_hebdo", None)
+        if val is not None and int(val) > 0:
+            return float(val)
+    return float(SEUIL_HEBDO_DEFAUT)
+
+
+def heures_par_jour_absence_param(param: ParametrageAnnuel | None) -> float:
+    """Heures déduites du seuil par jour d'absence, depuis le paramétrage ou défaut."""
+    if param is not None:
+        val = getattr(param, "rtt_heures_par_jour_absence", None)
+        if val is not None and int(val) > 0:
+            return float(val)
+    return float(HEURES_PAR_JOUR_DEFAUT)
+
+
 def _absence_fraction_par_jour(user_id: int, param: ParametrageAnnuel) -> dict:
     """Retourne {date: fraction d'absence (0.5 ou 1.0)} sur l'exercice.
 
@@ -153,8 +171,8 @@ def calculer_rtt_hebdo(user_id: int, param: ParametrageAnnuel) -> RttHebdoResult
     les absences sont déduites des congés validés. Seules les semaines avec des
     heures saisies génèrent du RTT.
     """
-    seuil = SEUIL_HEBDO_DEFAUT
-    heures_jour = HEURES_PAR_JOUR_DEFAUT
+    seuil = seuil_hebdo_param(param)
+    heures_jour = heures_par_jour_absence_param(param)
     coef = _coef_param(param)
 
     # Absences par semaine (lundi -> total jours d'absence).
@@ -203,9 +221,9 @@ def calculer_rtt_hebdo(user_id: int, param: ParametrageAnnuel) -> RttHebdoResult
 def maj_rtt_allocations_hebdo(param: ParametrageAnnuel, user_ids: list[int] | None = None) -> list[RttHebdoResult]:
     """Met à jour AllocationConge.rtt_heures_allouees selon le calcul hebdomadaire.
 
-    Ne s'applique que si le mode RTT du paramétrage est 'hebdo'.
+    Le calcul hebdomadaire est désormais le seul mode RTT de l'application.
     """
-    if not param or getattr(param, "rtt_calc_mode", "fixe") != "hebdo":
+    if not param:
         return []
 
     q = AllocationConge.query.filter_by(parametrage_id=param.id)

@@ -15,7 +15,7 @@
 </div>
 
 <div class="bg-white rounded-xl shadow p-8 max-w-2xl">
-    <form method="POST" class="space-y-6">
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
@@ -54,12 +54,12 @@
                 <option value="Anciennete" {% if conge.type_conge == 'Anciennete' %}selected{% endif %}>Congés d'ancienneté</option>
                 <option value="RTT" {% if conge.type_conge == 'RTT' %}selected{% endif %}>RTT</option>
                 <option value="Sans solde" {% if conge.type_conge == 'Sans solde' %}selected{% endif %}>Sans solde</option>
-                <option value="Maladie" {% if conge.type_conge == 'Maladie' %}selected{% endif %}>Maladie</option>
+                <option value="Maladie" data-justificatif-requis="1" {% if conge.type_conge == 'Maladie' %}selected{% endif %}>Maladie</option>
 
                 {% if types_exceptionnels %}
                 <optgroup label="Congés exceptionnels">
                     {% for t in types_exceptionnels %}
-                    <option value="EXC:{{ t.code }}" data-unite="{{ t.unite }}" {% if conge.type_conge == 'EXC:' ~ t.code %}selected{% endif %}>{{ t.libelle }}{% if t.plafond_annuel %} (plafond {{ t.plafond_annuel }} {{ 'h' if t.unite == 'heures' else 'j' }}){% endif %}</option>
+                    <option value="EXC:{{ t.code }}" data-unite="{{ t.unite }}" data-justificatif-requis="{{ '1' if t.justificatif_requis else '0' }}" {% if conge.type_conge == 'EXC:' ~ t.code %}selected{% endif %}>{{ t.libelle }}{% if t.plafond_annuel %} (plafond {{ t.plafond_annuel }} {{ 'h' if t.unite == 'heures' else 'j' }}){% endif %}</option>
                     {% endfor %}
                 </optgroup>
                 {% endif %}
@@ -95,6 +95,28 @@
                    placeholder="Nombre d'heures (ex : 2)">
         </div>
 
+        {% if conge.justificatif %}
+        <div class="p-3 bg-gray-50 rounded-lg flex flex-wrap items-center gap-3 text-sm">
+            <span class="font-medium">Justificatif actuel : {{ conge.justificatif.nom_fichier }}</span>
+            <a href="{{ url_for('rh.telecharger_justificatif', conge_id=conge.id) }}"
+               class="text-erpac-primary hover:text-erpac-dark font-medium">Télécharger</a>
+            <form method="POST" action="{{ url_for('rh.supprimer_justificatif_route', conge_id=conge.id) }}" class="inline"
+                  onsubmit="return confirm('Supprimer ce justificatif ?')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Supprimer</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <div id="bloc_justificatif" class="hidden">
+            <label for="justificatif" class="block text-sm font-medium text-gray-700 mb-1">
+                {% if conge.justificatif %}Remplacer le justificatif{% else %}Justificatif <span class="text-red-600">*</span>{% endif %}
+            </label>
+            <input type="file" id="justificatif" name="justificatif" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                   class="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+            <p class="text-xs text-gray-400 mt-1">PDF, JPEG ou PNG — 5 Mo max.</p>
+        </div>
+
         <div>
             <label for="commentaire" class="block text-sm font-medium text-gray-700 mb-1">Commentaire (optionnel)</label>
             <textarea id="commentaire" name="commentaire" rows="3"
@@ -120,11 +142,15 @@
   const rttHeuresEl = document.getElementById('nb_heures_rtt');
   const blocHeuresExc = document.getElementById('bloc_heures_exceptionnelles');
   const heuresExcEl = document.getElementById('nb_heures_exceptionnelles');
+  const blocJustificatif = document.getElementById('bloc_justificatif');
+  const justificatifEl = document.getElementById('justificatif');
+  const hasJustificatif = {{ 'true' if conge.justificatif else 'false' }};
 
   function refresh(){
     const opt = typeCongeEl && typeCongeEl.selectedOptions ? typeCongeEl.selectedOptions[0] : null;
     const val = typeCongeEl ? typeCongeEl.value : '';
     const unite = opt ? (opt.getAttribute('data-unite') || '') : '';
+    const justifRequis = opt ? opt.getAttribute('data-justificatif-requis') === '1' : false;
 
     const isRTT = val === 'RTT';
     if (rttHeuresEl && rttHeuresEl.closest('div')) {
@@ -137,6 +163,13 @@
     }
     if (heuresExcEl && !isExcHeures) {
       heuresExcEl.value = '';
+    }
+
+    if (blocJustificatif) {
+      blocJustificatif.classList.toggle('hidden', !justifRequis && !hasJustificatif);
+    }
+    if (justificatifEl) {
+      justificatifEl.required = justifRequis && !hasJustificatif;
     }
   }
 

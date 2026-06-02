@@ -1,6 +1,11 @@
 """
-Service d'envoi d'emails pour les notifications (validation/refus de congés).
-Utilise smtplib (sans dépendance externe).
+Service d'envoi d'emails (smtplib, sans dépendance externe).
+
+Conformité RGPD : aucun email n'est envoyé aux salariés (aucune adresse salarié
+n'est collectée). Le seul email sortant est le récap hebdomadaire adressé à la
+boîte RH entreprise (`MAIL_RH`), via `envoyer_recap_hebdo_rh`. Les notifications
+salarié (validation / refus / modification) passent uniquement par l'in-app et le
+Web Push (cf. `services/notifications.py`).
 """
 import smtplib
 from html import escape
@@ -74,82 +79,6 @@ def send_email(to_email: str, subject: str, body_text: str, body_html: str = Non
                 server.quit()
             except Exception:
                 pass
-
-
-def envoyer_notification_validation(prenom: str, email: str, date_debut, date_fin, nb_jours: int, type_conge: str):
-    """Notification au salarié : sa demande de congé a été validée."""
-    subject = "ERPAC Congés - Demande validée"
-    body_text = f"""Bonjour {prenom},
-
-Votre demande de congé a été validée par les RH.
-
-Détails :
-- Période : {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}
-- Nombre de jours : {nb_jours}
-- Type : {type_conge}
-
-Vous pouvez consulter votre solde et historique sur l'application Gestion des Congés.
-
-Cordialement,
-L'équipe ERPAC
-"""
-    body_html = f"""
-<!DOCTYPE html>
-<html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Bonjour {escape(prenom)},</p>
-    <p>Votre demande de congé a été <strong style="color: #008C3A;">validée</strong> par les RH.</p>
-    <table style="border-collapse: collapse; margin: 20px 0;">
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Période :</strong></td><td>{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Jours :</strong></td><td>{nb_jours}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>
-    </table>
-    <p>Cordialement,<br>L'équipe ERPAC</p>
-</body>
-</html>
-"""
-    return send_email(email, subject, body_text, body_html)
-
-
-def envoyer_notification_refus(prenom: str, email: str, date_debut, date_fin, nb_jours: int, type_conge: str, motif: str):
-    """Notification au salarié : sa demande de congé a été refusée."""
-    subject = "ERPAC Congés - Demande refusée"
-    body_text = f"""Bonjour {prenom},
-
-Votre demande de congé a été refusée par les RH.
-
-Détails de la demande :
-- Période : {date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}
-- Nombre de jours : {nb_jours}
-- Type : {type_conge}
-
-Motif du refus :
-{motif}
-
-Pour toute question, contactez les ressources humaines.
-
-Cordialement,
-L'équipe ERPAC
-"""
-    body_html = f"""
-<!DOCTYPE html>
-<html>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-    <p>Bonjour {escape(prenom)},</p>
-    <p>Votre demande de congé a été <strong style="color: #dc2626;">refusée</strong> par les RH.</p>
-    <table style="border-collapse: collapse; margin: 20px 0;">
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Période :</strong></td><td>{date_debut.strftime('%d/%m/%Y')} au {date_fin.strftime('%d/%m/%Y')}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Jours :</strong></td><td>{nb_jours}</td></tr>
-        <tr><td style="padding: 5px 15px 5px 0;"><strong>Type :</strong></td><td>{type_conge}</td></tr>
-    </table>
-    <p><strong>Motif du refus :</strong></p>
-    <p style="background: #fef2f2; padding: 10px; border-left: 4px solid #dc2626;">{escape(motif)}</p>
-    <p>Pour toute question, contactez les ressources humaines.</p>
-    <p>Cordialement,<br>L'équipe ERPAC</p>
-</body>
-</html>
-"""
-    return send_email(email, subject, body_text, body_html)
 
 
 def envoyer_recap_hebdo_rh(demandes: list) -> bool:

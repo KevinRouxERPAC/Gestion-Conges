@@ -6,7 +6,7 @@
   <h1 class="text-2xl font-bold text-gray-800">Heures hebdomadaires / RTT</h1>
   <p class="text-gray-500 mt-1">
     Saisie des heures réellement travaillées par semaine. Le RTT acquis tient compte des absences :
-    une absence réduit le seuil hebdomadaire (par défaut {{ seuil_hebdo }} h) afin de ne pas pénaliser le salarié.
+    une absence réduit le seuil hebdomadaire ({{ seuil_hebdo }} h, −{{ heures_par_jour }} h par jour d'absence) afin de ne pas pénaliser le salarié.
   </p>
 </div>
 
@@ -25,7 +25,6 @@
     </div>
     <div class="ml-auto text-sm text-gray-500">
       <div>Exercice actif : <span class="font-medium">{{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}</span></div>
-      <div>Mode RTT : <span class="font-medium">{{ parametrage.rtt_calc_mode }}</span></div>
     </div>
   </form>
 </div>
@@ -57,7 +56,7 @@
             <td class="px-6 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
             <td class="px-6 py-3 text-sm {% if abs > 0 %}text-amber-700 font-medium{% else %}text-gray-400{% endif %}">
               {{ abs|nb_jours }} j
-              {% if abs > 0 %}<span class="text-xs text-gray-500">(seuil ajusté : {{ seuil_hebdo - (abs * 7) }} h)</span>{% endif %}
+              {% if abs > 0 %}<span class="text-xs text-gray-500">(seuil ajusté : {{ seuil_hebdo - (abs * heures_par_jour) }} h)</span>{% endif %}
             </td>
             <td class="px-6 py-3">
               <input type="number" min="0" name="u{{ s.id }}_heures" value="{{ row.heures_travaillees if row else "" }}" class="w-40 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
@@ -70,7 +69,7 @@
 
     <div class="px-6 py-4 border-t bg-white flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
       <div class="text-sm text-gray-500">
-        Recalcul RTT : met à jour <span class="font-medium">rtt_heures_allouees</span> de chaque salarié (uniquement si mode RTT = <span class="font-medium">hebdo</span>).
+        Recalcul RTT : met à jour <span class="font-medium">rtt_heures_allouees</span> de chaque salarié selon le seuil hebdomadaire paramétré ({{ seuil_hebdo }} h).
       </div>
       <div class="flex gap-2">
         <button type="submit" name="action" value="save" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer</button>

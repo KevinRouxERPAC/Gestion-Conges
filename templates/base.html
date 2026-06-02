@@ -26,8 +26,7 @@
                         <a href="{{ url_for('rh.liste_salaries') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Salariés</a>
                         <a href="{{ url_for('rh.parametrage') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Paramétrage</a>
                         <a href="{{ url_for('rh.types_exceptionnels') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Congés except.</a>
-                        <a href="{{ url_for('rh.heures') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Heures / RTT</a>
-                        <a href="{{ url_for('rh.heures_hebdo') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Heures hebdo</a>
+                        <a href="{{ url_for('rh.heures_hebdo') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Heures / RTT</a>
                         <a href="{{ url_for('rh.audit_log') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Audit</a>
                         {% elif current_user.role == 'responsable' %}
                         <a href="{{ url_for('salarie.accueil') }}" class="hover:bg-erpac-dark px-3 py-2 rounded-md text-sm font-medium transition-colors">Mes congés</a>
@@ -54,9 +53,9 @@
                         <span class="hidden sm:inline">Notifications</span>
                         <span id="nav-notif-badge" class="flex items-center justify-center min-w-[1.25rem] h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full {% if not (notifications_non_lues|default(0) > 0) %}hidden{% endif %}">{{ (notifications_non_lues|default(0)) if (notifications_non_lues|default(0)) <= 99 else '99+' }}</span>
                     </a>
-                    <span class="text-sm">{{ current_user.prenom }} {{ current_user.nom }}
+                    <a href="{{ url_for('auth.changer_mot_de_passe') }}" class="text-sm hover:bg-erpac-dark px-2 py-1 rounded-md transition-colors" title="Mon compte / changer mon mot de passe">{{ current_user.prenom }} {{ current_user.nom }}
                         <span class="bg-erpac-light text-xs px-2 py-1 rounded-full ml-1">{{ current_user.role|upper }}</span>
-                    </span>
+                    </a>
                     <a href="{{ url_for('auth.logout') }}" class="bg-red-600 hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-colors">Déconnexion</a>
                 </div>
                 <button @click="mobileOpen = !mobileOpen" class="md:hidden inline-flex items-center justify-center p-2 rounded-md hover:bg-erpac-dark transition-colors" aria-label="Ouvrir le menu">
@@ -74,8 +73,7 @@
                 <a href="{{ url_for('rh.liste_salaries') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Salariés</a>
                 <a href="{{ url_for('rh.parametrage') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Paramétrage</a>
                 <a href="{{ url_for('rh.types_exceptionnels') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Congés exceptionnels</a>
-                <a href="{{ url_for('rh.heures') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Heures / RTT</a>
-                <a href="{{ url_for('rh.heures_hebdo') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Heures hebdo</a>
+                <a href="{{ url_for('rh.heures_hebdo') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Heures / RTT</a>
                 <a href="{{ url_for('rh.audit_log') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Audit</a>
                 {% elif current_user.role == 'responsable' %}
                 <a href="{{ url_for('salarie.accueil') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Mes congés</a>
@@ -103,6 +101,7 @@
                     <div class="px-3 py-2 text-sm">{{ current_user.prenom }} {{ current_user.nom }}
                         <span class="bg-erpac-light text-xs px-2 py-1 rounded-full ml-1">{{ current_user.role|upper }}</span>
                     </div>
+                    <a href="{{ url_for('auth.changer_mot_de_passe') }}" class="block px-3 py-2 rounded-md text-sm font-medium hover:bg-erpac-primary transition-colors">Changer mon mot de passe</a>
                     <a href="{{ url_for('auth.logout') }}" class="block px-3 py-2 rounded-md text-sm font-medium text-red-300 hover:bg-red-600 hover:text-white transition-colors">Déconnexion</a>
                 </div>
             </div>

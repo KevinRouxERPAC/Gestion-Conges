@@ -227,4 +227,6 @@ class TestGenerationAllocations:
         assert len(allocs) >= 3  # rh + responsable + 2 salariés (tous actifs)
         for a in allocs:
             assert a.jours_alloues == 25
-            assert a.rtt_heures_allouees == 14
+            # Le RTT n'est plus alloué par forfait : il est calculé en hebdomadaire
+            # (0 tant qu'aucune heure hebdomadaire n'est saisie).
+            assert a.rtt_heures_allouees == 0

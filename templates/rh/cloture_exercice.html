@@ -30,20 +30,19 @@
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary">
                 </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="grid grid-cols-1 gap-4">
                 <div>
                     <label for="jours_conges_defaut" class="block text-sm font-medium text-gray-700 mb-1">CP par défaut</label>
                     <input type="number" id="jours_conges_defaut" name="jours_conges_defaut" required min="0"
                            value="{{ ancien.jours_conges_defaut }}"
                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary">
                 </div>
-                <div>
-                    <label for="rtt_heures_defaut" class="block text-sm font-medium text-gray-700 mb-1">RTT par défaut (h)</label>
-                    <input type="number" id="rtt_heures_defaut" name="rtt_heures_defaut" required min="0"
-                           value="{{ ancien.rtt_heures_defaut }}"
-                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary">
-                </div>
             </div>
+            <p class="text-xs text-gray-500">
+                Le RTT du nouvel exercice est calculé en hebdomadaire à partir des heures travaillées
+                (seuil {{ ancien.rtt_seuil_hebdo }} h, {{ ancien.rtt_heures_par_jour_absence }} h/jour d'absence).
+                Le report du RTT restant ci-dessous reste appliqué.
+            </p>
 
             <div class="border-t border-gray-200 pt-4">
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Plafonds de report</h3>

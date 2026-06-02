@@ -274,7 +274,8 @@ def cloturer_exercice_et_reporter(
                 parametrage_id=nouveau_param.id,
                 jours_alloues=nouveau_param.jours_conges_defaut,
                 jours_anciennete=0,
-                rtt_heures_allouees=nouveau_param.rtt_heures_defaut,
+                # RTT calculé en hebdomadaire : aucune allocation forfaitaire au départ.
+                rtt_heures_allouees=0,
             )
             db.session.add(alloc)
 
@@ -314,7 +315,15 @@ def generer_allocations_pour_parametrage(param: ParametrageAnnuel):
         allocation.jours_alloues = param.jours_conges_defaut
         allocation.jours_anciennete = allocation.jours_anciennete or 0
         allocation.jours_report = allocation.jours_report or 0
-        allocation.rtt_heures_allouees = param.rtt_heures_defaut
+        # Le RTT n'est plus alloué par forfait : il est calculé depuis les heures
+        # hebdomadaires saisies (cf. recalcul ci-dessous). On préserve la valeur
+        # existante (recalculée) et on initialise à 0 pour les nouveaux salariés.
+        allocation.rtt_heures_allouees = allocation.rtt_heures_allouees or 0
         allocation.rtt_heures_reportees = allocation.rtt_heures_reportees or 0
 
     db.session.commit()
+
+    # Recalcule le RTT hebdomadaire (seul mode supporté) à partir des heures déjà
+    # saisies, pour refléter immédiatement les droits acquis.
+    from services.rtt_hebdo import maj_rtt_allocations_hebdo
+    maj_rtt_allocations_hebdo(param)

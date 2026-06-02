@@ -1,6 +1,7 @@
 """Configuration de test : app Flask avec SQLite en mémoire."""
 import os
 import sys
+import tempfile
 import pytest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -15,6 +16,7 @@ from models import db as _db
 def app():
     """Crée l'application Flask pour les tests (SQLite in-memory)."""
     app = create_app()
+    justificatifs_dir = tempfile.mkdtemp(prefix="justificatifs_test_")
     app.config.update({
         "TESTING": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
@@ -22,6 +24,7 @@ def app():
         "MAIL_SUPPRESS_SEND": True,
         "SERVER_NAME": "localhost",
         "RATELIMIT_ENABLED": False,
+        "JUSTIFICATIFS_DIR": justificatifs_dir,
     })
 
     with app.app_context():
@@ -93,7 +96,6 @@ def parametrage(db_session):
         debut_exercice=date(2026, 1, 1),
         fin_exercice=date(2026, 12, 31),
         jours_conges_defaut=25,
-        rtt_heures_defaut=14,
         actif=True,
     )
     db_session.session.add(p)

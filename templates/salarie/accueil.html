@@ -146,6 +146,10 @@
                     {{ conge.motif_refus if conge.statut == 'refuse' and conge.motif_refus else (conge.commentaire or '-') }}
                 </td>
                 <td class="px-6 py-4 text-right">
+                    {% if conge.justificatif %}
+                    <a href="{{ url_for('rh.telecharger_justificatif', conge_id=conge.id) }}"
+                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium mr-2">Justificatif</a>
+                    {% endif %}
                     {% if conge.statut in ['en_attente_responsable', 'en_attente_rh'] %}
                     <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" onsubmit="return confirm('Annuler cette demande ?')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

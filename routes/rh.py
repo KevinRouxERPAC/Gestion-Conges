@@ -12,7 +12,6 @@ from models.jour_ferie import JourFerie
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from models.user import User
 from models.conge_exceptionnel_type import CongeExceptionnelType
-from models.heures_payees import HeuresPayees
 from models.heures_hebdo import HeuresHebdo
 from services.solde import (
     calculer_solde,
@@ -25,7 +24,6 @@ from services.jours_feries import get_jours_feries
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
-from services.heures_rtt import maj_rtt_allocations_depuis_heures
 from services.audit import log_action
 from models.audit_log import AuditLog
 import json as _json
@@ -195,6 +193,21 @@ def salarie_detail(user_id):
         parametrage=param,
     )
 
+def _traiter_justificatif_conge(conge):
+    """Enregistre le fichier uploadé si présent ; vérifie l'obligation selon le type."""
+    from services.justificatifs import (
+        enregistrer_justificatif,
+        verifier_justificatif_obligatoire,
+    )
+
+    fichier = request.files.get("justificatif")
+    if fichier and fichier.filename:
+        err = enregistrer_justificatif(conge, fichier, current_user)
+        if err:
+            return err
+    return verifier_justificatif_obligatoire(conge)
+
+
 @rh_bp.route("/salarie/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
 @rh_required
 def ajouter_conge(user_id):
@@ -225,6 +238,19 @@ def ajouter_conge(user_id):
             )
 
         db.session.add(result.conge)
+        db.session.flush()
+
+        err_j = _traiter_justificatif_conge(result.conge)
+        if err_j:
+            db.session.rollback()
+            flash(err_j, "error")
+            return render_template(
+                "rh/ajouter_conge.html",
+                salarie=user,
+                solde=solde_info,
+                types_exceptionnels=types_exceptionnels,
+            )
+
         db.session.commit()
 
         # Création directe RH = validation immédiate : on notifie le salarié (B9).
@@ -298,6 +324,19 @@ def modifier_conge(conge_id):
             cible_id=conge.id,
             details={"user_id": user.id, "avant": avant, "apres": apres},
         )
+
+        err_j = _traiter_justificatif_conge(conge)
+        if err_j:
+            db.session.rollback()
+            flash(err_j, "error")
+            return render_template(
+                "rh/modifier_conge.html",
+                conge=conge,
+                salarie=user,
+                solde=solde_info,
+                types_exceptionnels=types_exceptionnels,
+            )
+
         db.session.commit()
 
         # Informe le salarié de la modification (en particulier d'un changement de type).
@@ -317,11 +356,60 @@ def modifier_conge(conge_id):
         types_exceptionnels=types_exceptionnels,
     )
 
+
+@rh_bp.route("/conge/<int:conge_id>/justificatif")
+@login_required
+def telecharger_justificatif(conge_id):
+    """Téléchargement protégé : RH ou salarié concerné uniquement."""
+    from flask import abort, send_file
+    from services.justificatifs import peut_consulter_justificatif, chemin_stockage
+
+    conge = Conge.query.get_or_404(conge_id)
+    if not peut_consulter_justificatif(current_user, conge):
+        abort(403)
+
+    j = conge.justificatif
+    if not j:
+        abort(404)
+
+    log_action(
+        "justificatif.download",
+        cible_type="conge",
+        cible_id=conge.id,
+        details={"user_id": conge.user_id, "nom_fichier": j.nom_fichier},
+    )
+    db.session.commit()
+
+    return send_file(
+        chemin_stockage(j.nom_stockage),
+        mimetype=j.mime_type,
+        as_attachment=True,
+        download_name=j.nom_fichier,
+    )
+
+
+@rh_bp.route("/conge/<int:conge_id>/justificatif/supprimer", methods=["POST"])
+@rh_required
+def supprimer_justificatif_route(conge_id):
+    conge = Conge.query.get_or_404(conge_id)
+    from services.justificatifs import supprimer_justificatif
+
+    err = supprimer_justificatif(conge, current_user)
+    if err:
+        flash(err, "error")
+    else:
+        db.session.commit()
+        flash("Justificatif supprimé.", "success")
+    return redirect(url_for("rh.modifier_conge", conge_id=conge.id))
+
+
 @rh_bp.route("/conge/<int:conge_id>/supprimer", methods=["POST"])
 @rh_required
 def supprimer_conge(conge_id):
     conge = Conge.query.get_or_404(conge_id)
     user_id = conge.user_id
+    from services.justificatifs import supprimer_justificatif
+    supprimer_justificatif(conge, current_user)
     log_action(
         "conge.supprimer",
         cible_type="conge",
@@ -350,6 +438,12 @@ def _valider_un_conge_rh(conge):
         return False, f"Conge #{conge.id} : statut {conge.statut}, ignoré."
 
     from services.conges_exceptionnels import parse_code, get_type_exceptionnel, verifier_plafond
+    from services.justificatifs import verifier_justificatif_obligatoire
+
+    err_j = verifier_justificatif_obligatoire(conge)
+    if err_j:
+        return False, err_j
+
     exc_code = parse_code(conge.type_conge)
     if exc_code:
         exc_type = get_type_exceptionnel(exc_code)
@@ -548,12 +642,11 @@ def parametrage():
                 debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
                 fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
                 jours_defaut = int(request.form["jours_conges_defaut"])
-                rtt_heures_defaut = int(request.form['rtt_heures_defaut'])
-                rtt_calc_mode = (request.form.get('rtt_calc_mode') or 'fixe').strip() or 'fixe'
-                if rtt_calc_mode not in ('fixe', 'heures', 'hebdo'):
-                    rtt_calc_mode = 'fixe'
-                rtt_heures_reference = int((request.form.get('rtt_heures_reference') or '0').strip() or '0')
+                rtt_seuil_hebdo = int(request.form.get("rtt_seuil_hebdo") or 35)
+                rtt_heures_par_jour = int(request.form.get("rtt_heures_par_jour_absence") or 7)
                 rtt_coef_surplus = float((request.form.get('rtt_coef_surplus') or '0').replace(',', '.').strip() or '0')
+                if rtt_seuil_hebdo <= 0 or rtt_heures_par_jour <= 0:
+                    raise ValueError("seuil RTT invalide")
             except (ValueError, KeyError):
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
@@ -563,9 +656,8 @@ def parametrage():
                     debut_exercice=debut,
                     fin_exercice=fin,
                     jours_conges_defaut=jours_defaut,
-                    rtt_heures_defaut=rtt_heures_defaut,
-                    rtt_calc_mode=rtt_calc_mode,
-                    rtt_heures_reference=rtt_heures_reference,
+                    rtt_seuil_hebdo=rtt_seuil_hebdo,
+                    rtt_heures_par_jour_absence=rtt_heures_par_jour,
                     rtt_coef_surplus=rtt_coef_surplus,
                     actif=True,
                 )
@@ -574,9 +666,8 @@ def parametrage():
                 param.debut_exercice = debut
                 param.fin_exercice = fin
                 param.jours_conges_defaut = jours_defaut
-                param.rtt_heures_defaut = rtt_heures_defaut
-                param.rtt_calc_mode = rtt_calc_mode
-                param.rtt_heures_reference = rtt_heures_reference
+                param.rtt_seuil_hebdo = rtt_seuil_hebdo
+                param.rtt_heures_par_jour_absence = rtt_heures_par_jour
                 param.rtt_coef_surplus = rtt_coef_surplus
 
             db.session.commit()
@@ -682,7 +773,6 @@ def cloture_exercice():
             debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
             fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
             jours_defaut = int(request.form["jours_conges_defaut"])
-            rtt_heures_defaut = int(request.form.get("rtt_heures_defaut") or "0")
         except (ValueError, KeyError):
             flash("Données du nouvel exercice invalides.", "error")
             return redirect(url_for("rh.cloture_exercice"))
@@ -704,9 +794,8 @@ def cloture_exercice():
             debut_exercice=debut,
             fin_exercice=fin,
             jours_conges_defaut=jours_defaut,
-            rtt_heures_defaut=rtt_heures_defaut,
-            rtt_calc_mode=ancien.rtt_calc_mode,
-            rtt_heures_reference=ancien.rtt_heures_reference,
+            rtt_seuil_hebdo=ancien.rtt_seuil_hebdo,
+            rtt_heures_par_jour_absence=ancien.rtt_heures_par_jour_absence,
             rtt_coef_surplus=ancien.rtt_coef_surplus,
             actif=False,
         )
@@ -786,7 +875,7 @@ def modifier_allocation(user_id):
         allocation.jours_alloues = int(request.form.get("jours_alloues", param.jours_conges_defaut))
         allocation.jours_anciennete = int(request.form.get("jours_anciennete", 0))
         allocation.jours_report = int(request.form.get("jours_report", 0))
-        allocation.rtt_heures_allouees = int(request.form.get("rtt_heures_allouees", param.rtt_heures_defaut))
+        allocation.rtt_heures_allouees = int(request.form.get("rtt_heures_allouees", 0))
         allocation.rtt_heures_reportees = int(request.form.get("rtt_heures_reportees", 0))
     except ValueError:
         flash("Valeurs invalides.", "error")
@@ -1170,6 +1259,8 @@ def types_exceptionnels():
                 except ValueError:
                     plafond = None
 
+            justificatif_requis = request.form.get("justificatif_requis") == "on"
+
             if not code or not libelle or unite not in ("jours", "heures"):
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.types_exceptionnels"))
@@ -1179,7 +1270,14 @@ def types_exceptionnels():
                 flash("Un type avec ce code existe déjà.", "error")
                 return redirect(url_for("rh.types_exceptionnels"))
 
-            t = CongeExceptionnelType(code=code, libelle=libelle, unite=unite, plafond_annuel=plafond, actif=True)
+            t = CongeExceptionnelType(
+                code=code,
+                libelle=libelle,
+                unite=unite,
+                plafond_annuel=plafond,
+                justificatif_requis=justificatif_requis,
+                actif=True,
+            )
             db.session.add(t)
             db.session.commit()
             flash("Type ajouté.", "success")
@@ -1213,6 +1311,7 @@ def types_exceptionnels():
             t.libelle = libelle
             t.unite = unite
             t.plafond_annuel = plafond
+            t.justificatif_requis = request.form.get("justificatif_requis") == "on"
             db.session.commit()
             flash("Type mis à jour.", "success")
             return redirect(url_for("rh.types_exceptionnels"))
@@ -1239,97 +1338,6 @@ def types_exceptionnels():
 
 
 
-@rh_bp.route("/heures", methods=["GET", "POST"])
-@rh_required
-def heures():
-    """Saisie mensuelle des heures (trajet/travaillées/payées) et recalcul RTT optionnel."""
-    from services.solde import get_parametrage_actif
-
-    param = get_parametrage_actif()
-    if not param:
-        flash("Aucun paramétrage actif. Configurez d'abord l'exercice.", "error")
-        return redirect(url_for("rh.parametrage"))
-
-    try:
-        annee = int(request.values.get("annee") or date.today().year)
-    except ValueError:
-        annee = date.today().year
-    try:
-        mois = int(request.values.get("mois") or date.today().month)
-    except ValueError:
-        mois = date.today().month
-    if mois < 1 or mois > 12:
-        mois = date.today().month
-
-    salaries = User.query.filter_by(actif=True).order_by(User.nom).all()
-
-    if request.method == "POST":
-        action = (request.form.get("action") or "save").strip() or "save"
-        saved_user_ids = []
-
-        for s in salaries:
-            prefix = f"u{s.id}_"
-            hp_str = (request.form.get(prefix + "heures_payees") or "").strip()
-            ht_str = (request.form.get(prefix + "heures_trajet") or "").strip()
-            hw_str = (request.form.get(prefix + "heures_travaillees") or "").strip()
-
-            # Si rien saisi pour ce salarié, on ignore.
-            if not (hp_str or ht_str or hw_str):
-                continue
-
-            try:
-                heures_payees = int(hp_str or 0)
-                heures_trajet = int(ht_str or 0)
-                heures_travaillees = int(hw_str or 0)
-            except ValueError:
-                flash(f"Valeurs invalides pour {s.prenom} {s.nom}.", "error")
-                return redirect(url_for("rh.heures", annee=annee, mois=mois))
-
-            row = HeuresPayees.query.filter_by(user_id=s.id, annee=annee, mois=mois).first()
-            if not row:
-                row = HeuresPayees(user_id=s.id, annee=annee, mois=mois)
-                db.session.add(row)
-
-            row.heures_payees = max(0, heures_payees)
-            row.heures_trajet = max(0, heures_trajet)
-            row.heures_travaillees = max(0, heures_travaillees)
-            row.source = "manuel"
-            row.saisi_par_id = current_user.id
-            saved_user_ids.append(s.id)
-
-        db.session.commit()
-
-        if saved_user_ids:
-            flash("Heures enregistrées.", "success")
-        else:
-            flash("Aucune donnée à enregistrer.", "info")
-
-        if action == "save_recalc":
-            try:
-                res = maj_rtt_allocations_depuis_heures(param, user_ids=saved_user_ids)
-                if res:
-                    flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
-                else:
-                    flash("RTT non recalculées (mode RTT = fixe ou paramétrage manquant).", "warning")
-            except Exception:
-                db.session.rollback()
-                flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
-
-        return redirect(url_for("rh.heures", annee=annee, mois=mois))
-
-    existing = HeuresPayees.query.filter_by(annee=annee, mois=mois).all()
-    by_user = {e.user_id: e for e in existing}
-
-    return render_template(
-        "rh/heures.html",
-        parametrage=param,
-        annee=annee,
-        mois=mois,
-        salaries=salaries,
-        heures_by_user=by_user,
-    )
-
-
 @rh_bp.route("/heures-hebdo", methods=["GET", "POST"])
 @rh_required
 def heures_hebdo():
@@ -1343,7 +1351,8 @@ def heures_hebdo():
         jours_absence_semaine,
         maj_rtt_allocations_hebdo,
         _lundi,
-        SEUIL_HEBDO_DEFAUT,
+        seuil_hebdo_param,
+        heures_par_jour_absence_param,
     )
 
     param = get_parametrage_actif()
@@ -1391,15 +1400,12 @@ def heures_hebdo():
               "success" if saved_user_ids else "info")
 
         if action == "save_recalc":
-            if getattr(param, "rtt_calc_mode", "fixe") != "hebdo":
-                flash("Le mode RTT n'est pas 'hebdomadaire' : recalcul ignoré (voir Paramétrage).", "warning")
-            else:
-                try:
-                    res = maj_rtt_allocations_hebdo(param)
-                    flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
-                except Exception:
-                    db.session.rollback()
-                    flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
+            try:
+                res = maj_rtt_allocations_hebdo(param)
+                flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
+            except Exception:
+                db.session.rollback()
+                flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
 
         return redirect(url_for("rh.heures_hebdo", lundi=lundi.isoformat()))
 
@@ -1417,7 +1423,8 @@ def heures_hebdo():
         salaries=salaries,
         heures_by_user=by_user,
         absences=absences,
-        seuil_hebdo=SEUIL_HEBDO_DEFAUT,
+        seuil_hebdo=seuil_hebdo_param(param),
+        heures_par_jour=heures_par_jour_absence_param(param),
     )
 
 

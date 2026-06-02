@@ -11,14 +11,14 @@ EXC_PREFIX = "EXC:"
 # Types de congés exceptionnels par défaut (barème indicatif courant en France,
 # modifiable ensuite par les RH). Unité en jours sauf indication contraire.
 TYPES_PAR_DEFAUT = [
-    ("MARIAGE_PACS", "Mariage / PACS du salarié", "jours", 4),
-    ("MARIAGE_ENFANT", "Mariage d'un enfant", "jours", 1),
-    ("NAISSANCE_ADOPTION", "Naissance ou adoption", "jours", 3),
-    ("DECES_CONJOINT", "Décès du conjoint / partenaire", "jours", 3),
-    ("DECES_ENFANT", "Décès d'un enfant", "jours", 5),
-    ("DECES_PARENT", "Décès d'un parent", "jours", 3),
-    ("ENFANT_MALADE", "Enfant malade", "jours", 3),
-    ("DEMENAGEMENT", "Déménagement", "jours", 1),
+    ("MARIAGE_PACS", "Mariage / PACS du salarié", "jours", 4, True),
+    ("MARIAGE_ENFANT", "Mariage d'un enfant", "jours", 1, True),
+    ("NAISSANCE_ADOPTION", "Naissance ou adoption", "jours", 3, True),
+    ("DECES_CONJOINT", "Décès du conjoint / partenaire", "jours", 3, True),
+    ("DECES_ENFANT", "Décès d'un enfant", "jours", 5, True),
+    ("DECES_PARENT", "Décès d'un parent", "jours", 3, True),
+    ("ENFANT_MALADE", "Enfant malade", "jours", 3, True),
+    ("DEMENAGEMENT", "Déménagement", "jours", 1, False),
 ]
 
 
@@ -29,7 +29,7 @@ def creer_types_par_defaut() -> int:
     Retourne le nombre de types effectivement créés.
     """
     crees = 0
-    for code, libelle, unite, plafond in TYPES_PAR_DEFAUT:
+    for code, libelle, unite, plafond, justificatif_requis in TYPES_PAR_DEFAUT:
         if CongeExceptionnelType.query.filter_by(code=code).first():
             continue
         db.session.add(
@@ -38,6 +38,7 @@ def creer_types_par_defaut() -> int:
                 libelle=libelle,
                 unite=unite,
                 plafond_annuel=plafond,
+                justificatif_requis=justificatif_requis,
                 actif=True,
             )
         )

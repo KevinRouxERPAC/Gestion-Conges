@@ -40,7 +40,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -68,7 +67,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -107,7 +105,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -137,7 +134,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)

@@ -8,13 +8,10 @@ class ParametrageAnnuel(db.Model):
     debut_exercice = db.Column(db.Date, nullable=False)
     fin_exercice = db.Column(db.Date, nullable=False)
     jours_conges_defaut = db.Column(db.Integer, nullable=False, default=25)
-    # Nombre d'heures RTT allouées par défaut pour l'exercice (0 si non utilisé)
-    rtt_heures_defaut = db.Column(db.Integer, nullable=False, default=0)
 
-    # Lot 4 - Calcul RTT depuis heures (optionnel)
-    # Mode: 'fixe' -> rtt_heures_defaut ; 'heures' -> calcul basé sur heures_travaillees
-    rtt_calc_mode = db.Column(db.String(10), nullable=False, default="fixe")
-    rtt_heures_reference = db.Column(db.Integer, nullable=False, default=0)
+    # RTT hebdomadaire (cf. services/rtt_hebdo.py).
+    rtt_seuil_hebdo = db.Column(db.Integer, nullable=False, default=35)
+    rtt_heures_par_jour_absence = db.Column(db.Integer, nullable=False, default=7)
     rtt_coef_surplus = db.Column(db.Float, nullable=False, default=0.0)
 
     actif = db.Column(db.Boolean, default=True)
