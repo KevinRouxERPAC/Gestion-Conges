@@ -60,7 +60,24 @@ class TestCompterDemiJournees:
 
 class TestDemandeAvecDemiJournee:
     def test_salarie_pose_un_apres_midi(self, client, db_session, users, parametrage, allocations):
-        """Un salarié pose une demi-journée d'après-midi → conge créé avec 0,5 j."""
+        """Un salarié pose une demi-journée d'après-midi en RTT → conge créé avec 0,5 j."""
+        login(client, "jean1", "jean123")
+        resp = client.post("/salarie/demander-conge", data={
+            "date_debut": "2026-06-01",
+            "date_fin": "2026-06-01",
+            "type_conge": "RTT",
+            "nb_heures_rtt": "4",
+            "demi_journee_debut": "apres_midi",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        conge = Conge.query.filter_by(user_id=users["salarie"].id).first()
+        assert conge is not None
+        assert conge.nb_jours_ouvrables == 0.5
+        assert conge.demi_journee_debut == "apres_midi"
+        assert conge.type_conge == "RTT"
+
+    def test_demi_journee_cp_refusee(self, client, db_session, users, parametrage, allocations):
+        """Règle métier : une demi-journée n'est pas autorisée pour un CP."""
         login(client, "jean1", "jean123")
         resp = client.post("/salarie/demander-conge", data={
             "date_debut": "2026-06-01",
@@ -69,22 +86,21 @@ class TestDemandeAvecDemiJournee:
             "demi_journee_debut": "apres_midi",
         }, follow_redirects=True)
         assert resp.status_code == 200
-        conge = Conge.query.filter_by(user_id=users["salarie"].id).first()
-        assert conge is not None
-        assert conge.nb_jours_ouvrables == 0.5
-        assert conge.demi_journee_debut == "apres_midi"
+        # Aucun congé ne doit avoir été créé.
+        assert Conge.query.filter_by(user_id=users["salarie"].id).count() == 0
 
     def test_rh_pose_demi_journee_finale(self, client, db_session, users, parametrage, allocations):
-        """RH crée un congé de 5 jours qui finit le matin du vendredi → 4,5 j."""
+        """RH crée un RTT de 5 jours qui finit le matin du vendredi → 4,5 j."""
         login(client, "rh1", "rh123")
         resp = client.post(f"/rh/salarie/{users['salarie'].id}/conge/ajouter", data={
             "date_debut": "2026-06-01",
             "date_fin": "2026-06-05",
-            "type_conge": "CP",
+            "type_conge": "RTT",
+            "nb_heures_rtt": "30",
             "demi_journee_fin": "matin",
         }, follow_redirects=True)
         assert resp.status_code == 200
-        conge = Conge.query.filter_by(user_id=users["salarie"].id, type_conge="CP").first()
+        conge = Conge.query.filter_by(user_id=users["salarie"].id, type_conge="RTT").first()
         assert conge is not None
         assert conge.nb_jours_ouvrables == 4.5
         assert conge.demi_journee_fin == "matin"

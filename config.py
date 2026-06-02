@@ -38,6 +38,10 @@ class Config:
     # Adresse mail entreprise RH : reçoit un email à chaque nouvelle demande de congé (optionnel)
     MAIL_RH = os.environ.get("MAIL_RH", "").strip() or None
 
+    # Justificatifs d'absence (stockage hors web-root)
+    JUSTIFICATIFS_DIR = os.environ.get("JUSTIFICATIFS_DIR") or os.path.join(BASE_DIR, "instance", "justificatifs")
+    MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))  # 5 Mo
+
     # Web Push (notifications hors du site, sans donnée personnelle)
     # Clés : placer vapid_private.pem dans le répertoire de l'app (ou VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY en env).
     # Important : pour que la notification s'affiche chez l'utilisateur (même onglet fermé), le site doit être

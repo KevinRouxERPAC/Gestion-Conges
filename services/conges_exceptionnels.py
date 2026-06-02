@@ -8,6 +8,45 @@ from models.conge_exceptionnel_type import CongeExceptionnelType
 
 EXC_PREFIX = "EXC:"
 
+# Types de congés exceptionnels par défaut (barème indicatif courant en France,
+# modifiable ensuite par les RH). Unité en jours sauf indication contraire.
+TYPES_PAR_DEFAUT = [
+    ("MARIAGE_PACS", "Mariage / PACS du salarié", "jours", 4, True),
+    ("MARIAGE_ENFANT", "Mariage d'un enfant", "jours", 1, True),
+    ("NAISSANCE_ADOPTION", "Naissance ou adoption", "jours", 3, True),
+    ("DECES_CONJOINT", "Décès du conjoint / partenaire", "jours", 3, True),
+    ("DECES_ENFANT", "Décès d'un enfant", "jours", 5, True),
+    ("DECES_PARENT", "Décès d'un parent", "jours", 3, True),
+    ("ENFANT_MALADE", "Enfant malade", "jours", 3, True),
+    ("DEMENAGEMENT", "Déménagement", "jours", 1, False),
+]
+
+
+def creer_types_par_defaut() -> int:
+    """Crée les types de congés exceptionnels par défaut s'ils n'existent pas déjà.
+
+    Idempotent : les types déjà présents (par code) ne sont pas dupliqués.
+    Retourne le nombre de types effectivement créés.
+    """
+    crees = 0
+    for code, libelle, unite, plafond, justificatif_requis in TYPES_PAR_DEFAUT:
+        if CongeExceptionnelType.query.filter_by(code=code).first():
+            continue
+        db.session.add(
+            CongeExceptionnelType(
+                code=code,
+                libelle=libelle,
+                unite=unite,
+                plafond_annuel=plafond,
+                justificatif_requis=justificatif_requis,
+                actif=True,
+            )
+        )
+        crees += 1
+    if crees:
+        db.session.commit()
+    return crees
+
 
 def get_types_exceptionnels(actifs_only: bool = True):
     q = CongeExceptionnelType.query

@@ -152,3 +152,20 @@ title: "Checklist fonctionnelle - Gestion des Congés"
 
 - [ ] Souhaites‑tu un mécanisme d'**archivage** des congés anciens (changement de statut ou flag d'archive) ?
 - [ ] Faut‑il des **rapports supplémentaires** (par service, par type d'absence, par période, etc.) ?
+
+## 11. Améliorations réunion (lot)
+
+- [x] **Report négatif** : la clôture d'exercice reporte désormais un solde négatif (déficit) tel quel, au lieu de l'écrêter à 0 (`services/solde.py`).
+- [x] **Notification de modification** : le salarié est notifié (in‑app + Web Push) quand les RH modifient son congé, avec mention explicite d'un changement de type (`services/notifications.py`, `routes/rh.py`).
+- [x] **Heures RTT dans l'historique** : les tableaux d'historique affichent les heures pour les RTT (macro `quantite_conge` dans `templates/_macros.html`).
+- [x] **Demi-journée = RTT obligatoire** : règle imposée côté serveur (`services/creer_conge.py`) et UI (`static/js/conge-form.js`).
+- [x] **Congés exceptionnels par défaut** : bouton « Initialiser les types par défaut » + découvrabilité (lien de navigation RH, message si liste vide).
+- [x] **Renommage UI** : l'application est intitulée « Gestion des absences » dans l'interface.
+- [x] **RTT hebdomadaire selon absences** : nouveau mode RTT `hebdo` qui réduit le seuil hebdomadaire au prorata des absences pour ne pas pénaliser le salarié (`services/rtt_hebdo.py`, `models/heures_hebdo.py`, écran RH `/rh/heures-hebdo`).
+- [x] **Ancienneté** : confirmé en saisie manuelle (renseignée par la comptabilité).
+
+### À valider ensuite (RTT hebdomadaire)
+
+- [ ] Seuil hebdomadaire (35 h) et valeur d'un jour d'absence (7 h) : confirmer ou rendre paramétrables par salarié/contrat.
+- [ ] Types d'absence comptés dans la réduction du seuil (actuellement tous les congés validés).
+- [ ] Liste exacte et plafonds des congés exceptionnels par défaut.

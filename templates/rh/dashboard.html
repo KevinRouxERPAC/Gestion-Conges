@@ -307,7 +307,7 @@ function bulkConges() {
         <tbody class="divide-y divide-gray-200">
             {% for data in salaries_data %}
             <tr class="hover:bg-gray-50 transition cursor-pointer"
-                x-show="search === '' || {{ (data.user.nom ~ ' ' ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())"
+                x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
@@ -366,7 +366,7 @@ function bulkConges() {
         <tbody class="divide-y divide-gray-200">
             {% for data in salaries_data_inactifs %}
             <tr class="hover:bg-gray-50 transition cursor-pointer"
-                x-show="search === '' || {{ (data.user.nom ~ ' ' ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())"
+                x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
                 role="button"
                 tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"

@@ -9,6 +9,7 @@ class CongeExceptionnelType(db.Model):
     libelle = db.Column(db.String(120), nullable=False)  # ex: "Mariage"
     unite = db.Column(db.String(10), nullable=False, default="jours")  # "jours" | "heures"
     plafond_annuel = db.Column(db.Integer, nullable=True)  # en jours ou heures selon unite
+    justificatif_requis = db.Column(db.Boolean, nullable=False, default=False)
     actif = db.Column(db.Boolean, nullable=False, default=True)
 
     def __repr__(self) -> str:

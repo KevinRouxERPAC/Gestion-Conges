@@ -5,10 +5,8 @@ from flask_login import login_required, current_user
 from models import db
 from models.conge import Conge
 from models.user import User
-from models.heures_payees import HeuresPayees
 from services.solde import calculer_solde, get_allocation, get_parametrage_actif
 from services.export import export_conges_excel, export_conges_pdf
-from services.heures_rtt import calculer_rtt_depuis_heures
 
 salarie_bp = Blueprint("salarie", __name__)
 
@@ -131,6 +129,16 @@ def calendrier():
             Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
         ).all()
 
+    def _filter_group(type_conge: str) -> str:
+        """Groupe de filtrage utilisé par la légende/cases à cocher du calendrier."""
+        if not type_conge:
+            return "default"
+        if type_conge in ("CP", "Anciennete", "RTT", "Sans solde", "Maladie"):
+            return type_conge
+        if type_conge.startswith("EXC:"):
+            return "Exceptionnel"
+        return "default"
+
     events = []
     for c in conges_annee:
         salarie_nom = ""
@@ -140,6 +148,7 @@ def calendrier():
             "start": c.date_debut.isoformat(),
             "end": c.date_fin.isoformat(),
             "type": c.type_conge,
+            "filter_group": _filter_group(c.type_conge),
             "statut": c.statut,
             "label": f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}",
             "jours": c.nb_jours_ouvrables,
@@ -202,51 +211,36 @@ def export_pdf():
 @salarie_bp.route("/heures")
 @login_required
 def heures():
-    """Lecture des heures saisies (RH) sur l'exercice actif."""
+    """Vue hebdomadaire des heures travaillées et du RTT calculé sur l'exercice.
+
+    Le RTT est calculé semaine par semaine : une absence réduit le seuil
+    hebdomadaire pour ne pas pénaliser le salarié (cf. services/rtt_hebdo.py).
+    """
     param = get_parametrage_actif()
     allocation = None
+    rtt_calc = None
+    detail = []
+
     if param:
         allocation = get_allocation(current_user.id, parametrage_id=param.id)
-
-    heures_rows = []
-    total_payees = 0
-    total_trajet = 0
-    total_travaillees = 0
-
-    if param:
-        start_key = param.debut_exercice.year * 100 + param.debut_exercice.month
-        end_key = param.fin_exercice.year * 100 + param.fin_exercice.month
-        key_expr = (HeuresPayees.annee * 100) + HeuresPayees.mois
-
-        heures_rows = (
-            HeuresPayees.query
-            .filter(HeuresPayees.user_id == current_user.id)
-            .filter(key_expr >= start_key)
-            .filter(key_expr <= end_key)
-            .order_by(HeuresPayees.annee.desc(), HeuresPayees.mois.desc())
-            .all()
-        )
-
-        total_payees = sum((r.heures_payees or 0) for r in heures_rows)
-        total_trajet = sum((r.heures_trajet or 0) for r in heures_rows)
-        total_travaillees = sum((r.heures_travaillees or 0) for r in heures_rows)
-
-    rtt_calc = None
-    if param and getattr(param, "rtt_calc_mode", "fixe") == "heures":
+        from services.rtt_hebdo import calculer_rtt_hebdo
         try:
-            rtt_calc = calculer_rtt_depuis_heures(current_user.id, param)
+            rtt_calc = calculer_rtt_hebdo(current_user.id, param)
+            # Semaines les plus récentes en premier.
+            detail = sorted(rtt_calc.detail, key=lambda d: d["lundi"], reverse=True)
         except Exception:
             rtt_calc = None
+            detail = []
+
+    total_heures = sum((d["heures"] or 0) for d in detail)
 
     return render_template(
         "salarie/heures.html",
         parametrage=param,
         allocation=allocation,
-        heures_rows=heures_rows,
-        total_payees=total_payees,
-        total_trajet=total_trajet,
-        total_travaillees=total_travaillees,
         rtt_calc=rtt_calc,
+        detail=detail,
+        total_heures=total_heures,
     )
 
 

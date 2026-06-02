@@ -40,7 +40,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -68,7 +67,6 @@ class TestClotureExercice:
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -89,7 +87,7 @@ class TestClotureExercice:
         assert res["report_cp_total"] == 10
         assert res["report_rtt_total"] == 16
 
-    def test_solde_negatif_pas_de_report(self, db_session, users, parametrage, allocations):
+    def test_solde_negatif_report_negatif(self, db_session, users, parametrage, allocations):
         # Crée un congé qui dépasse le solde du salarié.
         c = Conge(
             user_id=users["salarie"].id,
@@ -102,12 +100,11 @@ class TestClotureExercice:
         db.session.add(c)
         db.session.commit()
 
-        # Solde restant = 27 - 100 = -73 → on reporte 0 (max(0, ...)).
+        # Solde restant = 27 - 100 = -73 → le déficit est désormais reporté tel quel.
         nouveau = ParametrageAnnuel(
             debut_exercice=date(2027, 1, 1),
             fin_exercice=date(2027, 12, 31),
             jours_conges_defaut=25,
-            rtt_heures_defaut=14,
             actif=False,
         )
         db.session.add(nouveau)
@@ -118,7 +115,36 @@ class TestClotureExercice:
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=nouveau.id
         ).first()
-        assert alloc.jours_report == 0
+        assert alloc.jours_report == -73
+
+    def test_report_negatif_ignore_plafond(self, db_session, users, parametrage, allocations):
+        # Un déficit est reporté intégralement même si un plafond de report positif est fixé.
+        c = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 6, 1),
+            date_fin=date(2026, 11, 30),
+            nb_jours_ouvrables=100,
+            type_conge="CP",
+            statut="valide",
+        )
+        db.session.add(c)
+        db.session.commit()
+
+        nouveau = ParametrageAnnuel(
+            debut_exercice=date(2027, 1, 1),
+            fin_exercice=date(2027, 12, 31),
+            jours_conges_defaut=25,
+            actif=False,
+        )
+        db.session.add(nouveau)
+        db.session.flush()
+        cloturer_exercice_et_reporter(nouveau, report_max_jours=5, report_max_heures_rtt=8)
+        db.session.commit()
+
+        alloc = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id, parametrage_id=nouveau.id
+        ).first()
+        assert alloc.jours_report == -73
 
 
 class TestRouteCloture:
