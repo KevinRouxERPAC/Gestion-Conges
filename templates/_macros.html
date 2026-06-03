@@ -44,7 +44,7 @@
         'Anciennete': 'Ancienneté',
     } -%}
     {%- if type_conge and type_conge.startswith('EXC:') %}
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">{{ type_conge[4:] }}</span>
+        <span class="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">{{ type_conge[4:] | libelle_exceptionnel }}</span>
     {%- else %}
         <span class="px-3 py-1 rounded-full text-xs font-medium {{ classes.get(type_conge, 'bg-gray-100 text-gray-800') }}">
             {{ libelles.get(type_conge, type_conge or '?') }}

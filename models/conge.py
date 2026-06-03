@@ -40,6 +40,11 @@ class Conge(db.Model):
     valide_le = db.Column(db.DateTime, nullable=True)
     motif_refus = db.Column(db.Text, nullable=True)
 
+    # Archivage des congés anciens (FR53) : conservés pour l'audit mais masqués des
+    # listes courantes. Un congé archivé reste comptabilisé par les calculs s'il
+    # tombe dans la fenêtre d'exercice (en pratique il est toujours antérieur).
+    archive = db.Column(db.Boolean, nullable=False, default=False, server_default="0")
+
     valide_par_responsable = db.relationship("User", foreign_keys=[valide_par_responsable_id])
     valide_par = db.relationship("User", foreign_keys=[valide_par_id])
 

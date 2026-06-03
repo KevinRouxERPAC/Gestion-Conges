@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Archivage des congés{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <div>
+        <h1 class="text-2xl font-bold text-gray-800">Archivage des congés anciens</h1>
+        <p class="text-gray-500 mt-1 text-sm">
+            Les congés archivés sont conservés pour l'audit mais retirés des listes courantes.
+            Les demandes encore en attente ne sont jamais archivées.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="bg-white rounded-xl shadow p-5">
+            <div class="text-3xl font-bold text-erpac-primary">{{ nb_archivables }}</div>
+            <div class="text-sm text-gray-500 mt-1">congé(s) archivable(s) à la date choisie</div>
+        </div>
+        <div class="bg-white rounded-xl shadow p-5">
+            <div class="text-3xl font-bold text-gray-700">{{ nb_archives }}</div>
+            <div class="text-sm text-gray-500 mt-1">congé(s) déjà archivé(s)</div>
+        </div>
+    </div>
+
+    <form method="GET" class="bg-white rounded-xl shadow p-5 space-y-4">
+        <label for="date_cutoff_preview" class="block text-sm font-medium text-gray-700">Date d'arrêté (date de fin ≤)</label>
+        <div class="flex items-center gap-3">
+            <input type="date" id="date_cutoff_preview" name="date_cutoff" value="{{ date_cutoff.isoformat() }}"
+                   class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary transition">
+            <button type="submit" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-4 rounded-lg transition">
+                Prévisualiser
+            </button>
+        </div>
+    </form>
+
+    <form method="POST" class="bg-white rounded-xl shadow p-5 space-y-4"
+          onsubmit="return confirm('Archiver {{ nb_archivables }} congé(s) dont la date de fin est ≤ {{ date_cutoff.strftime('%d/%m/%Y') }} ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="archiver">
+        <input type="hidden" name="date_cutoff" value="{{ date_cutoff.isoformat() }}">
+        <button type="submit"
+                class="bg-erpac-primary hover:bg-erpac-dark text-white font-semibold py-2.5 px-5 rounded-lg transition shadow-md hover:shadow-lg {% if nb_archivables == 0 %}opacity-50 cursor-not-allowed{% endif %}"
+                {% if nb_archivables == 0 %}disabled{% endif %}>
+            Archiver {{ nb_archivables }} congé(s)
+        </button>
+    </form>
+
+    {% if nb_archives > 0 %}
+    <form method="POST" class="bg-white rounded-xl shadow p-5"
+          onsubmit="return confirm('Désarchiver l\'ensemble des {{ nb_archives }} congé(s) archivé(s) ?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="desarchiver">
+        <button type="submit" class="text-sm text-gray-600 hover:text-erpac-primary underline">
+            Tout désarchiver ({{ nb_archives }})
+        </button>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

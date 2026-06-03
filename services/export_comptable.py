@@ -12,12 +12,11 @@ from datetime import date
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
 from openpyxl.utils import get_column_letter
-from sqlalchemy import func
 
-from models import db
 from models.conge import Conge
 from models.parametrage import AllocationConge
 from models.user import User
+from services.consommation import somme_consommation, STATUT_VALIDE, TYPES_CP, TYPE_RTT
 
 
 def _style_header_xlsx(ws, row=1):
@@ -80,41 +79,31 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
 
     cp_consumed = {uid: 0 for uid in user_ids}
     if user_ids:
-        rows = (
-            db.session.query(
-                Conge.user_id,
-                func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0),
+        cp_consumed.update(
+            somme_consommation(
+                colonne=Conge.nb_jours_ouvrables,
+                date_debut_min=debut,
+                date_fin_max=as_of_clamped,
+                statuts=STATUT_VALIDE,
+                types=TYPES_CP,
+                user_ids=user_ids,
+                group_by="user",
             )
-            .filter(
-                Conge.user_id.in_(user_ids),
-                Conge.statut == "valide",
-                Conge.type_conge.in_(["CP", "Anciennete"]),
-                Conge.date_debut >= debut,
-                Conge.date_fin <= as_of_clamped,
-            )
-            .group_by(Conge.user_id)
-            .all()
         )
-        cp_consumed.update({uid: int(val or 0) for uid, val in rows})
 
     rtt_consumed = {uid: 0 for uid in user_ids}
     if user_ids:
-        rows = (
-            db.session.query(
-                Conge.user_id,
-                func.coalesce(func.sum(Conge.nb_heures_rtt), 0),
+        rtt_consumed.update(
+            somme_consommation(
+                colonne=Conge.nb_heures_rtt,
+                date_debut_min=debut,
+                date_fin_max=as_of_clamped,
+                statuts=STATUT_VALIDE,
+                types=TYPE_RTT,
+                user_ids=user_ids,
+                group_by="user",
             )
-            .filter(
-                Conge.user_id.in_(user_ids),
-                Conge.statut == "valide",
-                Conge.type_conge == "RTT",
-                Conge.date_debut >= debut,
-                Conge.date_fin <= as_of_clamped,
-            )
-            .group_by(Conge.user_id)
-            .all()
         )
-        rtt_consumed.update({uid: int(val or 0) for uid, val in rows})
 
     wb = Workbook()
     ws_cp = wb.active

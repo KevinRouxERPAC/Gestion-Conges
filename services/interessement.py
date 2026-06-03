@@ -2,12 +2,10 @@
 
 from dataclasses import dataclass
 
-from sqlalchemy import func
-
-from models import db
 from models.conge import Conge
 from models.interessement_regle import InteressementRegle
 from models.user import User
+from services.consommation import somme_consommation, STATUT_VALIDE
 
 
 @dataclass(frozen=True)
@@ -49,22 +47,14 @@ def calculer_interessement(periode, include_inactifs: bool = False) -> list[Inte
 
     by_user_type: dict[tuple[int, str], int] = {}
     if user_ids:
-        rows = (
-            db.session.query(
-                Conge.user_id,
-                Conge.type_conge,
-                func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0),
-            )
-            .filter(
-                Conge.user_id.in_(user_ids),
-                Conge.statut == 'valide',
-                Conge.date_debut >= start,
-                Conge.date_fin <= end,
-            )
-            .group_by(Conge.user_id, Conge.type_conge)
-            .all()
+        by_user_type = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=start,
+            date_fin_max=end,
+            statuts=STATUT_VALIDE,
+            user_ids=user_ids,
+            group_by="user_type",
         )
-        by_user_type = {(int(uid), str(t)): int(v or 0) for uid, t, v in rows}
 
     results: list[InteressementResult] = []
     for u in users:

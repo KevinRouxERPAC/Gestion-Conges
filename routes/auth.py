@@ -10,6 +10,15 @@ from app import limiter
 auth_bp = Blueprint("auth", __name__)
 
 
+def _accueil_par_role(user):
+    """URL d'accueil correspondant au rôle de l'utilisateur."""
+    if user.role == "rh":
+        return url_for("rh.dashboard")
+    if user.role == "responsable":
+        return url_for("responsable.dashboard")
+    return url_for("salarie.accueil")
+
+
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 # Protection contre le brute force : 10 tentatives/min/IP, 50/heure/IP.

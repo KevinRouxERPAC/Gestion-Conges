@@ -1,9 +1,7 @@
-from sqlalchemy import func
-
-from models import db
 from models.conge import Conge
 from models.parametrage import ParametrageAnnuel
 from models.conge_exceptionnel_type import CongeExceptionnelType
+from services.consommation import somme_consommation, STATUT_VALIDE
 
 
 EXC_PREFIX = "EXC:"
@@ -73,30 +71,34 @@ def _get_param(parametrage_id):
     return ParametrageAnnuel.query.filter_by(actif=True).first()
 
 
-def calculer_consommation(user_id: int, code: str, unite: str, parametrage_id=None, conge_id_exclu=None) -> int:
+def calculer_consommation(user_id: int, code: str, unite: str, parametrage_id=None, conge_id_exclu=None):
+    """Somme la consommation exceptionnelle validée pour l'exercice.
+
+    Retour : int pour l'unité "heures", float pour l'unité "jours" (qui peut
+    contenir des demi-journées, ex. 0,5). On ne tronque pas les jours, sinon
+    le plafond serait appliqué de façon trop permissive.
+    """
     param = _get_param(parametrage_id)
     if param is None:
         return 0
     type_value = f"{EXC_PREFIX}{code}"
-    q = db.session.query(func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0))
-    if unite == "heures":
-        q = db.session.query(func.coalesce(func.sum(Conge.nb_heures_exceptionnelles), 0))
-    q = q.filter(
-        Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
-        Conge.type_conge == type_value,
-        Conge.statut == "valide",
+    colonne = Conge.nb_heures_exceptionnelles if unite == "heures" else Conge.nb_jours_ouvrables
+    total = somme_consommation(
+        colonne=colonne,
+        date_debut_min=param.debut_exercice,
+        date_fin_max=param.fin_exercice,
+        statuts=STATUT_VALIDE,
+        types=(type_value,),
+        user_id=user_id,
+        conge_id_exclu=conge_id_exclu,
     )
-    if conge_id_exclu:
-        q = q.filter(Conge.id != conge_id_exclu)
-    return int(q.scalar() or 0)
+    return int(total) if unite == "heures" else float(total)
 
 
-def verifier_plafond(user_id: int, t: CongeExceptionnelType, quantite: int, parametrage_id=None, conge_id_exclu=None) -> bool:
+def verifier_plafond(user_id: int, t: CongeExceptionnelType, quantite, parametrage_id=None, conge_id_exclu=None) -> bool:
     if t.plafond_annuel is None:
         return True
     consomme = calculer_consommation(user_id, t.code, t.unite, parametrage_id=parametrage_id, conge_id_exclu=conge_id_exclu)
-    return (consomme + quantite) <= int(t.plafond_annuel)
+    return (consomme + quantite) <= float(t.plafond_annuel)
 
 

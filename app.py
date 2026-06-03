@@ -86,6 +86,23 @@ def create_app():
         # 1 décimale suffit (demi-journées uniquement).
         return f"{v:.1f}".replace(".", ",")
 
+    @app.template_filter("libelle_exceptionnel")
+    def _libelle_exceptionnel(code):
+        """Résout le libellé d'un type exceptionnel depuis son code (ex. MARIAGE → "Mariage").
+
+        Mise en cache par requête (flask.g) pour éviter un N+1 lors de l'affichage
+        d'une liste de congés. Retombe sur le code si le type est introuvable.
+        """
+        if not code:
+            return code
+        from flask import g
+        cache = getattr(g, "_exc_libelles", None)
+        if cache is None:
+            from services.conges_exceptionnels import get_types_exceptionnels
+            cache = {t.code: t.libelle for t in get_types_exceptionnels(actifs_only=False)}
+            g._exc_libelles = cache
+        return cache.get(code, code)
+
     @app.context_processor
     def inject_notifications():
         from flask_login import current_user

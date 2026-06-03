@@ -168,9 +168,8 @@ def construire_conge(
     nb_heures_rtt: Optional[int] = None
     nb_heures_exceptionnelles: Optional[int] = None
 
-    solde_info = calculer_solde(salarie.id)
-
     if type_conge in ("CP", "Anciennete"):
+        solde_info = calculer_solde(salarie.id)
         jours_actuels = (
             conge_existant.nb_jours_ouvrables or 0
             if conge_existant
@@ -194,6 +193,7 @@ def construire_conge(
             result.errors.append(("error", "Merci de saisir un nombre d'heures RTT valide (≥ 1)."))
             return result
 
+        solde_info = calculer_solde(salarie.id)
         heures_actuelles = (
             conge_existant.nb_heures_rtt or 0
             if conge_existant

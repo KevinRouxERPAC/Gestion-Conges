@@ -1231,6 +1231,27 @@ def modifier_salarie(user_id):
 
 
 
+def _parse_plafond(raw):
+    """Parse le plafond annuel d'un type exceptionnel.
+
+    Retourne (valeur, erreur) :
+    - ("", None) absent → (None, None) : pas de plafond.
+    - entier positif → (int, None).
+    - saisie non vide invalide → (None, message) pour éviter de SUPPRIMER
+      silencieusement le plafond sur une faute de frappe.
+    """
+    plafond_str = (raw or "").strip()
+    if not plafond_str:
+        return None, None
+    try:
+        valeur = int(plafond_str)
+    except ValueError:
+        return None, "Plafond annuel invalide (entier attendu)."
+    if valeur < 0:
+        return None, "Plafond annuel invalide (doit être positif)."
+    return valeur, None
+
+
 @rh_bp.route("/types-exceptionnels", methods=["GET", "POST"])
 @rh_required
 def types_exceptionnels():
@@ -1251,18 +1272,19 @@ def types_exceptionnels():
             code = (request.form.get("code") or "").strip().upper()
             libelle = (request.form.get("libelle") or "").strip()
             unite = (request.form.get("unite") or "jours").strip() or "jours"
-            plafond_str = (request.form.get("plafond_annuel") or "").strip()
-            plafond = None
-            if plafond_str:
-                try:
-                    plafond = int(plafond_str)
-                except ValueError:
-                    plafond = None
 
             justificatif_requis = request.form.get("justificatif_requis") == "on"
 
             if not code or not libelle or unite not in ("jours", "heures"):
                 flash("Données invalides.", "error")
+                return redirect(url_for("rh.types_exceptionnels"))
+            if len(code) > 30 or len(libelle) > 120:
+                flash("Code (max 30) ou libellé (max 120) trop long.", "error")
+                return redirect(url_for("rh.types_exceptionnels"))
+
+            plafond, plafond_err = _parse_plafond(request.form.get("plafond_annuel"))
+            if plafond_err:
+                flash(plafond_err, "error")
                 return redirect(url_for("rh.types_exceptionnels"))
 
             existing = CongeExceptionnelType.query.filter_by(code=code).first()
@@ -1296,16 +1318,17 @@ def types_exceptionnels():
 
             libelle = (request.form.get("libelle") or "").strip()
             unite = (request.form.get("unite") or "jours").strip() or "jours"
-            plafond_str = (request.form.get("plafond_annuel") or "").strip()
-            plafond = None
-            if plafond_str:
-                try:
-                    plafond = int(plafond_str)
-                except ValueError:
-                    plafond = None
 
             if not libelle or unite not in ("jours", "heures"):
                 flash("Données invalides.", "error")
+                return redirect(url_for("rh.types_exceptionnels"))
+            if len(libelle) > 120:
+                flash("Libellé trop long (max 120).", "error")
+                return redirect(url_for("rh.types_exceptionnels"))
+
+            plafond, plafond_err = _parse_plafond(request.form.get("plafond_annuel"))
+            if plafond_err:
+                flash(plafond_err, "error")
                 return redirect(url_for("rh.types_exceptionnels"))
 
             t.libelle = libelle
@@ -1657,5 +1680,77 @@ def audit_log():
         action_filter=action_filter,
         acteur_filter=acteur_filter,
         acteurs=acteurs,
+    )
+
+
+# Statuts de congés éligibles à l'archivage (les demandes en attente sont exclues).
+_STATUTS_ARCHIVABLES = ("valide", "refuse", "annule")
+
+
+def _parse_date_cutoff(value, defaut):
+    if not value:
+        return defaut
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return defaut
+
+
+@rh_bp.route("/archives", methods=["GET", "POST"])
+@rh_required
+def archives():
+    """Archivage des congés anciens (FR53).
+
+    Le RH choisit une date d'arrêté : tous les congés traités (validés, refusés,
+    annulés) dont la date de fin est antérieure ou égale à cette date sont
+    archivés. Les congés archivés sont conservés (audit) mais retirés des listes
+    courantes. Une demande encore en attente n'est jamais archivée.
+    """
+    param = get_parametrage_actif()
+    defaut_cutoff = param.debut_exercice if param else date.today()
+
+    if request.method == "POST":
+        cutoff = _parse_date_cutoff(request.form.get("date_cutoff"), defaut_cutoff)
+        action = request.form.get("action", "archiver")
+
+        if action == "desarchiver":
+            conges = Conge.query.filter(Conge.archive == True).all()
+            for c in conges:
+                c.archive = False
+            nb = len(conges)
+            log_action("conge.desarchiver", details={"nb": nb})
+            db.session.commit()
+            flash(f"{nb} congé(s) désarchivé(s).", "success")
+            return redirect(url_for("rh.archives"))
+
+        conges = Conge.query.filter(
+            Conge.archive == False,
+            Conge.statut.in_(_STATUTS_ARCHIVABLES),
+            Conge.date_fin <= cutoff,
+        ).all()
+        for c in conges:
+            c.archive = True
+        nb = len(conges)
+        log_action(
+            "conge.archiver",
+            details={"nb": nb, "date_cutoff": cutoff.isoformat()},
+        )
+        db.session.commit()
+        flash(f"{nb} congé(s) archivé(s) (date de fin ≤ {cutoff.strftime('%d/%m/%Y')}).", "success")
+        return redirect(url_for("rh.archives"))
+
+    cutoff = _parse_date_cutoff(request.args.get("date_cutoff"), defaut_cutoff)
+    nb_archivables = Conge.query.filter(
+        Conge.archive == False,
+        Conge.statut.in_(_STATUTS_ARCHIVABLES),
+        Conge.date_fin <= cutoff,
+    ).count()
+    nb_archives = Conge.query.filter(Conge.archive == True).count()
+
+    return render_template(
+        "rh/archives.html",
+        date_cutoff=cutoff,
+        nb_archivables=nb_archivables,
+        nb_archives=nb_archives,
     )
 

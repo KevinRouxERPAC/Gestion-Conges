@@ -66,7 +66,11 @@ def accueil():
     solde_info = calculer_solde(current_user.id)
     param = get_parametrage_actif()
 
-    conges = Conge.query.filter_by(user_id=current_user.id).order_by(Conge.date_debut.desc()).all()
+    conges = (
+        Conge.query.filter_by(user_id=current_user.id, archive=False)
+        .order_by(Conge.date_debut.desc())
+        .all()
+    )
 
     return render_template(
         "salarie/accueil.html",
@@ -115,6 +119,7 @@ def calendrier():
             Conge.query.join(User, Conge.user_id == User.id)
             .filter(
                 User.actif == True,
+                Conge.archive == False,
                 Conge.date_debut <= end_of_year,
                 Conge.date_fin >= start_of_year,
                 Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),
@@ -124,6 +129,7 @@ def calendrier():
     else:
         conges_annee = Conge.query.filter(
             Conge.user_id == current_user.id,
+            Conge.archive == False,
             Conge.date_debut <= end_of_year,
             Conge.date_fin >= start_of_year,
             Conge.statut.in_(["valide", "en_attente_responsable", "en_attente_rh"]),

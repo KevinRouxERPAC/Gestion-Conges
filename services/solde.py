@@ -1,7 +1,13 @@
 from models import db
 from models.conge import Conge
 from models.parametrage import ParametrageAnnuel, AllocationConge
-from sqlalchemy import func
+from services.consommation import (
+    somme_consommation,
+    STATUT_VALIDE,
+    STATUTS_EN_ATTENTE,
+    TYPES_CP,
+    TYPE_RTT,
+)
 
 
 def get_parametrage_actif():
@@ -29,24 +35,20 @@ def _get_param(parametrage_id):
     return get_parametrage_actif()
 
 
-_STATUTS_EN_ATTENTE = ("en_attente_responsable", "en_attente_rh")
-
-
 def calculer_jours_cps_consommes(user_id, parametrage_id=None):
     """Calcule le nombre de jours consommés (CP + Ancienneté) pour l'exercice actif (validés uniquement)."""
     param = _get_param(parametrage_id)
     if param is None:
         return 0
 
-    result = db.session.query(func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0)).filter(
-        Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
-        Conge.type_conge.in_(["CP", "Anciennete"]),
-        Conge.statut == "valide",
-    ).scalar()
-
-    return result
+    return somme_consommation(
+        colonne=Conge.nb_jours_ouvrables,
+        date_debut_min=param.debut_exercice,
+        date_fin_max=param.fin_exercice,
+        statuts=STATUT_VALIDE,
+        types=TYPES_CP,
+        user_id=user_id,
+    )
 
 
 def calculer_jours_cps_en_attente(user_id, parametrage_id=None):
@@ -55,15 +57,14 @@ def calculer_jours_cps_en_attente(user_id, parametrage_id=None):
     if param is None:
         return 0
 
-    result = db.session.query(func.coalesce(func.sum(Conge.nb_jours_ouvrables), 0)).filter(
-        Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
-        Conge.type_conge.in_(["CP", "Anciennete"]),
-        Conge.statut.in_(_STATUTS_EN_ATTENTE),
-    ).scalar()
-
-    return result
+    return somme_consommation(
+        colonne=Conge.nb_jours_ouvrables,
+        date_debut_min=param.debut_exercice,
+        date_fin_max=param.fin_exercice,
+        statuts=STATUTS_EN_ATTENTE,
+        types=TYPES_CP,
+        user_id=user_id,
+    )
 
 
 def calculer_heures_rtt_consommes(user_id, parametrage_id=None):
@@ -72,15 +73,14 @@ def calculer_heures_rtt_consommes(user_id, parametrage_id=None):
     if param is None:
         return 0
 
-    result = db.session.query(func.coalesce(func.sum(Conge.nb_heures_rtt), 0)).filter(
-        Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
-        Conge.type_conge == "RTT",
-        Conge.statut == "valide",
-    ).scalar()
-
-    return result
+    return somme_consommation(
+        colonne=Conge.nb_heures_rtt,
+        date_debut_min=param.debut_exercice,
+        date_fin_max=param.fin_exercice,
+        statuts=STATUT_VALIDE,
+        types=TYPE_RTT,
+        user_id=user_id,
+    )
 
 
 def calculer_heures_rtt_en_attente(user_id, parametrage_id=None):
@@ -89,15 +89,14 @@ def calculer_heures_rtt_en_attente(user_id, parametrage_id=None):
     if param is None:
         return 0
 
-    result = db.session.query(func.coalesce(func.sum(Conge.nb_heures_rtt), 0)).filter(
-        Conge.user_id == user_id,
-        Conge.date_debut >= param.debut_exercice,
-        Conge.date_fin <= param.fin_exercice,
-        Conge.type_conge == "RTT",
-        Conge.statut.in_(_STATUTS_EN_ATTENTE),
-    ).scalar()
-
-    return result
+    return somme_consommation(
+        colonne=Conge.nb_heures_rtt,
+        date_debut_min=param.debut_exercice,
+        date_fin_max=param.fin_exercice,
+        statuts=STATUTS_EN_ATTENTE,
+        types=TYPE_RTT,
+        user_id=user_id,
+    )
 
 
 def calculer_solde(user_id, parametrage_id=None):
