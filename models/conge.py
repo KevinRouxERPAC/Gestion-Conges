@@ -25,8 +25,11 @@ class Conge(db.Model):
     demi_journee_debut = db.Column(db.String(15), nullable=True)
     demi_journee_fin = db.Column(db.String(15), nullable=True)
     type_conge = db.Column(db.String(50), nullable=False, default="CP")  # CP, RTT, Sans solde, Maladie, Anciennete
-    # Pour RTT uniquement : nombre d'heures consommées (sinon NULL)
-    nb_heures_rtt = db.Column(db.Integer, nullable=True)
+    # Pour RTT uniquement : nombre d'heures consommées (sinon NULL).
+    # Numeric(6,2) pour conserver les fractions d'heure (ex. 16,10 h) sans perte
+    # d'arrondi. asdecimal=False : exposé comme float côté Python pour rester
+    # homogène avec les autres calculs (l'arrondi se fait à l'affichage).
+    nb_heures_rtt = db.Column(db.Numeric(6, 2, asdecimal=False), nullable=True)
     nb_heures_exceptionnelles = db.Column(db.Integer, nullable=True)
     commentaire = db.Column(db.Text, nullable=True)
     cree_le = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

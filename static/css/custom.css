@@ -49,6 +49,26 @@
     background: #000;
 }
 
+/* Lien « retour » discret et homogène (remplace les liens verts bruts). */
+.btn-retour {
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    font-size: .8125rem;
+    font-weight: 500;
+    color: #4b5563;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    padding: .375rem .75rem;
+    border-radius: .5rem;
+    text-decoration: none;
+}
+.btn-retour:hover {
+    color: var(--erpac-primary);
+    background: var(--erpac-primary-bg);
+    border-color: #a7f3d0;
+}
+
 /* Print styles */
 @media print {
     nav, footer, button, .no-print {
@@ -92,9 +112,28 @@ a, button, input, select, textarea, [role="button"] {
     }
 }
 
-/* Focus styles */
-input:focus, select:focus, textarea:focus {
+/* Focus visible : anneau net au clavier (a11y) sans halo à la souris.
+   Remplace l'ancien `outline:none` global qui supprimait le focus des champs
+   ne possédant pas de `focus:ring` Tailwind (régression pour le clavier). */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible {
+    outline: 2px solid var(--erpac-primary);
+    outline-offset: 2px;
+}
+/* Souris/tactile : pas de halo sur les champs (le focus clavier reste géré ci-dessus). */
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
     outline: none;
+}
+
+/* Alpine.js : empêche le flash des éléments masqués (x-cloak) avant l'init JS. */
+[x-cloak] {
+    display: none !important;
 }
 
 

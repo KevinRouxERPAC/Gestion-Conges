@@ -1,5 +1,5 @@
 import bcrypt
-from services.auth_utils import hash_password, check_password, valider_mot_de_passe
+from services.auth_utils import hash_password, check_password, valider_mot_de_passe, DUMMY_HASH
 from services.audit import log_action
 from flask import Blueprint, render_template, redirect, url_for, request, flash, session
 from flask_login import login_user, logout_user, login_required, current_user
@@ -48,6 +48,12 @@ def login():
                 return redirect(url_for("responsable.dashboard"))
             return redirect(url_for("salarie.accueil"))
         else:
+            # Anti-énumération par timing : si l'identifiant n'existe pas, on a
+            # court-circuité le check_password ci-dessus. On exécute donc un
+            # hachage factice pour que le temps de réponse soit comparable à
+            # celui d'un mauvais mot de passe sur un compte existant.
+            if user is None:
+                check_password(mot_de_passe, DUMMY_HASH)
             flash("Identifiant ou mot de passe incorrect.", "error")
 
     return render_template("auth/login.html")

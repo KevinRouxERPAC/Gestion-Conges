@@ -10,41 +10,16 @@ import io
 from datetime import date
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font
 
 from models.conge import Conge
 from models.parametrage import AllocationConge
 from models.user import User
 from services.consommation import somme_consommation, STATUT_VALIDE, TYPES_CP, TYPE_RTT
-
-
-def _style_header_xlsx(ws, row=1):
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
-    header_fill = PatternFill(start_color="008C3A", end_color="008C3A", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    for cell in ws[row]:
-        cell.border = thin_border
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-
-
-def _autosize_columns(ws, min_width=12, max_width=42):
-    for col in range(1, ws.max_column + 1):
-        letter = get_column_letter(col)
-        max_len = 0
-        for row in range(1, ws.max_row + 1):
-            v = ws.cell(row=row, column=col).value
-            if v is None:
-                continue
-            max_len = max(max_len, len(str(v)))
-        ws.column_dimensions[letter].width = max(min_width, min(max_width, max_len + 2))
+from services.export_utils import (
+    autosize_columns as _autosize_columns,
+    style_header_xlsx as _style_header_xlsx,
+)
 
 
 def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool = False) -> io.BytesIO:
@@ -146,18 +121,20 @@ def export_compta_cp_rtt_xlsx(parametrage, as_of: date, include_inactifs: bool =
     total_consomme_rtt = 0
     for u in users:
         a = allocations.get(u.id)
-        alloue = int(getattr(a, "total_rtt_heures", 0) or 0)
-        consomme = int(rtt_consumed.get(u.id, 0) or 0)
-        ws_rtt.append([f"{u.prenom} {u.nom}", alloue, consomme, alloue - consomme, "Oui" if u.actif else "Non"])
+        # RTT en heures décimales (quarts d'heure) : on conserve les fractions
+        # (ex. 5,25 h) au lieu de tronquer à l'entier.
+        alloue = round(float(getattr(a, "total_rtt_heures", 0) or 0), 2)
+        consomme = round(float(rtt_consumed.get(u.id, 0) or 0), 2)
+        ws_rtt.append([f"{u.prenom} {u.nom}", alloue, consomme, round(alloue - consomme, 2), "Oui" if u.actif else "Non"])
         total_alloue_rtt += alloue
         total_consomme_rtt += consomme
 
     ws_rtt.append([])
-    ws_rtt.append(["TOTAL", total_alloue_rtt, total_consomme_rtt, total_alloue_rtt - total_consomme_rtt, ""])
+    ws_rtt.append(["TOTAL", round(total_alloue_rtt, 2), round(total_consomme_rtt, 2), round(total_alloue_rtt - total_consomme_rtt, 2), ""])
     ws_rtt[ws_rtt.max_row][0].font = Font(bold=True)
 
-    _autosize_columns(ws_cp)
-    _autosize_columns(ws_rtt)
+    _autosize_columns(ws_cp, min_width=12, max_width=42)
+    _autosize_columns(ws_rtt, min_width=12, max_width=42)
 
     buffer = io.BytesIO()
     wb.save(buffer)

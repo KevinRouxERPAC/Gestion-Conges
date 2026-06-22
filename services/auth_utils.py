@@ -9,6 +9,12 @@ VALID_ROLES = frozenset({"rh", "salarie", "responsable"})
 # pour une appli intranet (longueur > complexité forcée).
 PASSWORD_MIN_LENGTH = 8
 
+# Hash bcrypt constant d'un mot de passe factice. Sert à égaliser le temps de
+# réponse du login lorsqu'un identifiant n'existe pas : on exécute toujours un
+# `check_password` (réel ou factice) pour éviter l'énumération de comptes par
+# timing (un identifiant inconnu répondrait sinon plus vite, faute de hachage).
+DUMMY_HASH = "$2b$12$MJvk0HFcb7XTe2fOshIGZu16aJYnTMCeQYwhsm284ELrJQIfWpQ3y"
+
 
 def hash_password(password):
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")

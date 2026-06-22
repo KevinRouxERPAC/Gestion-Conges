@@ -55,7 +55,7 @@
 {# Quantité d'un congé : heures pour les RTT et les exceptionnels en heures, jours sinon. #}
 {% macro quantite_conge(conge) -%}
     {%- if conge.type_conge == 'RTT' -%}
-        <span class="font-semibold">{{ conge.nb_heures_rtt|default(0) }}</span> <span class="text-gray-500 text-sm">heure(s)</span>
+        <span class="font-semibold">{{ conge.nb_heures_rtt|default(0)|heures_min }}</span>
     {%- elif conge.nb_heures_exceptionnelles -%}
         <span class="font-semibold">{{ conge.nb_heures_exceptionnelles }}</span> <span class="text-gray-500 text-sm">heure(s)</span>
     {%- else -%}
@@ -66,7 +66,7 @@
 {# Pilule de solde avec code couleur selon le restant. #}
 {% macro solde_pill(value, unit='j', show_unit=True) -%}
     {%- if value is none -%}{%- set value = 0 -%}{%- endif -%}
-    <span class="font-bold {% if value < 0 %}text-red-600{% elif value <= 5 %}text-red-600{% elif value <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
+    <span class="font-bold {% if value < 0 %}text-red-600{% elif value <= 5 %}text-red-600{% elif value <= 10 %}text-orange-600{% else %}text-green-600{% endif %}">
         {{ value|nb_jours if unit == 'j' else value }}{% if show_unit %} <span class="text-xs text-gray-500 font-normal">{{ unit }}</span>{% endif %}
     </span>
 {%- endmacro %}

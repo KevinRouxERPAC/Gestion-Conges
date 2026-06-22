@@ -23,6 +23,15 @@ class Config:
     # Schéma d’URL (http ou https). En HTTPS derrière IIS, mettre PREFERRED_URL_SCHEME=https dans web.config.
     PREFERRED_URL_SCHEME = os.environ.get("PREFERRED_URL_SCHEME", "http")
 
+    # Durcissement du cookie de session :
+    # - HttpOnly : inaccessible au JavaScript (atténue le vol de session via XSS).
+    # - SameSite=Lax : le cookie n'est pas envoyé sur les requêtes cross-site (anti-CSRF en profondeur).
+    # - Secure : cookie transmis uniquement en HTTPS. Indexé sur PREFERRED_URL_SCHEME
+    #   pour ne pas casser le dev en HTTP (où le navigateur refuserait un cookie Secure).
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    SESSION_COOKIE_SECURE = PREFERRED_URL_SCHEME == "https"
+
     # SMTP pour les notifications (validation/refus de congés)
     # Exemple : MAIL_SERVER=smtp.gmail.com MAIL_PORT=587 MAIL_USE_TLS=true
     #           MAIL_USERNAME=xxx MAIL_PASSWORD=xxx MAIL_DEFAULT_SENDER=conges@erpac.local

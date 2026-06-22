@@ -192,7 +192,8 @@ def refuser_lots():
         if not conge or conge.statut != "en_attente_responsable":
             continue
         u = conge.utilisateur
-        if not u or u.responsable_id != current_user.id:
+        # Même périmètre que la validation : responsable direct OU suppléant actif.
+        if not u or not peut_valider_pour(current_user, u):
             continue
         conge.statut = "refuse"
         conge.valide_par_responsable_id = current_user.id

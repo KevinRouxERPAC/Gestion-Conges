@@ -3,6 +3,7 @@ from models.conge import Conge
 from models.parametrage import ParametrageAnnuel, AllocationConge
 from services.consommation import (
     somme_consommation,
+    _num,
     STATUT_VALIDE,
     STATUTS_EN_ATTENTE,
     TYPES_CP,
@@ -145,41 +146,17 @@ def calculer_solde(user_id, parametrage_id=None):
         "solde_restant": cp_total - cp_consomme,
         "cp_en_attente": cp_en_attente,
         "solde_projete": cp_total - cp_consomme - cp_en_attente,
-        # RTT (heures)
-        "rtt_heures_allouees": allocation.rtt_heures_allouees,
-        "rtt_heures_reportees": allocation.rtt_heures_reportees,
-        "rtt_total_alloue": rtt_total,
-        "rtt_total_consomme": rtt_consomme,
-        "rtt_solde_restant": rtt_total - rtt_consomme,
-        "rtt_en_attente": rtt_en_attente,
-        "rtt_solde_projete": rtt_total - rtt_consomme - rtt_en_attente,
+        # RTT (heures, décimales) — normalisées (_num : entier si rond, sinon
+        # float arrondi) pour un affichage propre (pas de « 14.0 ») et des
+        # valeurs d'input valides.
+        "rtt_heures_allouees": _num(allocation.rtt_heures_allouees),
+        "rtt_heures_reportees": _num(allocation.rtt_heures_reportees),
+        "rtt_total_alloue": _num(rtt_total),
+        "rtt_total_consomme": _num(rtt_consomme),
+        "rtt_solde_restant": _num(rtt_total - rtt_consomme),
+        "rtt_en_attente": _num(rtt_en_attente),
+        "rtt_solde_projete": _num(rtt_total - rtt_consomme - rtt_en_attente),
     }
-
-
-def verifier_solde_suffisant(user_id, nb_jours, conge_id_exclu=None):
-    """Vérifie si le solde CP est suffisant pour poser nb_jours de congés."""
-    solde_info = calculer_solde(user_id)
-    solde_actuel = solde_info["solde_restant"]
-
-    if conge_id_exclu:
-        conge_exclu = Conge.query.get(conge_id_exclu)
-        if conge_exclu and conge_exclu.statut == "valide" and conge_exclu.type_conge in ("CP", "Anciennete"):
-            solde_actuel += conge_exclu.nb_jours_ouvrables
-
-    return solde_actuel >= nb_jours
-
-
-def verifier_solde_rtt_suffisant(user_id, nb_heures, conge_id_exclu=None):
-    """Vérifie si le solde RTT (en heures) est suffisant."""
-    solde_info = calculer_solde(user_id)
-    solde_actuel = solde_info["rtt_solde_restant"]
-
-    if conge_id_exclu:
-        conge_exclu = Conge.query.get(conge_id_exclu)
-        if conge_exclu and conge_exclu.statut == "valide" and conge_exclu.type_conge == "RTT":
-            solde_actuel += conge_exclu.nb_heures_rtt or 0
-
-    return solde_actuel >= nb_heures
 
 
 def salaries_a_risque(jours_min_restants=10, jours_avant_fin=90):
@@ -279,9 +256,10 @@ def cloturer_exercice_et_reporter(
             db.session.add(alloc)
 
         alloc.jours_report = int(cp_a_reporter)
-        alloc.rtt_heures_reportees = int(rtt_a_reporter)
+        # RTT en heures décimales : on ne tronque plus à l'entier (cf. R3).
+        alloc.rtt_heures_reportees = round(float(rtt_a_reporter), 2)
         total_cp_reporte += int(cp_a_reporter)
-        total_rtt_reporte += int(rtt_a_reporter)
+        total_rtt_reporte += round(float(rtt_a_reporter), 2)
 
     if ancien:
         ancien.actif = False

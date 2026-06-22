@@ -121,6 +121,33 @@ class TestSuppleantValide:
         assert log.acteur_id == suppleant.id
 
 
+class TestSuppleantRefuseLots:
+    def test_suppleant_peut_refuser_par_lots(self, client, db_session, users, suppleant, delegation_active):
+        """Régression : le refus par lots ignorait les délégations (filtre direct
+        sur responsable_id), donc un suppléant ne pouvait pas refuser par lots."""
+        c = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 9, 1),
+            date_fin=date(2026, 9, 3),
+            nb_jours_ouvrables=3,
+            type_conge="CP",
+            statut="en_attente_responsable",
+        )
+        db.session.add(c)
+        db.session.commit()
+
+        login(client, "suppleant1", "suppl123")
+        resp = client.post(
+            "/responsable/conges/refuser-lots",
+            data={"conge_ids": [str(c.id)], "motif_refus": "Indisponibilité équipe"},
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        db.session.refresh(c)
+        assert c.statut == "refuse"
+        assert c.motif_refus == "Indisponibilité équipe"
+
+
 class TestNotificationSuppleant:
     def test_demande_notifie_responsable_et_suppleant(self, client, db_session, users, suppleant, delegation_active):
         login(client, "jean1", "jean123")

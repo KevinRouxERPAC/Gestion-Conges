@@ -21,6 +21,7 @@ from typing import Optional
 from models.conge import Conge, DEMI_VALEURS
 from models.user import User
 from services.calcul_jours import compter_jours_ouvrables_avec_demi, detecter_chevauchement
+from services.format_heures import est_multiple_quart, format_heures_min
 from services.conges_exceptionnels import (
     get_type_exceptionnel,
     parse_code,
@@ -165,7 +166,7 @@ def construire_conge(
 
     # 6. Validation par type + warnings de solde négatif (non bloquants pour CP/RTT,
     #    bloquant pour les exceptionnels via plafond)
-    nb_heures_rtt: Optional[int] = None
+    nb_heures_rtt: Optional[float] = None
     nb_heures_exceptionnelles: Optional[int] = None
 
     if type_conge in ("CP", "Anciennete"):
@@ -185,12 +186,18 @@ def construire_conge(
             ))
 
     elif type_conge == "RTT":
+        # Les RTT se saisissent au quart d'heure : multiple de 0,25 h, > 0.
+        # On accepte la virgule décimale française (« 5,25 ») comme le point.
+        raw_rtt = str(payload.get("nb_heures_rtt") or "").strip().replace(",", ".")
         try:
-            nb_heures_rtt_val = int(payload.get("nb_heures_rtt") or 0)
+            nb_heures_rtt_val = round(float(raw_rtt), 2)
         except (ValueError, TypeError):
-            nb_heures_rtt_val = 0
-        if nb_heures_rtt_val <= 0:
-            result.errors.append(("error", "Merci de saisir un nombre d'heures RTT valide (≥ 1)."))
+            nb_heures_rtt_val = 0.0
+        if nb_heures_rtt_val <= 0 or not est_multiple_quart(nb_heures_rtt_val):
+            result.errors.append((
+                "error",
+                "Merci de saisir un nombre d'heures RTT valide (multiple de 0,25 h, ex. 5,25 = 5 h 15).",
+            ))
             return result
 
         solde_info = calculer_solde(salarie.id)
@@ -205,7 +212,7 @@ def construire_conge(
         if rtt_apres < 0:
             result.warnings.append((
                 "warning",
-                f"Solde RTT négatif après cette demande : {rtt_apres} heure(s).",
+                f"Solde RTT négatif après cette demande : {format_heures_min(rtt_apres)}.",
             ))
 
         nb_heures_rtt = nb_heures_rtt_val

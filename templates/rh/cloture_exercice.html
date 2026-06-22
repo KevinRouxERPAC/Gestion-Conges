@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="mb-6">
-    <a href="{{ url_for('rh.parametrage') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Paramétrage</a>
+    <a href="{{ url_for('rh.parametrage') }}" class="btn-retour">&larr; Paramétrage</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Clôture d'exercice et report des soldes</h1>
     <p class="text-gray-500 mt-1">
         Action irréversible : ferme l'exercice <strong>{{ ancien.debut_exercice.strftime('%d/%m/%Y') }} → {{ ancien.fin_exercice.strftime('%d/%m/%Y') }}</strong>
@@ -80,7 +80,8 @@
         <h2 class="text-lg font-semibold text-gray-800 mb-4">Aperçu des soldes à reporter</h2>
         {% if apercu %}
         <div class="max-h-[480px] overflow-y-auto">
-            <table class="w-full text-sm">
+            <div class="overflow-x-auto">
+<table class="w-full text-sm">
                 <thead class="bg-gray-50 sticky top-0">
                     <tr>
                         <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
@@ -99,13 +100,14 @@
                         </td>
                         <td class="px-3 py-2 text-right">
                             <span class="font-medium {% if a.rtt_restant <= 0 %}text-gray-400{% else %}text-gray-800{% endif %}">
-                                {{ a.rtt_restant }} h
+                                {{ a.rtt_restant|heures_min }}
                             </span>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+</div>
         </div>
         {% else %}
         <p class="text-gray-500 text-sm">Aucun salarié actif.</p>

@@ -1,159 +1,141 @@
 {% extends "base.html" %}
 {% import "_macros.html" as M %}
 {% block title %}Mes congés{% endblock %}
+{% block page_title %}Bonjour {{ current_user.prenom }} !{% endblock %}
+{% block page_subtitle %}Récapitulatif de vos congés et de vos soldes{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-bold text-gray-800">Bonjour {{ current_user.prenom }} !</h1>
-        <p class="text-gray-500 mt-1">Voici le récapitulatif de vos congés</p>
-    </div>
-    <div class="flex flex-row items-center gap-3 md:gap-4 justify-between w-full flex-nowrap">
-        <!-- Bouton principal : à gauche -->
-        <a href="{{ url_for('salarie.demander_conge') }}"
-           class="inline-flex items-center justify-center bg-erpac-primary hover:bg-erpac-dark text-white font-semibold text-base md:text-lg py-3 md:py-3.5 px-6 md:px-8 rounded-xl transition shadow-lg whitespace-nowrap shrink-0">
-            + Demander un congé
-        </a>
-        <!-- Boutons d'export : groupés à droite -->
-        <div class="flex items-center gap-2 shrink-0">
-            <a href="{{ url_for('salarie.export_excel') }}"
-               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
-                Export Excel
-            </a>
-            <a href="{{ url_for('salarie.export_pdf') }}"
-               class="inline-flex items-center justify-center px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs md:text-sm font-medium rounded-lg transition border border-gray-300 whitespace-nowrap">
-                Export PDF
-            </a>
+<!-- Cartes de solde -->
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Solde CP restant</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
         </div>
-    </div>
-</div>
-
-{% set conges_valides = conges|selectattr('statut', 'equalto', 'valide')|list %}
-{% set total_cp_pris = conges_valides|selectattr('type_conge', 'equalto', 'CP')|map(attribute='nb_jours_ouvrables')|sum %}
-{% set total_anc_pris = conges_valides|selectattr('type_conge', 'equalto', 'Anciennete')|map(attribute='nb_jours_ouvrables')|sum %}
-{# RTT en heures : on agrège nb_heures_rtt plutôt que nb_jours_ouvrables #}
-{% set total_rtt_pris = conges_valides|selectattr('type_conge', 'equalto', 'RTT')|map(attribute='nb_heures_rtt')|map('default', 0)|sum %}
-{% set cp_restants = solde.jours_conges - total_cp_pris %}
-{% set anc_restants = solde.jours_anciennete - total_anc_pris %}
-<!-- Solde -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Solde CP restant</div>
-        <div class="text-4xl font-bold {% if solde.solde_restant < 0 %}text-red-600{% elif solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %} mt-1">
-            {{ solde.solde_restant }}
+        <div class="mt-2 text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-600{% else %}text-erpac-primary{% endif %}">
+            {{ solde.solde_restant }} <span class="text-base font-medium text-slate-400">j</span>
         </div>
         {% if solde.cp_en_attente and solde.cp_en_attente > 0 %}
-        <div class="text-xs font-medium text-amber-700 mt-1">
-            {{ solde.cp_en_attente }} jour(s) en attente · solde projeté : <span class="{% if solde.solde_projete < 0 %}text-red-600 font-semibold{% endif %}">{{ solde.solde_projete }}</span>
-        </div>
+        <div class="mt-1 text-xs font-medium text-amber-600">{{ solde.cp_en_attente }} j en attente · projeté : <span class="{% if solde.solde_projete < 0 %}font-semibold text-red-600{% endif %}">{{ solde.solde_projete }} j</span></div>
+        {% else %}
+        <div class="mt-1 text-xs text-slate-400">sur {{ solde.total_alloue }} j alloués</div>
         {% endif %}
-        <div class="text-xs text-gray-400 mt-1">
-            Congés restants (CP / ancienneté) : {{ solde.solde_restant }}
-            {% if solde.rtt_total_alloue is defined %}
-                | RTT restant: {{ solde.rtt_solde_restant }} h · RTT pris: {{ total_rtt_pris|default(0) }} h
-            {% endif %}
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">RTT restant</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-purple-50 text-purple-600"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-purple-600">{{ solde.rtt_solde_restant|default(0)|heures_min }}</div>
+        <div class="mt-1 text-xs text-slate-400">
+            sur {{ solde.rtt_total_alloue|default(0)|heures_min }}
+            {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}· <span class="text-amber-600">{{ solde.rtt_en_attente|heures_min }} en attente</span>{% endif %}
         </div>
     </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total de congés CP alloués</div>
-        <div class="text-3xl font-bold text-erpac-primary mt-1">{{ solde.total_alloue }}</div>
-        <div class="text-xs text-gray-400 mt-1">
-            Congés (CP / ancienneté / report) : {{ solde.jours_conges + solde.jours_anciennete + solde.jours_report }}
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Total alloué</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>
         </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">{{ solde.total_alloue }} <span class="text-base font-medium text-slate-400">j</span></div>
+        <div class="mt-1 text-xs text-slate-400">CP / ancienneté / report : {{ solde.jours_conges + solde.jours_anciennete + solde.jours_report }}</div>
     </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total consommé</div>
-        <div class="text-3xl font-bold text-gray-700 mt-1">{{ solde.total_consomme }}</div>
-        <div class="text-xs text-gray-400 mt-1">
-            Congés : {{ total_cp_pris + total_anc_pris }} | RTT: {{ total_rtt_pris }}
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Total consommé</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12V8H4v12h8M16 3v4M8 3v4M4 11h16"/></svg></span>
         </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">{{ solde.total_consomme }} <span class="text-base font-medium text-slate-400">j</span></div>
+        <div class="mt-1 text-xs text-slate-400">Congés : {{ solde.total_consomme|nb_jours }} · RTT : {{ solde.rtt_total_consomme|default(0)|heures_min }}</div>
     </div>
 </div>
 
-<!-- Progress bar -->
-<div class="bg-white rounded-xl shadow p-6 mb-8">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-gray-700">Progression</h2>
-        <a href="{{ url_for('salarie.calendrier') }}" class="text-xs font-medium text-erpac-primary hover:text-erpac-dark">Voir le calendrier</a>
+<!-- Progression -->
+<div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-soft">
+    <div class="mb-5 flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-slate-700">Progression de l'exercice</h2>
+        <a href="{{ url_for('salarie.calendrier') }}" class="text-xs font-medium text-erpac-primary hover:text-erpac-dark">Voir le calendrier →</a>
     </div>
 
-    <!-- CP -->
     <div class="mb-5">
-        <div class="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Congés payés (CP + ancienneté)</span>
-            <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
+        <div class="mb-2 flex justify-between text-sm">
+            <span class="text-slate-600">Congés payés (CP + ancienneté)</span>
+            <span class="font-medium text-slate-700">{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-4">
+        <div class="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
             {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
-            <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_cp > 90 else 'bg-orange-400' if pct_cp > 70 else 'bg-erpac-primary' }}"
-                 style="width: {{ pct_cp|round(0, 'floor') }}%"></div>
+            <div class="h-full rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_cp > 90 else 'bg-orange-400' if pct_cp > 70 else 'bg-erpac-primary' }}" style="width: {{ pct_cp|round(0, 'floor') }}%"></div>
         </div>
-        <div class="text-xs text-gray-400 mt-1">
-            Restant : {{ solde.solde_restant }} jour(s)
-        </div>
+        <div class="mt-1 text-xs text-slate-400">Restant : {{ solde.solde_restant }} jour(s)</div>
     </div>
 
-    <!-- RTT -->
     <div>
-        <div class="flex justify-between text-sm text-gray-600 mb-2">
-            <span>RTT</span>
-            <span>{{ solde.rtt_total_consomme|default(0) }} / {{ solde.rtt_total_alloue|default(0) }} heure(s)</span>
+        <div class="mb-2 flex justify-between text-sm">
+            <span class="text-slate-600">RTT</span>
+            <span class="font-medium text-slate-700">{{ solde.rtt_total_consomme|default(0)|heures_min }} / {{ solde.rtt_total_alloue|default(0)|heures_min }}</span>
         </div>
-        <div class="w-full bg-gray-200 rounded-full h-4">
+        <div class="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
             {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
             {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
             {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
-            <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_rtt > 90 else 'bg-orange-400' if pct_rtt > 70 else 'bg-purple-600' }}"
-                 style="width: {{ pct_rtt|round(0, 'floor') }}%"></div>
+            <div class="h-full rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_rtt > 90 else 'bg-orange-400' if pct_rtt > 70 else 'bg-purple-600' }}" style="width: {{ pct_rtt|round(0, 'floor') }}%"></div>
         </div>
-        <div class="text-xs text-gray-400 mt-1">
-            Restant : {{ solde.rtt_solde_restant|default(0) }} heure(s)
+        <div class="mt-1 text-xs text-slate-400">
+            Restant : {{ solde.rtt_solde_restant|default(0)|heures_min }}
             {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}
-                · <span class="text-amber-700 font-medium">{{ solde.rtt_en_attente }} h en attente</span>
-                (projeté : <span class="{% if solde.rtt_solde_projete < 0 %}text-red-600 font-semibold{% endif %}">{{ solde.rtt_solde_projete }} h</span>)
+                · <span class="font-medium text-amber-600">{{ solde.rtt_en_attente|heures_min }} en attente</span>
+                (projeté : <span class="{% if solde.rtt_solde_projete < 0 %}font-semibold text-red-600{% endif %}">{{ solde.rtt_solde_projete|heures_min }}</span>)
             {% endif %}
         </div>
     </div>
 </div>
 
-<!-- Conges list -->
-<div class="bg-white rounded-xl shadow overflow-hidden">
-    <div class="px-6 py-4 border-b">
-        <h2 class="text-lg font-semibold text-gray-800">Mes congés</h2>
+<!-- Liste des congés -->
+<div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+        <h2 class="text-sm font-semibold text-slate-700">Mes congés</h2>
+        <div class="flex gap-2">
+            <a href="{{ url_for('salarie.export_excel') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50">Export Excel</a>
+            <a href="{{ url_for('salarie.export_pdf') }}" class="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50">Export PDF</a>
+        </div>
     </div>
     {% if conges %}
+    <div class="overflow-x-auto">
     <table class="w-full">
-        <thead class="bg-gray-50">
+        <thead class="bg-slate-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Quantité</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Statut</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Commentaire</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Période</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Quantité</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Type</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Statut</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Commentaire</th>
+                <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-400">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-slate-100">
             {% for conge in conges %}
-            <tr class="hover:bg-gray-50 transition">
-                <td class="px-6 py-4 text-sm">
+            <tr class="transition hover:bg-slate-50">
+                <td class="px-6 py-4 text-sm text-slate-700">
                     {{ conge.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ conge.date_fin.strftime('%d/%m/%Y') }}
                 </td>
                 <td class="px-6 py-4">{{ M.quantite_conge(conge) }}</td>
                 <td class="px-6 py-4">{{ M.badge_type_conge(conge.type_conge) }}</td>
                 <td class="px-6 py-4">{{ M.badge_statut(conge.statut, conge.motif_refus) }}</td>
-                <td class="px-6 py-4 text-sm text-gray-500">
+                <td class="px-6 py-4 text-sm text-slate-500">
                     {{ conge.motif_refus if conge.statut == 'refuse' and conge.motif_refus else (conge.commentaire or '-') }}
                 </td>
                 <td class="px-6 py-4 text-right">
                     {% if conge.justificatif %}
                     <a href="{{ url_for('rh.telecharger_justificatif', conge_id=conge.id) }}"
-                       class="text-erpac-primary hover:text-erpac-dark text-sm font-medium mr-2">Justificatif</a>
+                       class="mr-2 text-sm font-medium text-erpac-primary hover:text-erpac-dark">Justificatif</a>
                     {% endif %}
                     {% if conge.statut in ['en_attente_responsable', 'en_attente_rh'] %}
                     <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" onsubmit="return confirm('Annuler cette demande ?')">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Annuler</button>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="text-sm font-medium text-rose-600 hover:text-rose-700">Annuler</button>
                     </form>
                     {% endif %}
                 </td>
@@ -161,12 +143,9 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
-    <div class="px-6 py-12 text-center text-gray-500">Aucun congé enregistré pour le moment.</div>
+    <div class="px-6 py-12 text-center text-slate-500">Aucun congé enregistré pour le moment.</div>
     {% endif %}
 </div>
 {% endblock %}
-
-
-
-

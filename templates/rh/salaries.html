@@ -1,22 +1,18 @@
 {% extends "base.html" %}
 {% block title %}Salariés{% endblock %}
+{% block page_title %}Gestion des salariés{% endblock %}
+{% block page_subtitle %}Créer, modifier et activer/désactiver les comptes salariés{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex items-center justify-between">
-    <div>
-        <h1 class="text-2xl font-bold text-gray-800">Gestion des salariés</h1>
-        <p class="text-gray-500 mt-1">Créer, modifier et activer/désactiver les comptes salariés.</p>
-    </div>
-    <div class="flex gap-2">
-        <a href="{{ url_for('rh.importer_salaries') }}"
-           class="bg-gray-700 hover:bg-gray-800 text-white font-medium py-2 px-4 rounded-lg shadow transition">
-            Importer (CSV / Excel)
-        </a>
-        <a href="{{ url_for('rh.creer_salarie') }}"
-           class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg shadow transition">
-            + Nouveau salarié
-        </a>
-    </div>
+<div class="mb-6 flex flex-wrap items-center justify-end gap-2">
+    <a href="{{ url_for('rh.importer_salaries') }}"
+       class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-slate-50">
+        Importer (CSV / Excel)
+    </a>
+    <a href="{{ url_for('rh.creer_salarie') }}"
+       class="rounded-lg bg-erpac-primary px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-erpac-dark">
+        + Nouveau salarié
+    </a>
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
@@ -24,7 +20,8 @@
         <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant)..."
                class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
     </div>
-    <table class="w-full">
+    <div class="overflow-x-auto">
+<table class="w-full">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
@@ -78,6 +75,7 @@
             {% endfor %}
         </tbody>
     </table>
+</div>
 </div>
 {% endblock %}
 

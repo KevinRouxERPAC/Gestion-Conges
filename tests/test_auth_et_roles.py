@@ -23,6 +23,41 @@ class TestAuthentification:
         assert "/salarie/accueil" in resp.headers["Location"]
 
 
+class TestAntiEnumeration:
+    """Anti-énumération de comptes par timing (R4)."""
+
+    def test_meme_message_inexistant_et_mauvais_mdp(self, client, users):
+        # Un identifiant inexistant et un mauvais mot de passe sur un compte
+        # existant doivent renvoyer exactement le même message.
+        r_inexistant = client.post(
+            "/login", data={"identifiant": "inexistant", "mot_de_passe": "peu importe"},
+            follow_redirects=True,
+        )
+        r_mauvais = client.post(
+            "/login", data={"identifiant": "jean1", "mot_de_passe": "mauvais"},
+            follow_redirects=True,
+        )
+        assert b"incorrect" in r_inexistant.data
+        assert b"incorrect" in r_mauvais.data
+
+    def test_check_factice_appele_si_identifiant_inexistant(self, client, users, monkeypatch):
+        # La branche factice doit exécuter un check_password contre DUMMY_HASH
+        # quand l'identifiant n'existe pas (égalisation du temps de réponse).
+        import routes.auth as auth_mod
+        from services.auth_utils import DUMMY_HASH
+
+        hashes_vus = []
+        original = auth_mod.check_password
+
+        def espion(pwd, hashed):
+            hashes_vus.append(hashed)
+            return original(pwd, hashed)
+
+        monkeypatch.setattr(auth_mod, "check_password", espion)
+        client.post("/login", data={"identifiant": "inexistant", "mot_de_passe": "x"})
+        assert DUMMY_HASH in hashes_vus
+
+
 class TestAccesRoles:
     def test_salarie_ne_peut_pas_acceder_rh(self, client, users):
         login(client, "jean1", "jean123")

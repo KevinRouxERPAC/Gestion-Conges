@@ -1,147 +1,169 @@
 {% extends "base.html" %}
 {% import "_macros.html" as M %}
 {% block title %}Tableau de bord RH{% endblock %}
+{% block page_title %}Tableau de bord RH{% endblock %}
+{% block page_subtitle %}Vue d'ensemble des congés des salariés{% endblock %}
 
 {% block content %}
-<div class="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-    <div>
-        <h1 class="text-2xl font-bold text-gray-800">Tableau de bord RH</h1>
-        <p class="text-gray-500 mt-1">Vue d'ensemble des congés des salariés</p>
-    </div>
-    <div class="erpac-toolbar">
-        <div class="erpac-toolbar-group">
-            <a href="{{ url_for('rh.export_equipe_excel') }}" class="erpac-btn">Export Excel équipe</a>
-            <a href="{{ url_for('rh.interessement') }}" class="erpac-btn">Intéressement</a>
-        </div>
-
-        <div class="erpac-toolbar-card">
-            <form action="{{ url_for('rh.export_compta') }}" method="get" class="erpac-toolbar-group">
-                <label class="erpac-toolbar-label">Export comptable</label>
-                <input type="date" name="date" value="{{ today.isoformat() }}" class="erpac-date-input" />
-                <button type="submit" class="erpac-btn erpac-btn--sm">Télécharger</button>
+<!-- Barre d'actions : exercice + exports regroupés -->
+<div class="mb-6 flex flex-wrap items-center justify-between gap-3">
+    <p class="text-sm text-slate-500">
+        {% if parametrage %}
+            Exercice <span class="font-semibold text-slate-700">{{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} → {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}</span>
+        {% else %}
+            <span class="font-semibold text-red-500">Exercice non configuré</span>
+        {% endif %}
+    </p>
+    <div class="relative" x-data="{ open: false }">
+        <button type="button" @click="open = !open" @click.outside="open = false"
+                class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-slate-50"
+                :aria-expanded="open.toString()">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+            Exporter
+            <svg class="h-4 w-4 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <div x-show="open" x-cloak x-transition @click.outside="open = false"
+             class="absolute right-0 z-10 mt-2 w-72 rounded-lg border border-slate-200 bg-white p-1 shadow-lg ring-1 ring-black/5">
+            <a href="{{ url_for('rh.export_equipe_excel') }}" class="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Export Excel équipe</a>
+            {% if compta_31_03 and compta_30_09 %}
+            <a href="{{ url_for('rh.export_compta', date=compta_31_03.isoformat()) }}" class="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Export comptable — 31/03</a>
+            <a href="{{ url_for('rh.export_compta', date=compta_30_09.isoformat()) }}" class="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Export comptable — 30/09</a>
+            {% endif %}
+            <form action="{{ url_for('rh.export_compta') }}" method="get" class="flex items-center gap-2 px-3 py-2">
+                <input type="date" name="date" value="{{ today.isoformat() }}" class="min-w-0 flex-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm">
+                <button type="submit" class="rounded-md bg-erpac-primary px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-erpac-dark">Compta</button>
             </form>
-            <div class="erpac-toolbar-group">
-                {% if compta_31_03 and compta_30_09 %}
-                    <a href="{{ url_for('rh.export_compta', date=compta_31_03.isoformat()) }}" class="erpac-quick-link">31/03</a>
-                    <a href="{{ url_for('rh.export_compta', date=compta_30_09.isoformat()) }}" class="erpac-quick-link">30/09</a>
-                {% endif %}
-            </div>
+            <div class="my-1 border-t border-slate-100"></div>
+            <a href="{{ url_for('rh.interessement') }}" class="block rounded-md px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">Intéressement</a>
         </div>
     </div>
 </div>
 
-<!-- Stats -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Total salariés</div>
-        <div class="text-3xl font-bold text-erpac-primary mt-1">{{ total_salaries }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">En congé aujourd'hui</div>
-        <div class="text-3xl font-bold text-orange-500 mt-1">{{ total_en_conge }}</div>
-    </div>
-    <div class="bg-white rounded-xl shadow p-6">
-        <div class="text-sm font-medium text-gray-500">Exercice actif</div>
-        <div class="text-lg font-bold text-gray-700 mt-1">
-            {% if parametrage %}
-                {{ parametrage.debut_exercice.strftime('%d/%m/%Y') }} - {{ parametrage.fin_exercice.strftime('%d/%m/%Y') }}
-            {% else %}
-                <span class="text-red-500">Non configuré</span>
-            {% endif %}
+<!-- KPI -->
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Total salariés</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg></span>
         </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">{{ total_salaries }}</div>
+        <div class="mt-1 text-xs text-slate-400">salariés actifs</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">En congé aujourd'hui</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-orange-50 text-orange-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-orange-500">{{ total_en_conge }}</div>
+        <div class="mt-1 text-xs text-slate-400">{{ ((total_en_conge / total_salaries * 100) | round | int) if total_salaries else 0 }} % de l'effectif</div>
+    </div>
+
+    {% if demandes_attente %}
+    <a href="#file-validation" class="group rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-soft ring-1 ring-amber-100 transition hover:ring-amber-300">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-amber-800">À valider</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-amber-700">{{ demandes_attente|length }}</div>
+        <div class="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">Traiter les demandes <svg class="h-3 w-3 transition group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </a>
+    {% else %}
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">À valider</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">0</div>
+        <div class="mt-1 text-xs text-slate-400">aucune demande en attente</div>
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Soldes à risque</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-rose-50 text-rose-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold {{ 'text-rose-500' if a_risque else 'text-slate-800' }}">{{ a_risque|length if a_risque else 0 }}</div>
+        <div class="mt-1 text-xs text-slate-400">CP élevés en fin d'exercice</div>
     </div>
 </div>
 
 <!-- Demandes en attente -->
 {% if demandes_attente %}
-<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8" x-data="bulkConges()">
-    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 class="text-lg font-semibold text-amber-900">
+<div id="file-validation" class="mt-6 overflow-hidden rounded-xl border border-amber-200 bg-white shadow-soft" x-data="bulkConges()">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-6 py-4">
+        <h2 class="flex items-center gap-2 text-sm font-semibold text-amber-900">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             Demandes en attente de validation ({{ demandes_attente|length }})
         </h2>
-        <div class="flex items-center gap-2 text-sm">
-            <span class="text-amber-800" x-text="`${selected.length} sélectionnée(s)`"></span>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="text-amber-700" x-text="`${selected.length} sélectionnée(s)`"></span>
             <form method="POST" action="{{ url_for('rh.valider_lots') }}" class="inline" @submit="prepareForm($event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <template x-for="id in selected" :key="id">
-                    <input type="hidden" name="conge_ids" :value="id">
-                </template>
+                <template x-for="id in selected" :key="id"><input type="hidden" name="conge_ids" :value="id"></template>
                 <button type="submit" :disabled="selected.length === 0"
-                        class="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">
-                    Valider la sélection
-                </button>
+                        class="rounded-lg bg-erpac-primary px-3 py-1.5 font-medium text-white transition hover:bg-erpac-dark disabled:cursor-not-allowed disabled:bg-slate-300">Valider la sélection</button>
             </form>
             <form method="POST" action="{{ url_for('rh.refuser_lots') }}" class="inline" @submit="prepareForm($event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <template x-for="id in selected" :key="id">
-                    <input type="hidden" name="conge_ids" :value="id">
-                </template>
+                <template x-for="id in selected" :key="id"><input type="hidden" name="conge_ids" :value="id"></template>
                 <button type="submit" :disabled="selected.length === 0"
-                        class="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">
-                    Refuser la sélection
-                </button>
+                        class="rounded-lg bg-rose-600 px-3 py-1.5 font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">Refuser la sélection</button>
             </form>
         </div>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-amber-800 border-b border-amber-200">
-                    <th class="py-2 pr-2 w-8">
-                        <input type="checkbox" @change="toggleAll($event)" aria-label="Tout sélectionner"
-                               class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary">
+            <thead class="bg-slate-50">
+                <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
+                    <th class="w-10 px-6 py-3">
+                        <input type="checkbox" @change="toggleAll($event)" aria-label="Tout sélectionner" class="rounded border-slate-300 text-erpac-primary focus:ring-erpac-primary">
                     </th>
-                    <th class="py-2 pr-4">Salarié</th>
-                    <th class="py-2 pr-4">Période</th>
-                    <th class="py-2 pr-4">Type</th>
-                    <th class="py-2 pr-4">Jours</th>
-                    <th class="py-2 pr-4">Conflits équipe</th>
-                    <th class="py-2 text-right">Actions</th>
+                    <th class="px-3 py-3 font-medium">Salarié</th>
+                    <th class="px-3 py-3 font-medium">Période</th>
+                    <th class="px-3 py-3 font-medium">Type</th>
+                    <th class="px-3 py-3 font-medium">Jours</th>
+                    <th class="px-3 py-3 font-medium">Conflits équipe</th>
+                    <th class="px-6 py-3 text-right font-medium">Actions</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody class="divide-y divide-slate-100">
                 {% for c in demandes_attente %}
-                <tr class="border-b border-amber-100">
-                    <td class="py-3 pr-2">
+                <tr class="hover:bg-slate-50">
+                    <td class="px-6 py-3.5">
                         <input type="checkbox" value="{{ c.id }}" @change="toggle({{ c.id }}, $event)"
-                               class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary"
-                               aria-label="Sélectionner cette demande">
+                               class="rounded border-slate-300 text-erpac-primary focus:ring-erpac-primary" aria-label="Sélectionner cette demande">
                     </td>
-                    <td class="py-3">
-                        <a href="{{ url_for('rh.salarie_detail', user_id=c.user_id) }}" class="text-erpac-primary hover:text-erpac-dark font-medium">
+                    <td class="px-3 py-3.5">
+                        <a href="{{ url_for('rh.salarie_detail', user_id=c.user_id) }}" class="font-medium text-erpac-primary hover:text-erpac-dark">
                             {{ c.utilisateur.prenom if c.utilisateur else '-' }} {{ c.utilisateur.nom if c.utilisateur else '' }}
                         </a>
                     </td>
-                    <td class="py-3">{{ c.date_debut.strftime('%d/%m/%Y') }} → {{ c.date_fin.strftime('%d/%m/%Y') }}</td>
-                    <td class="py-3">{{ c.type_conge }}</td>
-                    <td class="py-3">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
-                    <td class="py-3">
+                    <td class="px-3 py-3.5 text-slate-700">{{ c.date_debut.strftime('%d/%m/%Y') }} → {{ c.date_fin.strftime('%d/%m/%Y') }}</td>
+                    <td class="px-3 py-3.5">{{ M.badge_type_conge(c.type_conge) }}</td>
+                    <td class="px-3 py-3.5 text-slate-700">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
+                    <td class="px-3 py-3.5">
                         {% set conflits = conflits_par_conge.get(c.id, []) %}
                         {% if conflits %}
                         <details class="text-xs">
-                            <summary class="cursor-pointer text-amber-700 font-medium">
-                                {{ conflits|length }} collègue(s) absent(s)
-                            </summary>
-                            <ul class="mt-2 space-y-1 text-gray-700">
+                            <summary class="cursor-pointer font-medium text-amber-700">{{ conflits|length }} collègue(s) absent(s)</summary>
+                            <ul class="mt-2 space-y-1 text-slate-600">
                                 {% for k in conflits %}
-                                <li>
-                                    <span class="font-medium">{{ k.salarie }}</span>
-                                    <span class="text-gray-500">— {{ k.periode }} ({{ k.type_conge }}{% if k.statut != 'valide' %}, en attente{% endif %})</span>
-                                </li>
+                                <li><span class="font-medium">{{ k.salarie }}</span> <span class="text-slate-400">— {{ k.periode }} ({{ k.type_conge }}{% if k.statut != 'valide' %}, en attente{% endif %})</span></li>
                                 {% endfor %}
                             </ul>
                         </details>
                         {% else %}
-                        <span class="text-green-700 text-xs">Aucun</span>
+                        <span class="text-xs text-erpac-700">Aucun</span>
                         {% endif %}
                     </td>
-                    <td class="py-3 text-right space-x-2">
+                    <td class="space-x-2 px-6 py-3.5 text-right">
                         <form method="POST" action="{{ url_for('rh.valider_conge', conge_id=c.id) }}" class="inline">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button>
+                            <button type="submit" class="font-medium text-erpac-primary hover:text-erpac-dark">Valider</button>
                         </form>
-                        <a href="{{ url_for('rh.refuser_conge', conge_id=c.id) }}"
-                           class="text-red-600 hover:text-red-800 font-medium">Refuser</a>
+                        <a href="{{ url_for('rh.refuser_conge', conge_id=c.id) }}" class="font-medium text-rose-600 hover:text-rose-700">Refuser</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -178,228 +200,177 @@ function bulkConges() {
 </script>
 {% endif %}
 
-{% if a_risque %}
-<div class="bg-orange-50 border border-orange-200 rounded-xl shadow p-6 mb-8">
-    <h2 class="text-lg font-semibold text-orange-900 mb-2">
-        Soldes à risque ({{ a_risque|length }})
-    </h2>
-    <p class="text-sm text-orange-800 mb-4">
-        Fin d'exercice dans {{ a_risque[0].jours_avant_fin_exercice }} jour(s). Ces salariés ont encore beaucoup de CP à poser.
-        Pensez à les relancer ou à <a href="{{ url_for('rh.parametrage') }}" class="underline">préparer la clôture</a> avec report.
-    </p>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm">
-            <thead>
-                <tr class="text-left text-orange-800 border-b border-orange-200">
-                    <th class="py-2 pr-4">Salarié</th>
-                    <th class="py-2 pr-4">Solde CP restant</th>
-                    <th class="py-2 pr-4">Solde projeté</th>
-                    <th class="py-2 text-right">Action</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in a_risque %}
-                <tr class="border-b border-orange-100">
-                    <td class="py-3 font-medium">{{ item.user.prenom }} {{ item.user.nom }}</td>
-                    <td class="py-3 font-bold text-orange-700">{{ item.solde_restant|nb_jours }} j</td>
-                    <td class="py-3">{{ item.solde_projete|nb_jours }} j</td>
-                    <td class="py-3 text-right">
-                        <a href="{{ url_for('rh.salarie_detail', user_id=item.user.id) }}"
-                           class="text-erpac-primary hover:text-erpac-dark font-medium">Voir →</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-<!-- Calendrier global des congés + récapitulatif -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-    <div class="lg:col-span-2 bg-white rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Calendrier des congés (exercice actif)</h2>
+<!-- Calendrier global + soldes à risque -->
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft md:p-6 lg:col-span-2">
+        <h2 class="mb-4 text-sm font-semibold text-slate-700">Calendrier des congés (exercice actif)</h2>
         <div id="calendar-rh"></div>
-        <!-- Légende des types de congés -->
-        <div class="mt-4 pt-3 border-t border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700 mb-2">Légende</h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-600">
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 3px; background-color: #008C3A;"></span>
-                    <span>CP - Congés payés</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 3px; background-color: #9333ea;"></span>
-                    <span>RTT</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 3px; background-color: #ef4444;"></span>
-                    <span>Maladie</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 3px; background-color: #16a34a;"></span>
-                    <span>Ancienneté</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; margin-right: 6px; border-radius: 3px; background-color: #6b7280;"></span>
-                    <span>Autre</span>
-                </div>
+        <div class="mt-4 border-t border-slate-100 pt-3">
+            <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-erpac-primary"></span>CP - Congés payés</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-purple-600"></span>RTT</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-red-500"></span>Maladie</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-green-600"></span>Ancienneté</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-slate-400"></span>Autre</div>
             </div>
         </div>
     </div>
-    <div class="bg-white rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Liste des congés (exercice actif)</h2>
+    <div class="self-start rounded-xl border border-slate-200 bg-white p-4 shadow-soft md:p-6">
+        {% if a_risque %}
+        <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-sm font-semibold text-slate-700">Soldes à risque</h2>
+            <span class="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-bold text-rose-600">{{ a_risque|length }}</span>
+        </div>
+        <p class="mb-3 text-xs text-slate-400">Fin d'exercice dans {{ a_risque[0].jours_avant_fin_exercice }} jour(s). Pensez à les relancer ou à <a href="{{ url_for('rh.parametrage') }}" class="text-erpac-primary underline">préparer la clôture</a>.</p>
+        <ul class="space-y-2 text-sm">
+            {% for item in a_risque %}
+            <li class="flex items-center justify-between rounded-lg border border-slate-100 px-3 py-2">
+                <span class="font-medium text-slate-700">{{ item.user.prenom }} {{ item.user.nom }}</span>
+                <span class="flex items-center gap-2">
+                    <span class="font-bold text-rose-600">{{ item.solde_restant|nb_jours }} j</span>
+                    <a href="{{ url_for('rh.salarie_detail', user_id=item.user.id) }}" class="text-xs font-medium text-erpac-primary hover:text-erpac-dark">Voir →</a>
+                </span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <h2 class="mb-4 text-sm font-semibold text-slate-700">Congés de l'exercice actif</h2>
         {% if conges_exercice_rows %}
-        <div class="max-h-72 overflow-y-auto">
+        <div class="max-h-[28rem] overflow-y-auto">
             <table class="w-full text-sm">
-                <thead class="bg-gray-50">
-                    <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jours</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <thead class="bg-slate-50">
+                    <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
+                        <th class="px-3 py-2 font-medium">Salarié</th>
+                        <th class="px-3 py-2 font-medium">Période</th>
+                        <th class="px-3 py-2 font-medium">Jours</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-gray-100">
+                <tbody class="divide-y divide-slate-100">
                     {% for e in conges_exercice_rows %}
                     <tr>
-                        <td class="px-3 py-2 whitespace-nowrap text-gray-900 font-medium">
-                            {{ e.salarie }}
-                        </td>
-                        <td class="px-3 py-2 whitespace-nowrap">
-                            {{ e.label }}
-                        </td>
-                        <td class="px-3 py-2">{{ e.jours|nb_jours }} j</td>
-                        <td class="px-3 py-2">{{ M.badge_type_conge(e.type) }}</td>
+                        <td class="px-3 py-2 font-medium text-slate-700">{{ e.salarie }}</td>
+                        <td class="px-3 py-2 text-slate-600">{{ e.label }}</td>
+                        <td class="px-3 py-2 text-slate-600">{{ e.jours|nb_jours }} j</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
         {% else %}
-        <p class="text-gray-500 text-sm">Aucun congé validé pour l'exercice actif.</p>
+        <p class="text-sm text-slate-500">Aucun congé validé pour l'exercice actif.</p>
+        {% endif %}
         {% endif %}
     </div>
 </div>
 
-<!-- Salariés actifs et inactifs (une seule barre de recherche) -->
-<div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
-    <div class="px-6 py-4 border-b">
-        <input type="text" x-model="search" placeholder="Rechercher un salarié..."
-               class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
+<!-- Salariés (onglets actifs / inactifs + recherche) -->
+<div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft" x-data="{ tab: 'actifs', search: '' }">
+    <div class="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
+            <button @click="tab = 'actifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'actifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Actifs <span class="text-slate-400">{{ salaries_data|length }}</span></button>
+            <button @click="tab = 'inactifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'inactifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Inactifs <span class="text-slate-400">{{ salaries_data_inactifs|length }}</span></button>
+        </div>
+        <div class="relative">
+            <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="text" x-model="search" placeholder="Rechercher un salarié…" class="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm outline-none focus:border-erpac-primary focus:bg-white focus:ring-2 focus:ring-erpac-100 sm:w-72">
+        </div>
     </div>
 
-    <!-- Tableau des salariés actifs -->
-    <div class="px-6 py-3 bg-gray-50 border-b">
-        <h2 class="text-sm font-semibold text-gray-700">Salariés actifs</h2>
-    </div>
+    <!-- Actifs -->
+    <div x-show="tab === 'actifs'" class="overflow-x-auto">
     <table class="w-full">
-        <thead class="bg-gray-50">
+        <thead class="bg-slate-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solde CP</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total CP alloué</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CP consommés</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Salarié</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Solde CP</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Total alloué</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Consommé</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Statut</th>
+                <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-400">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-slate-100">
             {% for data in salaries_data %}
-            <tr class="hover:bg-gray-50 transition cursor-pointer"
+            <tr class="cursor-pointer transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
-                role="button"
-                tabindex="0"
+                role="button" tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
                 onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
                 <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
-                    <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
+                    <div class="font-medium text-slate-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
                 </td>
                 <td class="px-6 py-4">
-                    <span class="text-lg font-bold {% if data.solde.solde_restant < 0 %}text-red-600{% elif data.solde.solde_restant <= 5 %}text-red-600{% elif data.solde.solde_restant <= 10 %}text-orange-500{% else %}text-green-600{% endif %}">
-                        {{ data.solde.solde_restant }}
-                    </span>
-                    <span class="text-sm text-gray-500">jour(s)</span>
+                    <span class="text-lg font-bold {% if data.solde.solde_restant <= 5 %}text-red-600{% elif data.solde.solde_restant <= 10 %}text-orange-600{% else %}text-erpac-primary{% endif %}">{{ data.solde.solde_restant }}</span>
+                    <span class="text-sm text-slate-400">j</span>
                     {% if data.solde.cp_en_attente and data.solde.cp_en_attente > 0 %}
-                        <div class="text-xs text-amber-700 font-medium">{{ data.solde.cp_en_attente }} j en attente</div>
+                        <div class="text-xs font-medium text-amber-600">{{ data.solde.cp_en_attente }} j en attente</div>
                     {% endif %}
                     {% if data.solde.rtt_total_alloue is defined %}
-                        <div class="text-xs text-gray-500">
-                            RTT : {{ data.solde.rtt_solde_restant }} h restantes{% if data.solde.rtt_en_attente and data.solde.rtt_en_attente > 0 %} · <span class="text-amber-700">{{ data.solde.rtt_en_attente }} h en attente</span>{% endif %}
-                        </div>
+                        <div class="text-xs text-slate-400">RTT : {{ data.solde.rtt_solde_restant|heures_min }}{% if data.solde.rtt_en_attente and data.solde.rtt_en_attente > 0 %} · <span class="text-amber-600">{{ data.solde.rtt_en_attente|heures_min }} en attente</span>{% endif %}</div>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_alloue }}</td>
-                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_consomme }}</td>
+                <td class="px-6 py-4 text-slate-600">{{ data.solde.total_alloue }}</td>
+                <td class="px-6 py-4 text-slate-600">{{ data.solde.total_consomme }}</td>
                 <td class="px-6 py-4">
                     {% if data.conges_en_cours > 0 %}
-                        <span class="bg-orange-100 text-orange-800 text-xs font-medium px-2.5 py-0.5 rounded-full">En congé</span>
+                        <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700">En congé</span>
                     {% else %}
-                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Présent</span>
+                        <span class="rounded-full bg-erpac-50 px-2.5 py-0.5 text-xs font-medium text-erpac-800">Présent</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-right space-x-2" onclick="event.stopPropagation()">
-                    <a href="{{ url_for('rh.ajouter_conge', user_id=data.user.id) }}"
-                       class="text-green-600 hover:text-green-800 text-sm font-medium">+ Congé</a>
+                <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                    <a href="{{ url_for('rh.ajouter_conge', user_id=data.user.id) }}" class="text-sm font-medium text-erpac-primary hover:text-erpac-dark">+ Congé</a>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-
-    <!-- Tableau des salariés inactifs -->
-    <div class="px-6 py-3 bg-gray-50 border-b border-t mt-2">
-        <h2 class="text-sm font-semibold text-gray-700">Salariés inactifs</h2>
     </div>
+
+    <!-- Inactifs -->
+    <div x-show="tab === 'inactifs'" x-cloak class="overflow-x-auto">
     <table class="w-full">
-        <thead class="bg-gray-50">
+        <thead class="bg-slate-50">
             <tr>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Solde restant</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total alloué</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Consommé</th>
-                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
-                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Salarié</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Solde restant</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Total alloué</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Consommé</th>
+                <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Statut</th>
+                <th class="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-slate-400">Actions</th>
             </tr>
         </thead>
-        <tbody class="divide-y divide-gray-200">
+        <tbody class="divide-y divide-slate-100">
             {% for data in salaries_data_inactifs %}
-            <tr class="hover:bg-gray-50 transition cursor-pointer"
+            <tr class="cursor-pointer transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
-                role="button"
-                tabindex="0"
+                role="button" tabindex="0"
                 onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
                 onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
                 <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
-                    <div class="text-sm text-gray-500">{{ data.user.role|upper }}</div>
+                    <div class="font-medium text-slate-700">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
                 </td>
                 <td class="px-6 py-4">
-                    <span class="text-lg font-bold text-gray-500">{{ data.solde.solde_restant }}</span>
-                    <span class="text-sm text-gray-500">jour(s)</span>
+                    <span class="text-lg font-bold text-slate-400">{{ data.solde.solde_restant }}</span>
+                    <span class="text-sm text-slate-400">j</span>
                     {% if data.solde.rtt_total_alloue is defined %}
-                        <div class="text-xs text-gray-500">
-                            RTT : {{ data.solde.rtt_solde_restant }} h restantes
-                        </div>
+                        <div class="text-xs text-slate-400">RTT : {{ data.solde.rtt_solde_restant|heures_min }} restantes</div>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_alloue }}</td>
-                <td class="px-6 py-4 text-gray-700">{{ data.solde.total_consomme }}</td>
-                <td class="px-6 py-4">
-                    <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
-                </td>
-                <td class="px-6 py-4 text-right text-gray-400 text-sm">Cliquer pour ouvrir la fiche</td>
+                <td class="px-6 py-4 text-slate-600">{{ data.solde.total_alloue }}</td>
+                <td class="px-6 py-4 text-slate-600">{{ data.solde.total_consomme }}</td>
+                <td class="px-6 py-4"><span class="rounded-full bg-rose-50 px-2.5 py-0.5 text-xs font-medium text-rose-700">Inactif</span></td>
+                <td class="px-6 py-4 text-right text-xs text-slate-400">Ouvrir la fiche</td>
             </tr>
             {% else %}
-            <tr>
-                <td colspan="6" class="px-6 py-4 text-center text-gray-500 text-sm">Aucun salarié inactif.</td>
-            </tr>
+            <tr><td colspan="6" class="px-6 py-4 text-center text-sm text-slate-500">Aucun salarié inactif.</td></tr>
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
-
 
 <script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
@@ -458,7 +429,3 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 {% endblock %}
-
-
-
-

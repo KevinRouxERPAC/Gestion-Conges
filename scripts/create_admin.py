@@ -51,8 +51,11 @@ def main():
             getpass = lambda p: input(p + " (visible) ")
 
         mot_de_passe = getpass("Mot de passe pour le compte RH : ")
-        if not mot_de_passe or len(mot_de_passe) < 5:
-            print("Le mot de passe doit faire au moins 5 caractères.")
+        # Même politique que le reste de l'application (cf. services/auth_utils).
+        from services.auth_utils import valider_mot_de_passe
+        err = valider_mot_de_passe(mot_de_passe)
+        if err:
+            print(err)
             sys.exit(1)
 
         user = User(

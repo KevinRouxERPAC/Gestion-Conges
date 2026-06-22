@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="mb-6">
-    <a href="{{ url_for('salarie.accueil') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Retour à mes congés</a>
+    <a href="{{ url_for('salarie.accueil') }}" class="btn-retour">&larr; Retour à mes congés</a>
     <h1 class="text-2xl font-bold text-gray-800 mt-2">Demander un congé</h1>
     <p class="text-gray-500">
         Solde CP : <strong class="{% if solde.solde_restant < 0 %}text-red-600{% endif %}">{{ solde.solde_restant }}</strong> jour(s) restant(s)
@@ -11,9 +11,9 @@
             <span class="text-amber-700">({{ solde.cp_en_attente }} j en attente · projeté : <strong class="{% if solde.solde_projete < 0 %}text-red-600{% endif %}">{{ solde.solde_projete }}</strong>)</span>
         {% endif %}
         {% if solde.rtt_total_alloue is defined %}
-            · Solde RTT : <strong class="{% if solde.rtt_solde_restant < 0 %}text-red-600{% endif %}">{{ solde.rtt_solde_restant }}</strong> heure(s) restante(s)
+            · Solde RTT : <strong class="{% if solde.rtt_solde_restant < 0 %}text-red-600{% endif %}">{{ solde.rtt_solde_restant|heures_min }}</strong> restant
             {% if solde.rtt_en_attente and solde.rtt_en_attente > 0 %}
-                <span class="text-amber-700">({{ solde.rtt_en_attente }} h en attente)</span>
+                <span class="text-amber-700">({{ solde.rtt_en_attente|heures_min }} en attente)</span>
             {% endif %}
         {% endif %}
     </p>
@@ -64,11 +64,11 @@
             <label for="nb_heures_rtt" class="block text-sm font-medium text-gray-700 mb-1">
                 Heures RTT (si RTT)
             </label>
-            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="1"
+            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="0.25" step="0.25"
                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   placeholder="Nombre d'heures RTT (ex : 2)">
+                   placeholder="Nombre d'heures RTT (ex : 5,25)">
             <p class="text-xs text-gray-400 mt-1">
-                Pour un RTT, indiquez le nombre d'heures (la période calendrier reste indicative).
+                Pour un RTT, indiquez le nombre d'heures par quart d'heure (multiple de 0,25 ; ex. 5,25 = 5 h 15). La période calendrier reste indicative.
             </p>
         </div>
 

@@ -7,7 +7,7 @@ import io
 from datetime import date
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.styles import Font
 from openpyxl.utils import get_column_letter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -15,22 +15,8 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-
-def _style_header_xlsx(ws, row=1):
-    """Applique des styles aux en-têtes Excel. row: numéro de ligne (1-based)."""
-    thin_border = Border(
-        left=Side(style="thin"),
-        right=Side(style="thin"),
-        top=Side(style="thin"),
-        bottom=Side(style="thin"),
-    )
-    header_fill = PatternFill(start_color="008C3A", end_color="008C3A", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF")
-    for cell in ws[row]:
-        cell.border = thin_border
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+from services.export_utils import style_header_xlsx as _style_header_xlsx
+from services.format_heures import format_heures_min
 
 
 def export_conges_excel(conges, user_nom="", user_prenom=""):
@@ -155,9 +141,9 @@ def export_conges_pdf(conges, solde_info, user_nom="", user_prenom=""):
         ]
         # Ajouter éventuellement les RTT si présents
         if "rtt_total_alloue" in solde_info:
-            solde_data.append(["RTT allouées (heures)", str(solde_info.get("rtt_total_alloue", 0))])
-            solde_data.append(["RTT consommées (heures)", str(solde_info.get("rtt_total_consomme", 0))])
-            solde_data.append(["RTT restantes (heures)", str(solde_info.get("rtt_solde_restant", 0))])
+            solde_data.append(["RTT allouées", format_heures_min(solde_info.get("rtt_total_alloue", 0))])
+            solde_data.append(["RTT consommées", format_heures_min(solde_info.get("rtt_total_consomme", 0))])
+            solde_data.append(["RTT restantes", format_heures_min(solde_info.get("rtt_solde_restant", 0))])
         t_solde = Table(solde_data, colWidths=[6 * cm, 4 * cm])
         t_solde.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f3f4f6")),
@@ -177,7 +163,7 @@ def export_conges_pdf(conges, solde_info, user_nom="", user_prenom=""):
             data.append([
                 f"{c.date_debut.strftime('%d/%m/%Y')} - {c.date_fin.strftime('%d/%m/%Y')}",
                 str(c.nb_jours_ouvrables),
-                str(getattr(c, "nb_heures_rtt", None) or ""),
+                format_heures_min(c.nb_heures_rtt) if getattr(c, "nb_heures_rtt", None) else "",
                 c.type_conge,
                 getattr(c, "statut", "valide") or "valide",
             ])

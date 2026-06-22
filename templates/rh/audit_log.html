@@ -1,13 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Journal d'audit{% endblock %}
+{% block page_title %}Journal d'audit{% endblock %}
+{% block page_subtitle %}Traçabilité des actions sensibles{% endblock %}
 
 {% block content %}
-<div class="mb-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-    <div>
-        <a href="{{ url_for('rh.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Tableau de bord</a>
-        <h1 class="text-2xl font-bold text-gray-800 mt-2">Journal d'audit</h1>
-        <p class="text-gray-500 mt-1">{{ total }} action(s) enregistrée(s). Affichage des 100 dernières par page.</p>
-    </div>
+<div class="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+    <p class="text-sm text-slate-500">{{ total }} action(s) enregistrée(s) · 100 dernières par page</p>
     <form method="GET" class="flex flex-wrap items-end gap-3">
         <div>
             <label for="action" class="block text-xs font-medium text-gray-600 mb-1">Action</label>

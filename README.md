@@ -80,7 +80,7 @@ Creer un compte **RH** pour se connecter :
 .\venv\Scripts\python.exe scripts\create_admin.py
 ```
 
-Le script demande un mot de passe (6 caracteres min). Par defaut : utilisateur `admin`. Pour personnaliser :
+Le script demande un mot de passe (8 caracteres min, politique commune a l'application). Par defaut : utilisateur `admin`. Pour personnaliser :
 
 ```bash
 ADMIN_IDENTIFIANT=rh ADMIN_NOM=Dupont ADMIN_PRENOM=Marie python scripts/create_admin.py
@@ -128,7 +128,7 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 
 ### Authentification
 
-- Connexion identifiant + mot de passe (bcrypt). Roles : `rh`, `salarie`. Session 30 min, redirection selon le role.
+- Connexion identifiant + mot de passe (bcrypt). Roles : `rh`, `responsable`, `salarie`. Session 30 min (cookie durci : HttpOnly, SameSite=Lax, Secure en HTTPS), redirection selon le role. Changement de mot de passe en self-service (`/changer-mot-de-passe`).
 
 ### Espace RH (`/rh/`)
 

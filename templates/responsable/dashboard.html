@@ -1,125 +1,134 @@
 {% extends "base.html" %}
 {% block title %}Tableau de bord Responsable{% endblock %}
+{% block page_title %}Tableau de bord Responsable{% endblock %}
+{% block page_subtitle %}Validation niveau 1 et vue d'ensemble de l'équipe{% endblock %}
+
 {% block content %}
-<div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-800">Tableau de bord Responsable</h1>
-    <p class="text-gray-500 mt-1">Validation des demandes de congés (niveau 1) et vue d'ensemble de l'équipe</p>
+<!-- KPI -->
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    {% if demandes_attente %}
+    <a href="#file-validation" class="group rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-soft ring-1 ring-amber-100 transition hover:ring-amber-300">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-amber-800">À valider</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-amber-700">{{ demandes_attente|length }}</div>
+        <div class="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">Traiter les demandes <svg class="h-3 w-3 transition group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
+    </a>
+    {% else %}
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">À valider</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">0</div>
+        <div class="mt-1 text-xs text-slate-400">aucune demande en attente</div>
+    </div>
+    {% endif %}
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Mon solde CP</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-600{% else %}text-erpac-primary{% endif %}">{{ solde.solde_restant }} <span class="text-base font-medium text-slate-400">j</span></div>
+        <div class="mt-1 text-xs text-slate-400">sur {{ solde.total_alloue }} j · consommé {{ solde.total_consomme }}</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Mon RTT</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-purple-50 text-purple-600"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-purple-600">{{ solde.rtt_solde_restant|default(0)|heures_min }}</div>
+        <div class="mt-1 text-xs text-slate-400">sur {{ solde.rtt_total_alloue|default(0)|heures_min }}</div>
+    </div>
+
+    <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
+        <div class="flex items-center justify-between">
+            <span class="text-sm font-medium text-slate-500">Mon équipe</span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg></span>
+        </div>
+        <div class="mt-2 text-3xl font-bold text-slate-800">{{ subordonnes|length if subordonnes else 0 }}</div>
+        <div class="mt-1 text-xs text-slate-400">subordonné(s)</div>
+    </div>
 </div>
 
-<!-- Progression CP / RTT (vos droits) -->
-<div class="bg-white rounded-xl shadow p-6 mb-8">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-sm font-semibold text-gray-700">Progression (vos congés)</h2>
-        <a href="{{ url_for('salarie.calendrier') }}" class="text-xs font-medium text-erpac-primary hover:text-erpac-dark">Voir le calendrier</a>
-    </div>
-
-    <div class="mb-5">
-        <div class="flex justify-between text-sm text-gray-600 mb-2">
-            <span>Congés payés (CP + ancienneté)</span>
-            <span>{{ solde.total_consomme }} / {{ solde.total_alloue }} jour(s)</span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set pct_cp = (solde.total_consomme / solde.total_alloue * 100) if solde.total_alloue > 0 else 0 %}
-            <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_cp > 90 else 'bg-orange-400' if pct_cp > 70 else 'bg-erpac-primary' }}"
-                 style="width: {{ pct_cp|round(0, 'floor') }}%"></div>
-        </div>
-        <div class="text-xs text-gray-400 mt-1">
-            Restant : {{ solde.solde_restant }} jour(s)
-        </div>
-    </div>
-
-    <div>
-        <div class="flex justify-between text-sm text-gray-600 mb-2">
-            <span>RTT</span>
-            <span>{{ solde.rtt_total_consomme|default(0) }} / {{ solde.rtt_total_alloue|default(0) }} heure(s)</span>
-        </div>
-        <div class="w-full bg-gray-200 rounded-full h-4">
-            {% set rtt_alloue = solde.rtt_total_alloue|default(0) %}
-            {% set rtt_consomme = solde.rtt_total_consomme|default(0) %}
-            {% set pct_rtt = (rtt_consomme / rtt_alloue * 100) if rtt_alloue > 0 else 0 %}
-            <div class="h-4 rounded-full transition-all duration-500 {{ 'bg-red-500' if pct_rtt > 90 else 'bg-orange-400' if pct_rtt > 70 else 'bg-purple-600' }}"
-                 style="width: {{ pct_rtt|round(0, 'floor') }}%"></div>
-        </div>
-        <div class="text-xs text-gray-400 mt-1">
-            Restant : {{ solde.rtt_solde_restant|default(0) }} heure(s)
-        </div>
-    </div>
-</div>
-
+<!-- Demandes en attente -->
 {% if demandes_attente %}
-<div class="bg-amber-50 border border-amber-200 rounded-xl shadow p-6 mb-8" x-data="bulkCongesResp()">
-    <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 class="text-lg font-semibold text-amber-900">Demandes en attente ({{ demandes_attente|length }})</h2>
-        <div class="flex items-center gap-2 text-sm">
-            <span class="text-amber-800" x-text="`${selected.length} sélectionnée(s)`"></span>
+<div id="file-validation" class="mt-6 overflow-hidden rounded-xl border border-amber-200 bg-white shadow-soft" x-data="bulkCongesResp()">
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-6 py-4">
+        <h2 class="flex items-center gap-2 text-sm font-semibold text-amber-900">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            Demandes en attente ({{ demandes_attente|length }})
+        </h2>
+        <div class="flex items-center gap-2 text-xs">
+            <span class="text-amber-700" x-text="`${selected.length} sélectionnée(s)`"></span>
             <form method="POST" action="{{ url_for('responsable.valider_lots') }}" class="inline" @submit="prepareForm($event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <template x-for="id in selected" :key="id"><input type="hidden" name="conge_ids" :value="id"></template>
-                <button type="submit" :disabled="selected.length === 0" class="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">Valider la sélection</button>
+                <button type="submit" :disabled="selected.length === 0" class="rounded-lg bg-erpac-primary px-3 py-1.5 font-medium text-white transition hover:bg-erpac-dark disabled:cursor-not-allowed disabled:bg-slate-300">Valider la sélection</button>
             </form>
             <form method="POST" action="{{ url_for('responsable.refuser_lots') }}" class="inline" @submit="prepareForm($event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <template x-for="id in selected" :key="id"><input type="hidden" name="conge_ids" :value="id"></template>
-                <button type="submit" :disabled="selected.length === 0" class="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 px-3 rounded text-sm transition">Refuser la sélection</button>
+                <button type="submit" :disabled="selected.length === 0" class="rounded-lg bg-rose-600 px-3 py-1.5 font-medium text-white transition hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-300">Refuser la sélection</button>
             </form>
         </div>
     </div>
     <div class="overflow-x-auto">
         <table class="w-full text-sm">
-            <thead><tr class="text-left text-amber-800 border-b border-amber-200">
-                <th class="py-2 pr-2 w-8">
-                    <input type="checkbox" @change="toggleAll($event)" aria-label="Tout sélectionner"
-                           class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary">
-                </th>
-                <th class="py-2 pr-4">Salarié</th><th class="py-2 pr-4">Période</th><th class="py-2 pr-4">Type</th><th class="py-2 pr-4">Jours</th><th class="py-2 pr-4">Conflits équipe</th><th class="py-2 text-right">Actions</th>
-            </tr></thead>
-            <tbody>
+            <thead class="bg-slate-50">
+                <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
+                    <th class="w-10 px-6 py-3">
+                        <input type="checkbox" @change="toggleAll($event)" aria-label="Tout sélectionner" class="rounded border-slate-300 text-erpac-primary focus:ring-erpac-primary">
+                    </th>
+                    <th class="px-3 py-3 font-medium">Salarié</th>
+                    <th class="px-3 py-3 font-medium">Période</th>
+                    <th class="px-3 py-3 font-medium">Type</th>
+                    <th class="px-3 py-3 font-medium">Jours</th>
+                    <th class="px-3 py-3 font-medium">Conflits équipe</th>
+                    <th class="px-6 py-3 text-right font-medium">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
             {% for c in demandes_attente %}
-            <tr class="border-b border-amber-100">
-                <td class="py-3 pr-2">
-                    <input type="checkbox" value="{{ c.id }}" @change="toggle({{ c.id }}, $event)"
-                           class="rounded border-amber-400 text-erpac-primary focus:ring-erpac-primary"
-                           aria-label="Sélectionner cette demande">
+            <tr class="hover:bg-slate-50">
+                <td class="px-6 py-3.5">
+                    <input type="checkbox" value="{{ c.id }}" @change="toggle({{ c.id }}, $event)" class="rounded border-slate-300 text-erpac-primary focus:ring-erpac-primary" aria-label="Sélectionner cette demande">
                 </td>
-                <td class="py-3">{{ c.utilisateur.prenom if c.utilisateur else "-" }} {{ c.utilisateur.nom if c.utilisateur else "" }}</td>
-                <td class="py-3">{{ c.date_debut.strftime("%d/%m/%Y") }} → {{ c.date_fin.strftime("%d/%m/%Y") }}</td>
-                <td class="py-3">
-                    <span class="px-2 py-1 rounded text-xs font-medium
-                        {% if c.type_conge == 'CP' %}bg-erpac-100 text-erpac-800
-                        {% elif c.type_conge == 'RTT' %}bg-purple-100 text-purple-800
-                        {% elif c.type_conge == 'Maladie' %}bg-red-100 text-red-800
-                        {% elif c.type_conge == 'Anciennete' %}bg-green-100 text-green-800
-                        {% else %}bg-gray-100 text-gray-800{% endif %}">
-                        {{ c.type_conge }}
-                    </span>
+                <td class="px-3 py-3.5 font-medium text-slate-800">{{ c.utilisateur.prenom if c.utilisateur else "-" }} {{ c.utilisateur.nom if c.utilisateur else "" }}</td>
+                <td class="px-3 py-3.5 text-slate-700">{{ c.date_debut.strftime("%d/%m/%Y") }} → {{ c.date_fin.strftime("%d/%m/%Y") }}</td>
+                <td class="px-3 py-3.5">
+                    <span class="rounded-md px-2 py-0.5 text-xs font-medium
+                        {% if c.type_conge == 'CP' %}bg-erpac-50 text-erpac-800
+                        {% elif c.type_conge == 'RTT' %}bg-purple-50 text-purple-700
+                        {% elif c.type_conge == 'Maladie' %}bg-red-50 text-red-700
+                        {% elif c.type_conge == 'Anciennete' %}bg-green-50 text-green-700
+                        {% else %}bg-slate-100 text-slate-700{% endif %}">{{ c.type_conge }}</span>
                 </td>
-                <td class="py-3">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
-                <td class="py-3">
+                <td class="px-3 py-3.5 text-slate-700">{{ c.nb_jours_ouvrables|nb_jours }} j</td>
+                <td class="px-3 py-3.5">
                     {% set conflits = conflits_par_conge.get(c.id, []) %}
                     {% if conflits %}
                     <details class="text-xs">
-                        <summary class="cursor-pointer text-amber-700 font-medium">
-                            {{ conflits|length }} collègue(s) absent(s)
-                        </summary>
-                        <ul class="mt-2 space-y-1 text-gray-700">
+                        <summary class="cursor-pointer font-medium text-amber-700">{{ conflits|length }} collègue(s) absent(s)</summary>
+                        <ul class="mt-2 space-y-1 text-slate-600">
                             {% for k in conflits %}
-                            <li>
-                                <span class="font-medium">{{ k.salarie }}</span>
-                                <span class="text-gray-500">— {{ k.periode }} ({{ k.type_conge }}{% if k.statut != 'valide' %}, en attente{% endif %})</span>
-                            </li>
+                            <li><span class="font-medium">{{ k.salarie }}</span> <span class="text-slate-400">— {{ k.periode }} ({{ k.type_conge }}{% if k.statut != 'valide' %}, en attente{% endif %})</span></li>
                             {% endfor %}
                         </ul>
                     </details>
                     {% else %}
-                    <span class="text-green-700 text-xs">Aucun</span>
+                    <span class="text-xs text-erpac-700">Aucun</span>
                     {% endif %}
                 </td>
-                <td class="py-3 text-right space-x-2">
+                <td class="space-x-2 px-6 py-3.5 text-right">
                     <form method="POST" action="{{ url_for('responsable.valider_conge', conge_id=c.id) }}" class="inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="text-green-600 hover:text-green-800 font-medium">Valider</button>
+                        <button type="submit" class="font-medium text-erpac-primary hover:text-erpac-dark">Valider</button>
                     </form>
-                    <a href="{{ url_for('responsable.refuser_conge', conge_id=c.id) }}" class="text-red-600 hover:text-red-800 font-medium">Refuser</a>
+                    <a href="{{ url_for('responsable.refuser_conge', conge_id=c.id) }}" class="font-medium text-rose-600 hover:text-rose-700">Refuser</a>
                 </td>
             </tr>
             {% endfor %}
@@ -149,63 +158,42 @@ function bulkCongesResp() {
 }
 </script>
 {% else %}
-<div class="bg-white rounded-xl shadow p-6 mb-8"><p class="text-gray-500">Aucune demande en attente.</p></div>
+<div class="mt-6 rounded-xl border border-slate-200 bg-white p-6 shadow-soft"><p class="text-sm text-slate-500">Aucune demande en attente.</p></div>
 {% endif %}
 
-<!-- Calendrier équipe -->
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-    <div class="lg:col-span-2 bg-white rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Calendrier de l'équipe</h2>
+<!-- Calendrier équipe + subordonnés -->
+<div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+    <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-soft md:p-6 lg:col-span-2">
+        <h2 class="mb-4 text-sm font-semibold text-slate-700">Calendrier de l'équipe</h2>
         <div id="calendar-responsable"></div>
-        <div class="mt-4 pt-3 border-t border-gray-100">
-            <h3 class="text-sm font-semibold text-gray-700 mb-2">Légende</h3>
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs text-gray-600">
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #008C3A;"></span>
-                    <span>CP</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #9333ea;"></span>
-                    <span>RTT</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #ef4444;"></span>
-                    <span>Maladie</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #16a34a;"></span>
-                    <span>Ancienneté</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #6b7280;"></span>
-                    <span>Autre</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 14px; height: 14px; border-radius: 3px; background-color: #fef3c7; border: 2px dashed #f59e0b;"></span>
-                    <span>En attente</span>
-                </div>
+        <div class="mt-4 border-t border-slate-100 pt-3">
+            <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 sm:grid-cols-3">
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-erpac-primary"></span>CP</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-purple-600"></span>RTT</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-red-500"></span>Maladie</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded bg-green-600"></span>Ancienneté</div>
+                <div class="flex items-center gap-1.5"><span class="h-3 w-3 rounded border border-dashed border-amber-400 bg-amber-50"></span>En attente</div>
             </div>
         </div>
     </div>
-    <div class="bg-white rounded-xl shadow p-4 md:p-6">
-        <h2 class="text-lg font-semibold text-gray-800 mb-4">Vos subordonnés</h2>
+    <div class="self-start rounded-xl border border-slate-200 bg-white p-4 shadow-soft md:p-6">
+        <h2 class="mb-4 text-sm font-semibold text-slate-700">Vos subordonnés</h2>
         {% if subordonnes %}
-        <ul class="space-y-2 text-sm">
+        <ul class="space-y-1 text-sm">
             {% for s in subordonnes %}
-            <li class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                <span>
+            <li class="flex items-center justify-between border-b border-slate-100 py-2 last:border-0">
+                <span class="text-slate-700">
                     {{ s.prenom }} {{ s.nom }}
-                    {% if not s.actif %}<span class="text-xs text-red-500 ml-1">(inactif)</span>{% endif %}
+                    {% if not s.actif %}<span class="ml-1 text-xs text-rose-500">(inactif)</span>{% endif %}
                 </span>
                 {% if s.actif %}
-                <a href="{{ url_for('responsable.ajouter_conge_subordonne', user_id=s.id) }}"
-                   class="text-green-600 hover:text-green-800 text-xs font-medium">+ Congé</a>
+                <a href="{{ url_for('responsable.ajouter_conge_subordonne', user_id=s.id) }}" class="text-xs font-medium text-erpac-primary hover:text-erpac-dark">+ Congé</a>
                 {% endif %}
             </li>
             {% endfor %}
         </ul>
         {% else %}
-        <p class="text-gray-500 text-sm">Aucun subordonné assigné.</p>
+        <p class="text-sm text-slate-500">Aucun subordonné assigné.</p>
         {% endif %}
     </div>
 </div>

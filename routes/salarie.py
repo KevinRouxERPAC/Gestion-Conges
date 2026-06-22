@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file
+from flask import Blueprint, render_template, redirect, url_for, flash, request, send_file, current_app
 from flask_login import login_required, current_user
 from models import db
 from models.conge import Conge
@@ -147,18 +147,34 @@ def calendrier():
 
     events = []
     for c in conges_annee:
-        salarie_nom = ""
-        if voir_tous and c.utilisateur:
-            salarie_nom = f"{c.utilisateur.prenom} {c.utilisateur.nom}"
+        # Congé d'un autre salarié (vue « tout le monde ») : on n'expose ni le type
+        # d'absence (RGPD — « Maladie » et congés exceptionnels sont des données
+        # sensibles), ni les heures RTT. Seules les dates et le nom restent visibles
+        # pour permettre d'anticiper les absences de l'équipe.
+        autrui = voir_tous and c.user_id != current_user.id
+        if autrui:
+            salarie_nom = f"{c.utilisateur.prenom} {c.utilisateur.nom}" if c.utilisateur else ""
+            type_affiche = "Absent"
+            filter_group = "Absent"
+            heures_rtt = None
+        else:
+            salarie_nom = (
+                f"{c.utilisateur.prenom} {c.utilisateur.nom}"
+                if voir_tous and c.utilisateur
+                else ""
+            )
+            type_affiche = c.type_conge
+            filter_group = _filter_group(c.type_conge)
+            heures_rtt = c.nb_heures_rtt
         events.append({
             "start": c.date_debut.isoformat(),
             "end": c.date_fin.isoformat(),
-            "type": c.type_conge,
-            "filter_group": _filter_group(c.type_conge),
+            "type": type_affiche,
+            "filter_group": filter_group,
             "statut": c.statut,
             "label": f"{c.date_debut.strftime('%d/%m/%Y')} → {c.date_fin.strftime('%d/%m/%Y')}",
             "jours": c.nb_jours_ouvrables,
-            "heures_rtt": c.nb_heures_rtt,
+            "heures_rtt": heures_rtt,
             "salarie": salarie_nom,
         })
 
@@ -235,6 +251,11 @@ def heures():
             # Semaines les plus récentes en premier.
             detail = sorted(rtt_calc.detail, key=lambda d: d["lundi"], reverse=True)
         except Exception:
+            # Ne pas masquer un bug de calcul RTT : on loggue la stack avant de
+            # retomber sur un affichage vide (la page reste accessible).
+            current_app.logger.exception(
+                "Échec du calcul RTT hebdomadaire pour user_id=%s", current_user.id
+            )
             rtt_calc = None
             detail = []
 

@@ -147,6 +147,37 @@ class TestClotureExercice:
         assert alloc.jours_report == -73
 
 
+class TestClotureProrataFrontiere:
+    def test_conge_a_cheval_compte_au_prorata(self, db_session, users, parametrage, allocations):
+        """À la clôture, un congé à cheval ne consomme que sa part dans l'exercice."""
+        from services.calcul_jours import compter_jours_ouvrables_avec_demi
+
+        debut, fin = date(2026, 12, 28), date(2027, 1, 8)
+        njo = compter_jours_ouvrables_avec_demi(debut, fin)
+        db.session.add(Conge(
+            user_id=users["salarie"].id, date_debut=debut, date_fin=fin,
+            nb_jours_ouvrables=njo, type_conge="CP", statut="valide",
+        ))
+        db.session.commit()
+
+        part_2026 = compter_jours_ouvrables_avec_demi(date(2026, 12, 28), date(2026, 12, 31))
+
+        nouveau = ParametrageAnnuel(
+            debut_exercice=date(2027, 1, 1), fin_exercice=date(2027, 12, 31),
+            jours_conges_defaut=25, actif=False,
+        )
+        db.session.add(nouveau)
+        db.session.flush()
+        cloturer_exercice_et_reporter(nouveau)
+        db.session.commit()
+
+        alloc = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id, parametrage_id=nouveau.id
+        ).first()
+        # Allocation 27 j, seule la part 2026 du congé est consommée.
+        assert alloc.jours_report == 27 - int(part_2026)
+
+
 class TestRouteCloture:
     def test_acces_rh_seulement(self, client, db_session, users):
         login(client, "jean1", "jean123")

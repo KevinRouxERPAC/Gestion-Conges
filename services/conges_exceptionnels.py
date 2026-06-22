@@ -1,3 +1,4 @@
+from models import db
 from models.conge import Conge
 from models.parametrage import ParametrageAnnuel
 from models.conge_exceptionnel_type import CongeExceptionnelType

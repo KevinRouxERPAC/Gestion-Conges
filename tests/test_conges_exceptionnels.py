@@ -311,3 +311,28 @@ class TestPlafondAValidationRH:
 
         db_session.session.refresh(b)
         assert b.statut == "valide"
+
+
+# --------------------------------------------------------------------------- #
+# Service + route : création des types par défaut (seed)
+# --------------------------------------------------------------------------- #
+class TestSeedTypesParDefaut:
+    def test_creer_types_par_defaut_idempotent(self, db_session):
+        """Régression : creer_types_par_defaut utilisait db sans l'importer (NameError)."""
+        from services.conges_exceptionnels import creer_types_par_defaut, TYPES_PAR_DEFAUT
+
+        n = creer_types_par_defaut()
+        assert n == len(TYPES_PAR_DEFAUT)
+        assert CongeExceptionnelType.query.count() == len(TYPES_PAR_DEFAUT)
+        # Second appel : rien recréé.
+        assert creer_types_par_defaut() == 0
+
+    def test_route_seed_defaults(self, client, db_session, users):
+        login(client, "rh1", "rh123")
+        resp = client.post(
+            "/rh/types-exceptionnels",
+            data={"action": "seed_defaults"},
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        assert CongeExceptionnelType.query.count() > 0

@@ -1,16 +1,12 @@
 {% extends "base.html" %}
 {% block title %}Délégations{% endblock %}
+{% block page_title %}Délégations{% endblock %}
+{% block page_subtitle %}Désigner un suppléant pour valider à votre place{% endblock %}
 
 {% block content %}
-<div class="mb-6">
-    <a href="{{ url_for('responsable.dashboard') }}" class="text-erpac-primary hover:text-erpac-dark text-sm">&larr; Tableau de bord</a>
-    <h1 class="text-2xl font-bold text-gray-800 mt-2">Délégations</h1>
-    <p class="text-gray-500 mt-1">
-        Pendant une absence, désignez un suppléant qui pourra valider les demandes
-        de congé de vos subordonnés à votre place. La délégation s'active automatiquement
-        entre les dates indiquées.
-    </p>
-</div>
+<p class="mb-6 text-sm text-slate-500">
+    Pendant une absence, désignez un suppléant qui pourra valider les demandes de congé de vos subordonnés à votre place. La délégation s'active automatiquement entre les dates indiquées.
+</p>
 
 <!-- Nouvelle délégation sortante -->
 <div class="bg-white rounded-xl shadow p-6 mb-8">
@@ -52,6 +48,7 @@
         <p class="text-xs text-gray-500 mt-1">Personnes habilitées à valider à votre place sur la période.</p>
     </div>
     {% if sortantes %}
+    <div class="overflow-x-auto">
     <table class="w-full text-sm">
         <thead class="bg-gray-50">
             <tr>
@@ -87,6 +84,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
     {% else %}
     <div class="px-6 py-8 text-center text-gray-500 text-sm">Aucun suppléant désigné.</div>
     {% endif %}
@@ -99,6 +97,7 @@
         <h2 class="text-lg font-semibold text-gray-800">Vous êtes suppléant ({{ entrantes|length }})</h2>
         <p class="text-xs text-gray-500 mt-1">Vous pouvez valider les demandes de leurs subordonnés pendant la période active.</p>
     </div>
+    <div class="overflow-x-auto">
     <table class="w-full text-sm">
         <thead class="bg-gray-50">
             <tr>
@@ -125,6 +124,7 @@
             {% endfor %}
         </tbody>
     </table>
+    </div>
 </div>
 {% endif %}
 {% endblock %}

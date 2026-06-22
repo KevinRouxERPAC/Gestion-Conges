@@ -2,6 +2,12 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "Flask verif (run_verif.py)",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["run_verif.py"],
+      "port": 5001
+    },
+    {
       "name": "Flask dev (app.py)",
       "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["app.py"],

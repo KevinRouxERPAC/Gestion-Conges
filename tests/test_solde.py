@@ -5,8 +5,6 @@ from services.solde import (
     calculer_solde,
     calculer_jours_cps_consommes,
     calculer_heures_rtt_consommes,
-    verifier_solde_suffisant,
-    verifier_solde_rtt_suffisant,
     generer_allocations_pour_parametrage,
 )
 
@@ -160,6 +158,26 @@ class TestCalculSoldeRTT:
         assert solde["rtt_total_consomme"] == 14
         assert solde["rtt_solde_restant"] == 0
 
+    def test_rtt_consomme_decimal_non_tronque(self, db_session, users, parametrage, allocations):
+        """R3 : une consommation RTT décimale (3,5 h) n'est pas tronquée."""
+        conge = Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 5, 4),
+            date_fin=date(2026, 5, 4),
+            nb_jours_ouvrables=0.5,
+            type_conge="RTT",
+            nb_heures_rtt=3.5,
+            demi_journee_debut="matin",
+            statut="valide",
+        )
+        db_session.session.add(conge)
+        db_session.session.commit()
+
+        assert calculer_heures_rtt_consommes(users["salarie"].id) == 3.5
+        solde = calculer_solde(users["salarie"].id)
+        assert solde["rtt_total_consomme"] == 3.5
+        assert solde["rtt_solde_restant"] == 10.5  # 14 - 3,5
+
     def test_rtt_ne_debite_pas_cp(self, db_session, users, parametrage, allocations):
         """Un RTT ne doit pas impacter le solde CP."""
         conge = Conge(
@@ -177,44 +195,6 @@ class TestCalculSoldeRTT:
         solde = calculer_solde(users["salarie"].id)
         assert solde["total_consomme"] == 0
         assert solde["solde_restant"] == 27
-
-
-class TestVerificationSolde:
-    def test_solde_cp_suffisant(self, db_session, users, parametrage, allocations):
-        assert verifier_solde_suffisant(users["salarie"].id, 10) is True
-
-    def test_solde_cp_insuffisant(self, db_session, users, parametrage, allocations):
-        assert verifier_solde_suffisant(users["salarie"].id, 30) is False
-
-    def test_solde_rtt_suffisant(self, db_session, users, parametrage, allocations):
-        assert verifier_solde_rtt_suffisant(users["salarie"].id, 10) is True
-
-    def test_solde_rtt_insuffisant(self, db_session, users, parametrage, allocations):
-        assert verifier_solde_rtt_suffisant(users["salarie"].id, 20) is False
-
-    def test_solde_cp_avec_exclusion_conge(self, db_session, users, parametrage, allocations):
-        """En modification : le congé exclu doit être ré-ajouté au solde disponible."""
-        conge = Conge(
-            user_id=users["salarie"].id,
-            date_debut=date(2026, 6, 1),
-            date_fin=date(2026, 6, 30),
-            nb_jours_ouvrables=22,
-            type_conge="CP",
-            statut="valide",
-        )
-        db_session.session.add(conge)
-        db_session.session.commit()
-
-        assert verifier_solde_suffisant(users["salarie"].id, 22) is False
-        assert verifier_solde_suffisant(users["salarie"].id, 22, conge_id_exclu=conge.id) is True
-
-    def test_solde_cp_exactement_egal_total_alloue(self, db_session, users, parametrage, allocations):
-        """Demande égale au total alloué doit être acceptée."""
-        assert verifier_solde_suffisant(users["salarie"].id, 27) is True
-
-    def test_solde_rtt_exactement_egal_total_alloue(self, db_session, users, parametrage, allocations):
-        """RTT demandées égales au total alloué doivent être acceptées."""
-        assert verifier_solde_rtt_suffisant(users["salarie"].id, 14) is True
 
 
 class TestGenerationAllocations:

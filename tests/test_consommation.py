@@ -17,6 +17,7 @@ from services.consommation import (
     TYPE_RTT,
 )
 from services.solde import calculer_jours_cps_consommes, calculer_heures_rtt_consommes
+from services.calcul_jours import compter_jours_ouvrables_avec_demi
 from services.export_comptable import export_compta_cp_rtt_xlsx
 from services.interessement import calculer_interessement
 
@@ -129,6 +130,89 @@ class TestPrimitive:
             user_id=users["salarie"].id,
         )
         assert total == 4.5
+
+
+class TestProrataFrontiere:
+    """Décompte au prorata des congés à cheval sur une borne d'exercice (R1)."""
+
+    def test_conge_a_cheval_reparti_entre_exercices(self, db_session, users):
+        # Congé 30/12/2026 → 03/01/2027 : doit être réparti entre les deux exercices.
+        debut, fin = date(2026, 12, 30), date(2027, 1, 3)
+        njo = compter_jours_ouvrables_avec_demi(debut, fin)
+        _ajouter_conge(
+            db_session, users["salarie"].id,
+            date_debut=debut, date_fin=fin, nb_jours_ouvrables=njo, type_conge="CP",
+        )
+
+        part_2026 = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=date(2026, 1, 1), date_fin_max=date(2026, 12, 31),
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+        part_2027 = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=date(2027, 1, 1), date_fin_max=date(2027, 12, 31),
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+
+        # Aucun jour perdu ni compté deux fois : la somme des parts == total.
+        assert part_2026 > 0
+        assert part_2027 > 0
+        assert part_2026 + part_2027 == njo
+        # Chaque part correspond aux jours ouvrables réellement dans la fenêtre.
+        assert part_2026 == compter_jours_ouvrables_avec_demi(date(2026, 12, 30), date(2026, 12, 31))
+        assert part_2027 == compter_jours_ouvrables_avec_demi(date(2027, 1, 1), date(2027, 1, 3))
+
+    def test_demi_journee_de_bordure_dans_la_bonne_part(self, db_session, users):
+        # Congé qui commence l'après-midi du 31/12/2026 et finit le 02/01/2027.
+        debut, fin = date(2026, 12, 31), date(2027, 1, 2)
+        njo = compter_jours_ouvrables_avec_demi(debut, fin, demi_debut="apres_midi")
+        _ajouter_conge(
+            db_session, users["salarie"].id,
+            date_debut=debut, date_fin=fin, nb_jours_ouvrables=njo,
+            demi_journee_debut="apres_midi", type_conge="CP",
+        )
+
+        part_2026 = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=date(2026, 1, 1), date_fin_max=date(2026, 12, 31),
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+        part_2027 = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=date(2027, 1, 1), date_fin_max=date(2027, 12, 31),
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+        # La demi-journée du 31/12 tombe côté 2026 : 0,5 j en 2026.
+        assert part_2026 == 0.5
+        assert part_2026 + part_2027 == njo
+
+    def test_conge_entierement_contenu_inchange(self, db_session, users, parametrage):
+        # Non-régression : un congé entièrement dans la fenêtre est compté tel quel.
+        _ajouter_conge(db_session, users["salarie"].id, nb_jours_ouvrables=5)
+        total = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=parametrage.debut_exercice, date_fin_max=parametrage.fin_exercice,
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+        assert total == 5
+
+    def test_export_as_of_compte_partie_ecoulee(self, db_session, users):
+        # Export « à une date » : un congé en cours est compté pour sa part écoulée.
+        debut, fin = date(2026, 6, 1), date(2026, 6, 30)  # lun → mar
+        njo = compter_jours_ouvrables_avec_demi(debut, fin)
+        _ajouter_conge(
+            db_session, users["salarie"].id,
+            date_debut=debut, date_fin=fin, nb_jours_ouvrables=njo, type_conge="CP",
+        )
+        # Arrêté au 15/06 : seule la part 01→15 doit compter.
+        consomme = somme_consommation(
+            colonne=Conge.nb_jours_ouvrables,
+            date_debut_min=date(2026, 1, 1), date_fin_max=date(2026, 6, 15),
+            statuts=STATUT_VALIDE, types=TYPES_CP, user_id=users["salarie"].id,
+        )
+        assert consomme == compter_jours_ouvrables_avec_demi(date(2026, 6, 1), date(2026, 6, 15))
+        assert 0 < consomme < njo
 
 
 class TestCoherenceInterEcrans:

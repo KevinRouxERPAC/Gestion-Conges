@@ -78,6 +78,57 @@ class TestGestionUtilisateurs:
         assert users["salarie"].actif is False
 
 
+class TestProtectionLockoutRH:
+    def test_rh_ne_peut_pas_se_desactiver(self, client, db_session, users):
+        rh = users["rh"]
+        login(client, "rh1", "rh123")
+        resp = client.post(f"/rh/salarie/{rh.id}/modifier", data={
+            "nom": rh.nom,
+            "prenom": rh.prenom,
+            "identifiant": rh.identifiant,
+            "role": "rh",
+            "actif": "off",  # tentative d'auto-désactivation
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        db_session.session.refresh(rh)
+        assert rh.actif is True
+
+    def test_rh_ne_peut_pas_se_retrograder(self, client, db_session, users):
+        rh = users["rh"]
+        login(client, "rh1", "rh123")
+        resp = client.post(f"/rh/salarie/{rh.id}/modifier", data={
+            "nom": rh.nom,
+            "prenom": rh.prenom,
+            "identifiant": rh.identifiant,
+            "role": "salarie",  # tentative d'auto-rétrogradation
+            "actif": "on",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        db_session.session.refresh(rh)
+        assert rh.role == "rh"
+
+    def test_rh_peut_desactiver_un_autre_rh_si_il_en_reste(self, client, db_session, users, _hash):
+        rh2 = User(
+            nom="Deux", prenom="RH", identifiant="rh2",
+            mot_de_passe_hash=_hash("rh2-motdepasse"), role="rh", actif=True,
+        )
+        db_session.session.add(rh2)
+        db_session.session.commit()
+
+        login(client, "rh1", "rh123")
+        resp = client.post(f"/rh/salarie/{rh2.id}/modifier", data={
+            "nom": "Deux",
+            "prenom": "RH",
+            "identifiant": "rh2",
+            "role": "rh",
+            "actif": "off",
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        db_session.session.refresh(rh2)
+        # Désactivation autorisée car rh1 reste gestionnaire RH actif.
+        assert rh2.actif is False
+
+
 class TestAjoutCongeRH:
     def test_ajouter_conge_cp(self, client, db_session, users, parametrage, allocations):
         login(client, "rh1", "rh123")

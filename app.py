@@ -86,6 +86,32 @@ def create_app():
         # 1 décimale suffit (demi-journées uniquement).
         return f"{v:.1f}".replace(".", ",")
 
+    @app.template_filter("nb_heures")
+    def _format_nb_heures(valeur):
+        """Affiche un nombre d'heures en français (`16,1` au lieu de `16.1`).
+        Retire les zéros inutiles : 16.0 → "16", 16.1 → "16,1", 16.15 → "16,15".
+        Jusqu'à 2 décimales (heures RTT décimales, cf. R3).
+        """
+        if valeur is None:
+            return "0"
+        try:
+            v = float(valeur)
+        except (TypeError, ValueError):
+            return str(valeur)
+        if v == int(v):
+            return str(int(v))
+        return f"{v:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+
+    @app.template_filter("heures_min")
+    def _format_heures_min(valeur):
+        """Affiche une durée RTT en notation horaire « H h MM » (5,25 → « 5 h 15 »).
+
+        Voir services/format_heures.py. Utilisé partout où une durée RTT
+        (congé, solde, allocation) est présentée à un humain.
+        """
+        from services.format_heures import format_heures_min
+        return format_heures_min(valeur)
+
     @app.template_filter("libelle_exceptionnel")
     def _libelle_exceptionnel(code):
         """Résout le libellé d'un type exceptionnel depuis son code (ex. MARIAGE → "Mariage").

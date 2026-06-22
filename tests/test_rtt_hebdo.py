@@ -158,3 +158,91 @@ class TestParametrageSeuilRtt:
         assert heures_par_jour_absence_param(None) == HEURES_PAR_JOUR_DEFAUT
         assert seuil_hebdo_param(parametrage) == 35
         assert heures_par_jour_absence_param(parametrage) == 7
+
+
+class TestBaseAcquisitionHebdo:
+    """Acquisition automatique de RTT par semaine (ex. 0,35 h), proratisée."""
+
+    def _param(self, db_session, **kw):
+        from models.parametrage import ParametrageAnnuel
+
+        defaults = dict(
+            debut_exercice=date(2026, 6, 1),  # un lundi
+            fin_exercice=date(2026, 6, 28),
+            jours_conges_defaut=25,
+            actif=False,
+        )
+        defaults.update(kw)
+        p = ParametrageAnnuel(**defaults)
+        db.session.add(p)
+        db.session.commit()
+        return p
+
+    def test_base_acquise_chaque_semaine_sans_absence(self, db_session, users):
+        # 2026-06-01 lundi → semaines 01, 08, 15, 22 (29 > 28) = 4 semaines.
+        p = self._param(db_session, rtt_acquis_par_semaine=1.0)
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        assert res.nb_semaines == 4
+        assert res.rtt_calculee == 4
+        assert all(d["base"] == 1.0 for d in res.detail)
+
+    def test_base_proratisee_par_absence(self, db_session, users):
+        p = self._param(db_session, fin_exercice=date(2026, 6, 7), rtt_acquis_par_semaine=1.0)
+        db.session.add(Conge(
+            user_id=users["salarie"].id, date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
+            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
+        ))
+        db.session.commit()
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        assert res.nb_semaines == 1
+        # présence (5-1)/5 = 0.8 → base 0,8 h.
+        assert res.detail[0]["base"] == 0.8
+
+    def test_base_plus_heures_sup(self, db_session, users):
+        p = self._param(db_session, fin_exercice=date(2026, 6, 7), rtt_acquis_par_semaine=1.0)
+        db.session.add(HeuresHebdo(
+            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39
+        ))
+        db.session.commit()
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        # base 1,0 + surplus (39 - 35) = 5 h.
+        assert res.detail[0]["base"] == 1.0
+        assert res.detail[0]["surplus"] == 4.0
+        assert res.rtt_calculee == 5
+
+    def test_sans_base_comportement_historique(self, db_session, users):
+        # base 0 → seules les semaines saisies comptent (pas toutes les semaines).
+        p = self._param(db_session, rtt_acquis_par_semaine=0.0)
+        db.session.add(HeuresHebdo(
+            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39
+        ))
+        db.session.commit()
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        assert res.nb_semaines == 1
+        assert res.rtt_calculee == 4
+
+    def test_fractions_heure_preservees_pas_tronquees(self, db_session, users):
+        # R3 : 0,35 h/sem sur 3 semaines = 1,05 h (et non 1 h tronqué).
+        from datetime import timedelta
+        debut = date(2026, 6, 1)  # lundi
+        p = self._param(
+            db_session, debut_exercice=debut, fin_exercice=date(2026, 6, 21),
+            rtt_acquis_par_semaine=0.35,
+        )
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        assert res.nb_semaines == 3
+        assert res.rtt_calculee == 1.05
+
+    def test_cas_plan_046_semaines(self, db_session, users):
+        # Cas du plan : 0,35 h/sem × 46 sem ≈ 16,1 h, surtout pas 16 h.
+        from datetime import timedelta
+        debut = date(2026, 6, 1)  # lundi
+        fin = debut + timedelta(weeks=45, days=6)  # 46 lundis inclus
+        p = self._param(
+            db_session, debut_exercice=debut, fin_exercice=fin,
+            rtt_acquis_par_semaine=0.35,
+        )
+        res = calculer_rtt_hebdo(users["salarie"].id, p)
+        assert res.nb_semaines == 46
+        assert res.rtt_calculee == 16.1
+        assert res.rtt_calculee != 16

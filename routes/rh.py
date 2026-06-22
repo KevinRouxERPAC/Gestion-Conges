@@ -21,6 +21,7 @@ from services.solde import (
     cloturer_exercice_et_reporter,
 )
 from services.jours_feries import get_jours_feries
+from services.format_heures import format_heures_min
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
@@ -499,7 +500,7 @@ def valider_conge(conge_id):
         solde_info = calculer_solde(conge.user_id)
         rtt_apres = solde_info.get("rtt_solde_restant", 0) - (conge.nb_heures_rtt or 0)
         if rtt_apres < 0:
-            flash(f"Validation effectuée. Solde RTT négatif : {rtt_apres} heure(s).", "warning")
+            flash(f"Validation effectuée. Solde RTT négatif : {format_heures_min(rtt_apres)}.", "warning")
 
     ok, err = _valider_un_conge_rh(conge)
     if not ok:
@@ -645,8 +646,11 @@ def parametrage():
                 rtt_seuil_hebdo = int(request.form.get("rtt_seuil_hebdo") or 35)
                 rtt_heures_par_jour = int(request.form.get("rtt_heures_par_jour_absence") or 7)
                 rtt_coef_surplus = float((request.form.get('rtt_coef_surplus') or '0').replace(',', '.').strip() or '0')
+                rtt_acquis_par_semaine = float((request.form.get('rtt_acquis_par_semaine') or '0').replace(',', '.').strip() or '0')
                 if rtt_seuil_hebdo <= 0 or rtt_heures_par_jour <= 0:
                     raise ValueError("seuil RTT invalide")
+                if rtt_acquis_par_semaine < 0:
+                    raise ValueError("RTT acquis par semaine invalide")
             except (ValueError, KeyError):
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
@@ -659,6 +663,7 @@ def parametrage():
                     rtt_seuil_hebdo=rtt_seuil_hebdo,
                     rtt_heures_par_jour_absence=rtt_heures_par_jour,
                     rtt_coef_surplus=rtt_coef_surplus,
+                    rtt_acquis_par_semaine=rtt_acquis_par_semaine,
                     actif=True,
                 )
                 db.session.add(param)
@@ -669,6 +674,7 @@ def parametrage():
                 param.rtt_seuil_hebdo = rtt_seuil_hebdo
                 param.rtt_heures_par_jour_absence = rtt_heures_par_jour
                 param.rtt_coef_surplus = rtt_coef_surplus
+                param.rtt_acquis_par_semaine = rtt_acquis_par_semaine
 
             db.session.commit()
             flash("Paramétrage enregistré.", "success")
@@ -797,6 +803,7 @@ def cloture_exercice():
             rtt_seuil_hebdo=ancien.rtt_seuil_hebdo,
             rtt_heures_par_jour_absence=ancien.rtt_heures_par_jour_absence,
             rtt_coef_surplus=ancien.rtt_coef_surplus,
+            rtt_acquis_par_semaine=ancien.rtt_acquis_par_semaine,
             actif=False,
         )
         db.session.add(nouveau)
@@ -875,8 +882,9 @@ def modifier_allocation(user_id):
         allocation.jours_alloues = int(request.form.get("jours_alloues", param.jours_conges_defaut))
         allocation.jours_anciennete = int(request.form.get("jours_anciennete", 0))
         allocation.jours_report = int(request.form.get("jours_report", 0))
-        allocation.rtt_heures_allouees = int(request.form.get("rtt_heures_allouees", 0))
-        allocation.rtt_heures_reportees = int(request.form.get("rtt_heures_reportees", 0))
+        # RTT en heures décimales (cf. R3) : on accepte les fractions (et la virgule).
+        allocation.rtt_heures_allouees = float((request.form.get("rtt_heures_allouees", "0") or "0").replace(",", "."))
+        allocation.rtt_heures_reportees = float((request.form.get("rtt_heures_reportees", "0") or "0").replace(",", "."))
     except ValueError:
         flash("Valeurs invalides.", "error")
         return redirect(url_for("rh.salarie_detail", user_id=user_id))
@@ -1188,6 +1196,26 @@ def modifier_salarie(user_id):
                 date_embauche = datetime.strptime(date_embauche_str, "%Y-%m-%d").date()
             except ValueError:
                 flash("Date d'embauche invalide.", "error")
+                return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
+
+        # Garde-fou anti lock-out : on n'autorise pas le retrait du dernier accès RH
+        # actif, ni qu'un RH se retire à lui-même son accès (changement de rôle ou
+        # désactivation) — sinon plus personne ne peut administrer l'application.
+        etait_rh_actif = user.role == "rh" and user.actif
+        sera_rh_actif = role == "rh" and actif_str == "on"
+        if etait_rh_actif and not sera_rh_actif:
+            if user.id == current_user.id:
+                flash(
+                    "Vous ne pouvez pas retirer votre propre accès RH. "
+                    "Demandez à un autre gestionnaire RH de le faire.",
+                    "error",
+                )
+                return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
+            autres_rh_actifs = User.query.filter(
+                User.role == "rh", User.actif == True, User.id != user.id
+            ).count()
+            if autres_rh_actifs == 0:
+                flash("Il doit rester au moins un gestionnaire RH actif.", "error")
                 return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
         avant = {

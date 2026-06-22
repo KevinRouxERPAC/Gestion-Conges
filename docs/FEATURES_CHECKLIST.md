@@ -62,7 +62,7 @@ title: "Checklist fonctionnelle - Gestion des Congés"
   - [x] `rtt_heures_allouees` (heures RTT de base).
   - [x] `rtt_heures_reportees` (heures reportées).
 - [x] **Consommation RTT**:
-  - [x] Les RTT sont saisis en **heures entières** via `nb_heures_rtt`.
+  - [x] Les RTT sont saisis en heures via `nb_heures_rtt` (stocké en `Numeric(6,2)` : fractions d'heure conservées, cf. R3).
   - [x] La somme de `nb_heures_rtt` est calculée pour les congés validés de type `RTT`.
 - [x] **Solde RTT**:
   - [x] `rtt_total_alloue = rtt_heures_allouees + rtt_heures_reportees`.
@@ -94,7 +94,7 @@ title: "Checklist fonctionnelle - Gestion des Congés"
 - [x] **ParamétrageAnnuel**:
   - [x] Dates de début et fin d'exercice.
   - [x] `jours_conges_defaut` (jours CP par défaut).
-  - [x] `rtt_heures_defaut` (heures RTT par défaut).
+  - [x] Paramètres RTT hebdomadaire : `rtt_seuil_hebdo`, `rtt_heures_par_jour_absence`, `rtt_coef_surplus`, `rtt_acquis_par_semaine` (le RTT n'est plus un forfait fixe, il est calculé semaine par semaine).
 - [x] **Jours fériés**:
   - [x] Chargement automatique des jours fériés français.
   - [x] Gestion manuelle (ajout/suppression, auto_genere vs manuel).
@@ -129,28 +129,17 @@ title: "Checklist fonctionnelle - Gestion des Congés"
 
 ## 9. Tests automatisés
 
-- [x] **57 tests passent** couvrant :
-  - [x] Authentification et redirection par rôle (4 tests).
-  - [x] Contrôle d'accès par rôle (4 tests).
-  - [x] Calcul de jours ouvrables et jours fériés (6 tests).
-  - [x] Détection de chevauchement (4 tests).
-  - [x] Calcul de solde CP : allocation, consommation, types Sans solde/Maladie exclus, congé refusé exclu (7 tests).
-  - [x] Calcul de solde RTT en heures : allocation, consommation, non-impact CP (3 tests).
-  - [x] Vérification de solde CP/RTT suffisant avec exclusion en modification (5 tests).
-  - [x] Génération des allocations (1 test).
-  - [x] Workflow complet salarié → responsable → RH avec notifications (6 tests).
-  - [x] Workflow sans responsable : demande directe RH (1 test).
-  - [x] Annulation de demande par le salarié (2 tests).
-  - [x] CRUD utilisateurs RH : création, modification, désactivation (3 tests).
-  - [x] Ajout congé RH : CP, RTT, solde insuffisant (3 tests).
-  - [x] Modification allocation CP + RTT (1 test).
-  - [x] Validation RH vérifie le solde (1 test).
-  - [x] Dashboard responsable avec calendrier (2 tests).
-  - [x] Ajout congé par le responsable pour un subordonné : CP, RTT, contrôle équipe, solde insuffisant (4 tests).
+- [x] **225 tests passent** (`pytest`) couvrant l'authentification et les rôles, le calcul de jours
+  ouvrables et demi-journées, la détection de chevauchement, les soldes CP/RTT, la **source de
+  vérité unique de consommation** (`somme_consommation`) et le **prorata des congés à cheval** sur
+  l'exercice (R1), le **RTT hebdomadaire décimal** (R3), les workflows de validation 2 niveaux et
+  notifications, la clôture d'exercice + report (dont report négatif), les congés exceptionnels,
+  les délégations, l'import salariés, les exports, l'audit, le changement de mot de passe
+  self-service, et la sécurité (en-têtes, cookie de session durci R2, anti-énumération R4).
 
 ## 10. Points à valider / compléter
 
-- [ ] Souhaites‑tu un mécanisme d'**archivage** des congés anciens (changement de statut ou flag d'archive) ?
+- [x] **Archivage** des congés anciens : implémenté (flag `Conge.archive`, FR53).
 - [ ] Faut‑il des **rapports supplémentaires** (par service, par type d'absence, par période, etc.) ?
 
 ## 11. Améliorations réunion (lot)

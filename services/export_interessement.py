@@ -1,38 +1,13 @@
 ﻿import io
 
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font
 
 from services.interessement import calculer_interessement
-
-
-def _style_header_xlsx(ws, row=1):
-    thin_border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin'),
-    )
-    header_fill = PatternFill(start_color='008C3A', end_color='008C3A', fill_type='solid')
-    header_font = Font(bold=True, color='FFFFFF')
-    for cell in ws[row]:
-        cell.border = thin_border
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-
-
-def _autosize_columns(ws, min_width=10, max_width=48):
-    for col in range(1, ws.max_column + 1):
-        letter = get_column_letter(col)
-        max_len = 0
-        for row in range(1, ws.max_row + 1):
-            v = ws.cell(row=row, column=col).value
-            if v is None:
-                continue
-            max_len = max(max_len, len(str(v)))
-        ws.column_dimensions[letter].width = max(min_width, min(max_width, max_len + 2))
+from services.export_utils import (
+    autosize_columns as _autosize_columns,
+    style_header_xlsx as _style_header_xlsx,
+)
 
 
 def export_interessement_xlsx(periode, include_inactifs: bool = False) -> io.BytesIO:

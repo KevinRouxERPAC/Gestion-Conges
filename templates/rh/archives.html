@@ -1,15 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Archivage des congés{% endblock %}
+{% block page_title %}Archives{% endblock %}
+{% block page_subtitle %}Archivage des congés anciens (conservés pour l'audit){% endblock %}
 
 {% block content %}
 <div class="max-w-3xl mx-auto space-y-6">
-    <div>
-        <h1 class="text-2xl font-bold text-gray-800">Archivage des congés anciens</h1>
-        <p class="text-gray-500 mt-1 text-sm">
-            Les congés archivés sont conservés pour l'audit mais retirés des listes courantes.
-            Les demandes encore en attente ne sont jamais archivées.
-        </p>
-    </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div class="bg-white rounded-xl shadow p-5">

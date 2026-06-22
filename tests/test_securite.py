@@ -27,6 +27,49 @@ class TestSecurityHeaders:
             app.config["PREFERRED_URL_SCHEME"] = previous
 
 
+class TestSessionCookie:
+    """Durcissement du cookie de session (R2) : HttpOnly / SameSite / Secure."""
+
+    def _set_cookie_session(self, resp):
+        """Retourne l'en-tête Set-Cookie du cookie de session, ou None."""
+        for header, value in resp.headers.items():
+            if header == "Set-Cookie" and value.startswith("session="):
+                return value
+        return None
+
+    def test_httponly_et_samesite_toujours_presents(self, client, users):
+        from tests.conftest import login
+        resp = login(client, "rh1", "rh123")
+        # follow_redirects → on relit le Set-Cookie sur la réponse finale ;
+        # à défaut, on déclenche une nouvelle pose de cookie.
+        cookie = self._set_cookie_session(resp)
+        if cookie is None:
+            resp = client.get("/login")
+            cookie = self._set_cookie_session(resp)
+        assert cookie is not None
+        assert "HttpOnly" in cookie
+        assert "SameSite=Lax" in cookie
+
+    def test_secure_pose_quand_https(self, app, client, users):
+        from tests.conftest import login
+        previous = app.config.get("SESSION_COOKIE_SECURE")
+        app.config["SESSION_COOKIE_SECURE"] = True
+        try:
+            resp = login(client, "rh1", "rh123")
+            cookie = self._set_cookie_session(resp)
+            assert cookie is not None
+            assert "Secure" in cookie
+        finally:
+            app.config["SESSION_COOKIE_SECURE"] = previous
+
+    def test_config_secure_indexe_sur_scheme(self):
+        """SESSION_COOKIE_SECURE doit suivre PREFERRED_URL_SCHEME (HTTPS only)."""
+        from config import Config
+        assert Config.SESSION_COOKIE_SECURE == (Config.PREFERRED_URL_SCHEME == "https")
+        assert Config.SESSION_COOKIE_HTTPONLY is True
+        assert Config.SESSION_COOKIE_SAMESITE == "Lax"
+
+
 class TestRateLimit:
     """Le rate limiter est désactivé en tests via RATELIMIT_ENABLED=False ; on vérifie
     quand même qu'il peut être activé et qu'il bloque comme attendu."""
