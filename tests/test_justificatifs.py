@@ -85,6 +85,32 @@ class TestUploadRh:
         assert conge.justificatif is not None
         assert conge.justificatif.nom_fichier == "certificat.pdf"
 
+    def test_ajouter_maladie_avec_pdf_via_route_cree_le_conge(self, client, db_session, users, parametrage):
+        """Régression : l'ajout RH d'un congé Maladie AVEC justificatif valide, via la
+        route complète, doit créer le congé.
+
+        La route enregistre le justificatif puis appelle verifier_justificatif_obligatoire()
+        dans la même requête (avant tout flush). Si la relation conge.justificatif n'est
+        pas peuplée en mémoire, la vérification rejette à tort un justificatif pourtant
+        fourni et le congé n'est jamais créé (rollback)."""
+        login(client, "rh1", "rh123")
+        resp = client.post(
+            f"/rh/salarie/{users['salarie'].id}/conge/ajouter",
+            data={
+                "date_debut": "2026-08-10",
+                "date_fin": "2026-08-10",
+                "type_conge": "Maladie",
+                "justificatif": (io.BytesIO(PDF_BYTES), "certificat.pdf"),
+            },
+            content_type="multipart/form-data",
+            follow_redirects=True,
+        )
+        assert resp.status_code == 200
+        conge = Conge.query.filter_by(user_id=users["salarie"].id, type_conge="Maladie").first()
+        assert conge is not None, "Le congé Maladie avec justificatif valide doit être créé"
+        assert conge.justificatif is not None
+        assert conge.justificatif.nom_fichier == "certificat.pdf"
+
     def test_fichier_invalide_refuse(self, client, db_session, users):
         login(client, "rh1", "rh123")
         client.post(

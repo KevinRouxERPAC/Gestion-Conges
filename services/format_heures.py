@@ -39,6 +39,29 @@ def format_heures_min(valeur):
     return f"{signe}{heures} h {minutes:02d}"
 
 
+def format_jours(valeur):
+    """Formate un nombre de jours pour l'affichage FR.
+
+    Retire le « .0 » des entiers et utilise la virgule décimale :
+
+        2.0  -> "2"
+        1.5  -> "1,5"
+        -15.0 -> "-15"
+
+    Destiné aux messages adressés à l'utilisateur (flash). Applique la même règle
+    que le filtre Jinja `nb_jours` (cf. app.py), qui s'appuie sur cette fonction.
+    """
+    if valeur is None:
+        return "0"
+    try:
+        v = float(valeur)
+    except (TypeError, ValueError):
+        return str(valeur)
+    if v == int(v):
+        return str(int(v))
+    return f"{v:.1f}".replace(".", ",")
+
+
 def est_multiple_quart(valeur) -> bool:
     """True si `valeur` est un multiple strict de 0,25 (tolérance flottante)."""
     try:

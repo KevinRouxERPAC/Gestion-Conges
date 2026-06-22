@@ -118,9 +118,15 @@ def enregistrer_justificatif(conge: Conge, fichier: FileStorage, acteur: User) -
         existing.upload_par_id = acteur.id
         action = "justificatif.remplacer"
     else:
+        # On lie l'objet via la relation (conge=conge) plutôt que par conge_id :
+        # le backref `conge.justificatif` est ainsi peuplé immédiatement en mémoire.
+        # Indispensable car la route appelle verifier_justificatif_obligatoire()
+        # juste après, dans la même transaction (avant tout flush/commit) ; avec
+        # conge_id seul, la relation serait restée en cache à None et la
+        # vérification aurait rejeté à tort un justificatif pourtant fourni.
         db.session.add(
             Justificatif(
-                conge_id=conge.id,
+                conge=conge,
                 nom_fichier=nom_original,
                 nom_stockage=nom_stockage,
                 mime_type=mime,

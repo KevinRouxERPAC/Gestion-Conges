@@ -21,7 +21,7 @@ from services.solde import (
     cloturer_exercice_et_reporter,
 )
 from services.jours_feries import get_jours_feries
-from services.format_heures import format_heures_min
+from services.format_heures import format_heures_min, format_jours
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
@@ -259,7 +259,7 @@ def ajouter_conge(user_id):
         db.session.commit()
 
         flash(
-            f"Congé ajouté : {result.conge.nb_jours_ouvrables} jour(s) ouvrable(s).",
+            f"Congé ajouté : {format_jours(result.conge.nb_jours_ouvrables)} jour(s) ouvrable(s).",
             "success",
         )
         return redirect(url_for("rh.salarie_detail", user_id=user.id))
@@ -495,7 +495,7 @@ def valider_conge(conge_id):
         solde_info = calculer_solde(conge.user_id)
         solde_apres = solde_info["solde_restant"] - (conge.nb_jours_ouvrables or 0)
         if solde_apres < 0:
-            flash(f"Validation effectuée. Solde CP négatif : {solde_apres} jour(s).", "warning")
+            flash(f"Validation effectuée. Solde CP négatif : {format_jours(solde_apres)} jour(s).", "warning")
     elif conge.type_conge == "RTT":
         solde_info = calculer_solde(conge.user_id)
         rtt_apres = solde_info.get("rtt_solde_restant", 0) - (conge.nb_heures_rtt or 0)

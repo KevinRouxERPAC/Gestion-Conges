@@ -21,7 +21,7 @@ from typing import Optional
 from models.conge import Conge, DEMI_VALEURS
 from models.user import User
 from services.calcul_jours import compter_jours_ouvrables_avec_demi, detecter_chevauchement
-from services.format_heures import est_multiple_quart, format_heures_min
+from services.format_heures import est_multiple_quart, format_heures_min, format_jours
 from services.conges_exceptionnels import (
     get_type_exceptionnel,
     parse_code,
@@ -182,7 +182,7 @@ def construire_conge(
         if solde_apres < 0:
             result.warnings.append((
                 "warning",
-                f"Solde CP négatif après cette demande : {solde_apres} jour(s).",
+                f"Solde CP négatif après cette demande : {format_jours(solde_apres)} jour(s).",
             ))
 
     elif type_conge == "RTT":

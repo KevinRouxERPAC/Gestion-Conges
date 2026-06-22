@@ -74,17 +74,12 @@ def create_app():
     def _format_nb_jours(valeur):
         """Affiche un nombre de jours en français (`1,5` au lieu de `1.5`).
         Retire les zéros inutiles : 2.0 → "2", 1.5 → "1,5".
+
+        S'appuie sur services.format_heures.format_jours pour que templates et
+        messages flash appliquent exactement la même règle de formatage.
         """
-        if valeur is None:
-            return "0"
-        try:
-            v = float(valeur)
-        except (TypeError, ValueError):
-            return str(valeur)
-        if v == int(v):
-            return str(int(v))
-        # 1 décimale suffit (demi-journées uniquement).
-        return f"{v:.1f}".replace(".", ",")
+        from services.format_heures import format_jours
+        return format_jours(valeur)
 
     @app.template_filter("nb_heures")
     def _format_nb_heures(valeur):
