@@ -7,6 +7,25 @@ statut: "À valider / en attente d'exécution"
 
 # Plan d'implémentation — Améliorations & nettoyage
 
+## Statut d'exécution (2026-06-25, branche `chore/ameliorations-2026-06`)
+
+| Lot | Statut | Commit |
+|---|---|---|
+| **0** Hygiène dépôt | ✅ Fait (0.2 scripts migration **conservés** ; 0.4 `_bmad`/`.cursor` **en attente de décision**) | `947abbe` + `dec9e47` |
+| **1** Email RH à chaque demande | ✅ Fait (+ 5 tests) | `f46ba96` |
+| **3** Fiabilité prod (lots `IN`, `SKIP_DB_CREATE_ALL`) | ✅ Fait | `6f918ed` |
+| **2** Perf dashboard RH (anti N+1) | ✅ Fait (+ 3 tests parité) | _(commit Lot 2)_ |
+| **4** Passerelle ERP des heures | ⏳ Design à cadrer (accès BDD ERP requis) | — |
+| **5** HTTPS push / CSP nonces | ⏳ Déploiement / long terme | — |
+
+Suite de tests complète : **244 passed, 0 failed**.
+
+> ⚠️ **Sécurité — à traiter hors de ces lots** : `web.config` contient une
+> `SECRET_KEY` de production **en clair et versionnée**. À considérer comme
+> compromise : la régénérer et la sortir du dépôt (variable d'env non versionnée).
+
+---
+
 Ce plan découle de la revue d'utilité des fonctionnalités du 2026-06-25. Les quatre
 fonctionnalités optionnelles (saisie heures/RTT, intéressement, Web Push, email RH)
 sont **conservées** : le travail consiste à les fiabiliser, à nettoyer la dette, et à
