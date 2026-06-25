@@ -35,7 +35,7 @@ Ce guide décrit comment héberger l’application sur **Windows Server** avec *
 4. Adapter **web.config** à votre chemin d’installation :
    - Ouvrir `web.config` à la racine du projet.
    - Remplacer **toutes** les occurrences du chemin (ex. `C:\Sites\Gestion-Conges`) par le chemin physique réel de votre site (ex. `D:\Apps\GestionConges`) : `processPath`, `workingDirectory`, `stdoutLogFile`.
-   - Dans la section `<environmentVariables>`, définir une **SECRET_KEY** forte pour la production (et optionnellement les variables SMTP si vous utilisez les e-mails).
+   - **SECRET_KEY** : ne **pas** la mettre dans `web.config` (fichier versionné). La définir comme variable d'environnement **système** sur le serveur (cf. §5). Optionnellement, ajouter les variables SMTP/`MAIL_RH` dans `<environmentVariables>`.
 
 ## 3. Configurer le site dans IIS
 
@@ -53,15 +53,44 @@ Ce guide décrit comment héberger l’application sur **Windows Server** avec *
 - Consulter les logs : `logs\stdout.log` en cas d’erreur de démarrage.
 - Ouvrir l’URL du site dans un navigateur (ex. `http://votre-serveur/`).
 
-## 5. Variables d’environnement (web.config)
+## 5. Variables d’environnement
 
-Les variables suivantes peuvent être définies dans la section `<environmentVariables>` de `web.config` :
+### SECRET_KEY — secret, hors du dépôt (obligatoire)
+
+⚠️ **Ne jamais mettre `SECRET_KEY` dans `web.config`** : ce fichier est versionné dans
+git. Un secret qui y figure est lisible par quiconque a accès au dépôt et permet de
+**forger des sessions** (usurpation d'identité). La clé doit être une variable
+d'environnement **système** du serveur, dont le processus Python (lancé par
+HttpPlatformHandler) hérite automatiquement.
+
+Mise en place (invite PowerShell **élevée**, sur le serveur) :
+
+```powershell
+# 1. Générer une clé forte
+$key = & "C:\inetpub\GestionConges\venv\Scripts\python.exe" -c "import secrets; print(secrets.token_urlsafe(48))"
+
+# 2. La poser comme variable SYSTÈME (persistante, héritée par IIS)
+[Environment]::SetEnvironmentVariable("SECRET_KEY", $key, "Machine")
+
+# 3. Redémarrer IIS pour que les services héritent de la nouvelle variable
+iisreset
+```
+
+> **Rotation / clé compromise** : si une `SECRET_KEY` a déjà été versionnée dans git
+> (historique inclus), elle doit être considérée comme **compromise**. Générer une
+> nouvelle clé comme ci-dessus : toutes les sessions en cours seront invalidées
+> (les utilisateurs devront se reconnecter), ce qui est le comportement attendu.
+> L'ancienne clé reste dans l'historique git mais devient inutilisable.
+
+### Autres variables (dans `<environmentVariables>` de `web.config`)
 
 | Variable | Description |
 |----------|-------------|
-| `SECRET_KEY` | Clé secrète Flask (obligatoire en production). |
+| `PREFERRED_URL_SCHEME` | `https` en production derrière IIS (cookies `Secure`, HSTS). |
 | `PYTHONUNBUFFERED` | Laisser à `1` pour que les logs soient bien écrits. |
+| `SKIP_DB_CREATE_ALL` | `1` en production : le schéma est géré par Alembic (`flask db upgrade`). |
 | `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER` | SMTP pour les notifications (voir `config.py`). |
+| `MAIL_RH` | Boîte RH entreprise : email à chaque demande + récap hebdo. |
 | `MAIL_SUPPRESS_SEND` | `true` pour désactiver l’envoi d’e-mails (logs uniquement). |
 
 Exemple pour ajouter le SMTP :
