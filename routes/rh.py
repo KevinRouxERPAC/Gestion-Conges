@@ -522,15 +522,18 @@ def valider_lots():
         flash("Aucun congé sélectionné.", "warning")
         return redirect(url_for("rh.dashboard"))
 
-    nb_ok = 0
-    erreurs = []
+    # Chargement en une seule requête (au lieu d'un get() par identifiant).
+    ids_int = []
     for cid in ids:
         try:
-            conge = Conge.query.get(int(cid))
+            ids_int.append(int(cid))
         except (ValueError, TypeError):
             continue
-        if not conge:
-            continue
+    conges = Conge.query.filter(Conge.id.in_(ids_int)).all() if ids_int else []
+
+    nb_ok = 0
+    erreurs = []
+    for conge in conges:
         ok, err = _valider_un_conge_rh(conge)
         if ok:
             nb_ok += 1
@@ -597,13 +600,17 @@ def refuser_lots():
         # Page de saisie groupée du motif.
         return render_template("rh/refuser_lots.html", conge_ids=ids)
 
-    nb_ok = 0
+    ids_int = []
     for cid in ids:
         try:
-            conge = Conge.query.get(int(cid))
+            ids_int.append(int(cid))
         except (ValueError, TypeError):
             continue
-        if not conge or conge.statut != "en_attente_rh":
+    conges = Conge.query.filter(Conge.id.in_(ids_int)).all() if ids_int else []
+
+    nb_ok = 0
+    for conge in conges:
+        if conge.statut != "en_attente_rh":
             continue
         conge.statut = "refuse"
         conge.valide_par_id = current_user.id

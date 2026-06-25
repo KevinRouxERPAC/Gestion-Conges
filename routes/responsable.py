@@ -149,15 +149,18 @@ def valider_lots():
     if not ids:
         flash("Aucun congé sélectionné.", "warning")
         return redirect(url_for("responsable.dashboard"))
-    nb_ok = 0
-    erreurs = []
+    # Chargement en une seule requête (au lieu d'un get() par identifiant).
+    ids_int = []
     for cid in ids:
         try:
-            conge = Conge.query.get(int(cid))
+            ids_int.append(int(cid))
         except (ValueError, TypeError):
             continue
-        if not conge:
-            continue
+    conges = Conge.query.filter(Conge.id.in_(ids_int)).all() if ids_int else []
+
+    nb_ok = 0
+    erreurs = []
+    for conge in conges:
         ok, err = _valider_un_conge_n1(conge)
         if ok:
             nb_ok += 1
@@ -183,13 +186,17 @@ def refuser_lots():
     if not motif:
         return render_template("responsable/refuser_lots.html", conge_ids=ids)
 
-    nb_ok = 0
+    ids_int = []
     for cid in ids:
         try:
-            conge = Conge.query.get(int(cid))
+            ids_int.append(int(cid))
         except (ValueError, TypeError):
             continue
-        if not conge or conge.statut != "en_attente_responsable":
+    conges = Conge.query.filter(Conge.id.in_(ids_int)).all() if ids_int else []
+
+    nb_ok = 0
+    for conge in conges:
+        if conge.statut != "en_attente_responsable":
             continue
         u = conge.utilisateur
         # Même périmètre que la validation : responsable direct OU suppléant actif.
