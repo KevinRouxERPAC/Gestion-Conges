@@ -86,7 +86,7 @@
                             {{ 'Désactiver' if p.actif else 'Activer' }}
                         </button>
                     </form>
-                    <form method="POST" class="inline" onsubmit="return confirm('Supprimer cette période et ses règles ?');">
+                    <form method="POST" class="inline" data-confirm="Supprimer cette période et ses règles ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="delete_periode">
                         <input type="hidden" name="periode_id" value="{{ p.id }}">

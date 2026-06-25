@@ -80,7 +80,7 @@
     </form>
 
     {% for r in regles %}
-    <form id="del_{{ r.id }}" method="POST" class="hidden" onsubmit="return confirm('Supprimer cette règle ?');">
+    <form id="del_{{ r.id }}" method="POST" class="hidden" data-confirm="Supprimer cette règle ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="delete_regle">
         <input type="hidden" name="regle_id" value="{{ r.id }}">

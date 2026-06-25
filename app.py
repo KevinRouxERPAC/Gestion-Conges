@@ -1,7 +1,8 @@
 import os
 import sys
+import secrets
 from datetime import timedelta
-from flask import Flask, redirect, url_for, Response, send_from_directory
+from flask import Flask, redirect, url_for, Response, send_from_directory, g
 from flask_login import LoginManager
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -64,6 +65,17 @@ def create_app():
     app.register_blueprint(responsable_bp, url_prefix="/responsable")
     app.register_blueprint(notifications_bp, url_prefix="/notifications")
     app.register_blueprint(api_bp, url_prefix="/api")
+
+    @app.before_request
+    def _generer_csp_nonce():
+        # Nonce unique par requête, partagé entre l'en-tête CSP (script-src) et les
+        # scripts inline des templates ({{ csp_nonce }}). Permet de retirer
+        # 'unsafe-inline' de script-src sans casser les scripts inline légitimes.
+        g.csp_nonce = secrets.token_urlsafe(16)
+
+    @app.context_processor
+    def inject_csp_nonce():
+        return {"csp_nonce": getattr(g, "csp_nonce", "")}
 
     @app.context_processor
     def inject_now():
@@ -156,21 +168,30 @@ def create_app():
 
         Politique adaptée à un intranet :
         - default-src 'self' : tout doit venir du même domaine.
-        - 'unsafe-inline' + 'unsafe-eval' sur script-src : compromis nécessaire
+        - script-src 'self' 'nonce-…' 'unsafe-eval' : plus de 'unsafe-inline'.
+          Les scripts inline légitimes portent le nonce de la requête
+          ({{ csp_nonce }}), les gestionnaires inline on*= ont été remplacés par
+          des écouteurs délégués (static/js/app.js). 'unsafe-eval' reste requis
           car Alpine.js v3 (build standard) et FullCalendar compilent leurs
-          expressions/templates via `new Function(...)` ; sans 'unsafe-eval'
-          la navigation et les calendriers sont cassés. Une refactorisation
-          vers Alpine CSP build + nonces serait préférable, mais le risque
-          XSS reste limité grâce à l'échappement Jinja + CSRF.
+          expressions via `new Function(...)` ; le retirer nécessiterait la
+          migration vers Alpine CSP build (chantier séparé).
+        - style-src garde 'unsafe-inline' : FullCalendar et quelques composants
+          injectent des styles inline ; durcissement à traiter à part.
         - Google Fonts (fonts.googleapis.com + fonts.gstatic.com) autorisé
           pour la feuille de style et les fichiers de police (Inter).
         - frame-ancestors 'none' : remplace X-Frame-Options DENY.
         - HSTS uniquement si PREFERRED_URL_SCHEME=https (cf. no_hsts ci-dessus).
         """
+        nonce = getattr(g, "csp_nonce", "")
+        script_src = (
+            f"script-src 'self' 'nonce-{nonce}' 'unsafe-eval'; "
+            if nonce
+            else "script-src 'self' 'unsafe-eval'; "
+        )
         csp = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
-            "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+            + script_src
+            + "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
             "img-src 'self' data:; "
             "font-src 'self' data: https://fonts.gstatic.com; "
             "connect-src 'self'; "

@@ -18,6 +18,35 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // CSP : confirmation de soumission via data-confirm (remplace onsubmit="return confirm(...)").
+    // Capture-phase : s'exécute avant l'anti-double-soumission ; si l'utilisateur annule,
+    // stopPropagation empêche aussi la désactivation inutile du bouton.
+    document.addEventListener('submit', function(e) {
+        var form = e.target;
+        if (form && form.hasAttribute && form.hasAttribute('data-confirm')) {
+            if (!window.confirm(form.getAttribute('data-confirm'))) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        }
+    }, true);
+
+    // CSP : navigation de ligne via data-row-href (remplace onclick/onkeydown inline sur <tr>).
+    // Un clic sur un lien/bouton interne (cellule "Actions") ne déclenche pas la navigation.
+    document.addEventListener('click', function(e) {
+        var row = e.target.closest('[data-row-href]');
+        if (!row) return;
+        if (e.target.closest('a, button, input, label')) return;
+        window.location.href = row.getAttribute('data-row-href');
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter') return;
+        var row = e.target.closest('[data-row-href]');
+        if (row && e.target === row) {
+            window.location.href = row.getAttribute('data-row-href');
+        }
+    });
+
     // Anti double-soumission : désactive le bouton après le premier clic
     document.querySelectorAll('form').forEach(function(form) {
         form.addEventListener('submit', function() {
@@ -50,7 +79,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         var toast = document.createElement('div');
                         toast.setAttribute('role', 'alert');
                         toast.style.cssText = 'position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:99999; background:#008C3A; color:#fff; padding:14px 24px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); display:flex; align-items:center; gap:12px; max-width:90%; font-size:15px;';
-                        toast.innerHTML = '<a href="/notifications/" style="color:inherit; text-decoration:underline; font-weight:600;">Nouvelle(s) notification(s) – cliquer pour voir</a><button type="button" style="background:transparent; border:none; color:rgba(255,255,255,0.9); font-size:22px; line-height:1; cursor:pointer; padding:0 0 0 8px;" onclick="this.parentElement.remove()" aria-label="Fermer">&times;</button>';
+                        toast.innerHTML = '<a href="/notifications/" style="color:inherit; text-decoration:underline; font-weight:600;">Nouvelle(s) notification(s) – cliquer pour voir</a><button type="button" style="background:transparent; border:none; color:rgba(255,255,255,0.9); font-size:22px; line-height:1; cursor:pointer; padding:0 0 0 8px;" aria-label="Fermer">&times;</button>';
+                        // CSP : pas de onclick inline ; on attache l'écouteur de fermeture programmatiquement.
+                        var tClose = toast.querySelector('button');
+                        if (tClose) { tClose.addEventListener('click', function() { toast.remove(); }); }
                         document.body.appendChild(toast);
                         setTimeout(function() { if (toast.parentElement) toast.remove(); }, 8000);
                     }

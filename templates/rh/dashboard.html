@@ -171,7 +171,7 @@
         </table>
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 function bulkConges() {
     return {
         selected: [],
@@ -294,8 +294,7 @@ function bulkConges() {
             <tr class="cursor-pointer transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
                 role="button" tabindex="0"
-                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
-                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
+                data-row-href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}">
                 <td class="px-6 py-4">
                     <div class="font-medium text-slate-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
                     <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
@@ -319,7 +318,7 @@ function bulkConges() {
                         <span class="rounded-full bg-erpac-50 px-2.5 py-0.5 text-xs font-medium text-erpac-800">Présent</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-right" onclick="event.stopPropagation()">
+                <td class="px-6 py-4 text-right">
                     <a href="{{ url_for('rh.ajouter_conge', user_id=data.user.id) }}" class="text-sm font-medium text-erpac-primary hover:text-erpac-dark">+ Congé</a>
                 </td>
             </tr>
@@ -346,8 +345,7 @@ function bulkConges() {
             <tr class="cursor-pointer transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
                 role="button" tabindex="0"
-                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'"
-                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=data.user.id) }}'">
+                data-row-href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}">
                 <td class="px-6 py-4">
                     <div class="font-medium text-slate-700">{{ data.user.nom }} {{ data.user.prenom }}</div>
                     <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
@@ -374,7 +372,7 @@ function bulkConges() {
 
 <script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const eventsData = {{ calendar_events|tojson }};
     const typeColors = {

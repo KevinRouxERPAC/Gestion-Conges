@@ -101,7 +101,7 @@
             <a href="{{ url_for('rh.telecharger_justificatif', conge_id=conge.id) }}"
                class="text-erpac-primary hover:text-erpac-dark font-medium">Télécharger</a>
             <form method="POST" action="{{ url_for('rh.supprimer_justificatif_route', conge_id=conge.id) }}" class="inline"
-                  onsubmit="return confirm('Supprimer ce justificatif ?')">
+                  data-confirm="Supprimer ce justificatif ?">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Supprimer</button>
             </form>
@@ -136,7 +136,7 @@
     </form>
 </div>
 <script src="{{ url_for('static', filename='js/conge-form.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const typeCongeEl = document.getElementById('type_conge');
   const rttHeuresEl = document.getElementById('nb_heures_rtt');

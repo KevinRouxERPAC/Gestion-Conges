@@ -185,7 +185,7 @@
                     <a href="{{ url_for('rh.modifier_conge', conge_id=conge.id) }}"
                        class="text-erpac-primary hover:text-erpac-dark text-sm font-medium">Modifier</a>
                     <form method="POST" action="{{ url_for('rh.supprimer_conge', conge_id=conge.id) }}"
-                          class="inline" onsubmit="return confirm('Supprimer ce congé ?')">
+                          class="inline" data-confirm="Supprimer ce congé ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-red-600 hover:text-red-800 text-sm font-medium">Supprimer</button>
                     </form>
