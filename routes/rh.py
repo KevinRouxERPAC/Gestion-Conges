@@ -15,6 +15,7 @@ from models.conge_exceptionnel_type import CongeExceptionnelType
 from models.heures_hebdo import HeuresHebdo
 from services.solde import (
     calculer_solde,
+    calculer_soldes_lot,
     get_parametrage_actif,
     generer_allocations_pour_parametrage,
     salaries_a_risque,
@@ -52,19 +53,28 @@ def dashboard():
     salaries = User.query.filter_by(actif=True).order_by(User.nom).all()
     param = get_parametrage_actif()
 
+    # Soldes de tous les salariés actifs en un nombre fixe de requêtes (anti N+1).
+    soldes = calculer_soldes_lot([s.id for s in salaries], param)
+
+    # Nombre de congés validés en cours aujourd'hui, agrégé en une seule requête.
+    aujourd_hui = date.today()
+    conges_en_cours_par_user = dict(
+        db.session.query(Conge.user_id, db.func.count(Conge.id))
+        .filter(
+            Conge.statut == "valide",
+            Conge.date_debut <= aujourd_hui,
+            Conge.date_fin >= aujourd_hui,
+        )
+        .group_by(Conge.user_id)
+        .all()
+    )
+
     salaries_data = []
     for s in salaries:
-        solde_info = calculer_solde(s.id)
-        conges_en_cours = Conge.query.filter(
-            Conge.user_id == s.id,
-            Conge.statut == "valide",
-            Conge.date_debut <= datetime.today().date(),
-            Conge.date_fin >= datetime.today().date(),
-        ).count()
         salaries_data.append({
             "user": s,
-            "solde": solde_info,
-            "conges_en_cours": conges_en_cours,
+            "solde": soldes[s.id],
+            "conges_en_cours": conges_en_cours_par_user.get(s.id, 0),
         })
 
     # Données pour les graphiques (solde restant par salarié)
@@ -137,10 +147,10 @@ def dashboard():
 
     # Salariés inactifs (pour le tableau en dessous)
     salaries_inactifs = User.query.filter_by(actif=False).order_by(User.nom).all()
-    salaries_data_inactifs = []
-    for s in salaries_inactifs:
-        solde_info = calculer_solde(s.id)
-        salaries_data_inactifs.append({"user": s, "solde": solde_info})
+    soldes_inactifs = calculer_soldes_lot([s.id for s in salaries_inactifs], param)
+    salaries_data_inactifs = [
+        {"user": s, "solde": soldes_inactifs[s.id]} for s in salaries_inactifs
+    ]
 
     # Stats
     total_salaries = len(salaries)
