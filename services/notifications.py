@@ -25,6 +25,19 @@ def creer_notification(user_id: int, type_notif: str, titre: str, message: str, 
         logger.warning("Web Push non envoyé pour user_id=%s: %s", user_id, e)
 
 
+def _email_demande_rh(conge, evenement: str):
+    """Envoie l'email RH au fil de l'eau, sans jamais bloquer le workflow.
+
+    Comme le Web Push, un échec (SMTP indisponible, MAIL_RH absent...) est seulement
+    journalisé : la création/validation de la demande ne doit pas en dépendre.
+    """
+    try:
+        from services.email import envoyer_email_demande_rh
+        envoyer_email_demande_rh(conge, evenement=evenement)
+    except Exception as e:
+        logger.warning("Email RH (demande) non envoyé pour conge_id=%s: %s", getattr(conge, "id", "?"), e)
+
+
 def notifier_conge_valide(conge):
     """Notifie le salarié que sa demande de congé a été validée (in-app + Web Push, sans email pour conformité RGPD)."""
     u = conge.utilisateur
@@ -140,6 +153,7 @@ def notifier_rh_demande_transmise(conge):
             message=message,
             conge_id=conge.id,
         )
+    _email_demande_rh(conge, evenement="transmise")
 
 
 def notifier_rh_nouvelle_demande(conge):
@@ -167,6 +181,7 @@ def notifier_rh_nouvelle_demande(conge):
             message=message,
             conge_id=conge.id,
         )
+    _email_demande_rh(conge, evenement="directe")
 
 
 def compter_non_lues(user_id: int) -> int:

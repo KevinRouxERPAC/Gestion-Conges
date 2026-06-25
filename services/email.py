@@ -164,3 +164,65 @@ def envoyer_recap_hebdo_rh(demandes: list) -> bool:
 </html>
 """
     return send_email(to, subject, body_text, body_html)
+
+
+def envoyer_email_demande_rh(conge, evenement: str = "directe") -> bool:
+    """Envoie un email immédiat à la boîte RH entreprise (MAIL_RH) dès qu'une demande
+    de congé entre dans la file de validation RH.
+
+    Complète le récap hebdomadaire (`envoyer_recap_hebdo_rh`) : ici on alerte au fil
+    de l'eau, pour que le RH ne dépende pas du push (HTTPS) ni d'être connecté.
+
+    `evenement` :
+      - "directe"   : demande arrivée directement en attente RH (salarié sans
+                      responsable, ou congé créé par un responsable pour un subordonné).
+      - "transmise" : demande validée niveau 1 par le responsable, puis transmise au RH.
+
+    Retourne False si `MAIL_RH` n'est pas configuré (aucun envoi). N'écrit rien en base.
+    """
+    to = (current_app.config.get("MAIL_RH") or "").strip()
+    if not to:
+        return False
+
+    u = getattr(conge, "utilisateur", None)
+    nom_salarie = f"{u.prenom} {u.nom}" if u else "Salarie"
+    periode = f"{conge.date_debut.strftime('%d/%m/%Y')} - {conge.date_fin.strftime('%d/%m/%Y')}"
+    nb_jours = conge.nb_jours_ouvrables or 0
+    type_conge = conge.type_conge or "CP"
+    contexte = "transmise par le responsable" if evenement == "transmise" else "deposee"
+
+    subject = f"ERPAC Conges - Nouvelle demande : {nom_salarie} ({periode})"
+
+    body_text = (
+        f"Bonjour,\n\n"
+        f"Une demande de conge vient d'etre {contexte} et attend une validation RH.\n\n"
+        f"- Salarie : {nom_salarie}\n"
+        f"- Periode : {periode}\n"
+        f"- Jours   : {nb_jours}\n"
+        f"- Type    : {type_conge}\n\n"
+        "Connectez-vous a l'application pour la valider ou la refuser.\n\n"
+        "Cordialement,\nL'equipe ERPAC\n"
+    )
+
+    body_html = f"""
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <p>Bonjour,</p>
+    <p>Une demande de conge vient d'etre <strong>{escape(contexte)}</strong> et attend une validation RH.</p>
+    <table style="border-collapse: collapse; margin: 16px 0; font-size: 14px;">
+        <tr><td style="padding:6px 10px; border:1px solid #e5e7eb; background:#f9fafb; font-weight:bold;">Salarie</td>
+            <td style="padding:6px 10px; border:1px solid #e5e7eb;">{escape(nom_salarie)}</td></tr>
+        <tr><td style="padding:6px 10px; border:1px solid #e5e7eb; background:#f9fafb; font-weight:bold;">Periode</td>
+            <td style="padding:6px 10px; border:1px solid #e5e7eb;">{escape(periode)}</td></tr>
+        <tr><td style="padding:6px 10px; border:1px solid #e5e7eb; background:#f9fafb; font-weight:bold;">Jours</td>
+            <td style="padding:6px 10px; border:1px solid #e5e7eb;">{nb_jours}</td></tr>
+        <tr><td style="padding:6px 10px; border:1px solid #e5e7eb; background:#f9fafb; font-weight:bold;">Type</td>
+            <td style="padding:6px 10px; border:1px solid #e5e7eb;">{escape(str(type_conge))}</td></tr>
+    </table>
+    <p>Connectez-vous a l'application pour la valider ou la refuser.</p>
+    <p>Cordialement,<br>L'equipe ERPAC</p>
+</body>
+</html>
+"""
+    return send_email(to, subject, body_text, body_html)

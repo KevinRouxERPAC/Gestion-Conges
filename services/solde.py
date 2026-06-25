@@ -100,42 +100,36 @@ def calculer_heures_rtt_en_attente(user_id, parametrage_id=None):
     )
 
 
-def calculer_solde(user_id, parametrage_id=None):
-    """Calcule les soldes restants d'un utilisateur pour CP (jours) et RTT (heures).
+def _solde_zero():
+    """Solde « vide » renvoyé quand le salarié n'a pas d'allocation pour l'exercice."""
+    return {
+        "total_alloue": 0,
+        "jours_conges": 0,
+        "jours_anciennete": 0,
+        "jours_report": 0,
+        "total_consomme": 0,
+        "solde_restant": 0,
+        "cp_en_attente": 0,
+        "solde_projete": 0,
+        "rtt_heures_allouees": 0,
+        "rtt_heures_reportees": 0,
+        "rtt_total_alloue": 0,
+        "rtt_total_consomme": 0,
+        "rtt_solde_restant": 0,
+        "rtt_en_attente": 0,
+        "rtt_solde_projete": 0,
+    }
 
-    Inclut les demandes en attente pour transparence (clés *_en_attente). Le solde
-    autorisé peut être négatif : c'est un avertissement, pas un blocage.
+
+def _assembler_solde(allocation, cp_consomme, cp_en_attente, rtt_consomme, rtt_en_attente):
+    """Construit le dict de solde à partir d'une allocation et des consommations.
+
+    Source unique de la forme du résultat : utilisée par `calculer_solde` (un
+    salarié) ET `calculer_soldes_lot` (groupé), pour garantir des chiffres
+    strictement identiques entre les deux chemins.
     """
-    allocation = get_allocation(user_id, parametrage_id)
-    if allocation is None:
-        return {
-            "total_alloue": 0,
-            "jours_conges": 0,
-            "jours_anciennete": 0,
-            "jours_report": 0,
-            "total_consomme": 0,
-            "solde_restant": 0,
-            "cp_en_attente": 0,
-            "solde_projete": 0,
-            "rtt_heures_allouees": 0,
-            "rtt_heures_reportees": 0,
-            "rtt_total_alloue": 0,
-            "rtt_total_consomme": 0,
-            "rtt_solde_restant": 0,
-            "rtt_en_attente": 0,
-            "rtt_solde_projete": 0,
-        }
-
-    pid = allocation.parametrage_id
-
-    cp_consomme = calculer_jours_cps_consommes(user_id, pid)
-    cp_en_attente = calculer_jours_cps_en_attente(user_id, pid)
     cp_total = allocation.total_jours
-
     rtt_total = allocation.total_rtt_heures
-    rtt_consomme = calculer_heures_rtt_consommes(user_id, pid)
-    rtt_en_attente = calculer_heures_rtt_en_attente(user_id, pid)
-
     return {
         # CP (jours) - clés compatibles avec l'existant
         "total_alloue": cp_total,
@@ -157,6 +151,84 @@ def calculer_solde(user_id, parametrage_id=None):
         "rtt_en_attente": _num(rtt_en_attente),
         "rtt_solde_projete": _num(rtt_total - rtt_consomme - rtt_en_attente),
     }
+
+
+def calculer_solde(user_id, parametrage_id=None):
+    """Calcule les soldes restants d'un utilisateur pour CP (jours) et RTT (heures).
+
+    Inclut les demandes en attente pour transparence (clés *_en_attente). Le solde
+    autorisé peut être négatif : c'est un avertissement, pas un blocage.
+    """
+    allocation = get_allocation(user_id, parametrage_id)
+    if allocation is None:
+        return _solde_zero()
+
+    pid = allocation.parametrage_id
+    return _assembler_solde(
+        allocation,
+        calculer_jours_cps_consommes(user_id, pid),
+        calculer_jours_cps_en_attente(user_id, pid),
+        calculer_heures_rtt_consommes(user_id, pid),
+        calculer_heures_rtt_en_attente(user_id, pid),
+    )
+
+
+def calculer_soldes_lot(user_ids, param=None):
+    """Version groupée de `calculer_solde` pour un ensemble de salariés.
+
+    Renvoie ``{user_id: dict_solde}`` avec exactement les mêmes clés et valeurs
+    que `calculer_solde` appelé individuellement, mais en un nombre **fixe** de
+    requêtes (≈ 1 pour les allocations + 4 sommes de consommation groupées) au
+    lieu de ~5-9 requêtes **par** salarié. Élimine le N+1 du tableau de bord RH.
+
+    `param` : paramétrage actif (passé par l'appelant pour éviter un re-lookup).
+    """
+    user_ids = list(user_ids)
+    if param is None:
+        param = get_parametrage_actif()
+    if not user_ids or param is None:
+        return {uid: _solde_zero() for uid in user_ids}
+
+    allocs = {
+        a.user_id: a
+        for a in AllocationConge.query.filter(
+            AllocationConge.parametrage_id == param.id,
+            AllocationConge.user_id.in_(tuple(user_ids)),
+        ).all()
+    }
+
+    debut, fin = param.debut_exercice, param.fin_exercice
+    cp_consomme = somme_consommation(
+        colonne=Conge.nb_jours_ouvrables, date_debut_min=debut, date_fin_max=fin,
+        statuts=STATUT_VALIDE, types=TYPES_CP, user_ids=user_ids, group_by="user",
+    )
+    cp_attente = somme_consommation(
+        colonne=Conge.nb_jours_ouvrables, date_debut_min=debut, date_fin_max=fin,
+        statuts=STATUTS_EN_ATTENTE, types=TYPES_CP, user_ids=user_ids, group_by="user",
+    )
+    rtt_consomme = somme_consommation(
+        colonne=Conge.nb_heures_rtt, date_debut_min=debut, date_fin_max=fin,
+        statuts=STATUT_VALIDE, types=TYPE_RTT, user_ids=user_ids, group_by="user",
+    )
+    rtt_attente = somme_consommation(
+        colonne=Conge.nb_heures_rtt, date_debut_min=debut, date_fin_max=fin,
+        statuts=STATUTS_EN_ATTENTE, types=TYPE_RTT, user_ids=user_ids, group_by="user",
+    )
+
+    resultats = {}
+    for uid in user_ids:
+        allocation = allocs.get(uid)
+        if allocation is None:
+            resultats[uid] = _solde_zero()
+            continue
+        resultats[uid] = _assembler_solde(
+            allocation,
+            cp_consomme.get(uid, 0),
+            cp_attente.get(uid, 0),
+            rtt_consomme.get(uid, 0),
+            rtt_attente.get(uid, 0),
+        )
+    return resultats
 
 
 def salaries_a_risque(jours_min_restants=10, jours_avant_fin=90):

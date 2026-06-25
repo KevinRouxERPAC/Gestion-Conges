@@ -27,7 +27,7 @@ class TestAjoutCongeParResponsable:
         """Le responsable peut créer un congé pour un subordonné."""
         login(client, "resp1", "resp123")
         resp = client.post(
-            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            f"/responsable/subordonne/{users['salarie'].id}/conge/ajouter",
             data={
                 "date_debut": "2026-06-01",
                 "date_fin": "2026-06-05",
@@ -47,7 +47,7 @@ class TestAjoutCongeParResponsable:
         """Le responsable peut créer un RTT (heures) pour un subordonné."""
         login(client, "resp1", "resp123")
         resp = client.post(
-            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            f"/responsable/subordonne/{users['salarie'].id}/conge/ajouter",
             data={
                 "date_debut": "2026-05-04",
                 "date_fin": "2026-05-04",
@@ -66,7 +66,7 @@ class TestAjoutCongeParResponsable:
         """Le responsable ne peut pas ajouter un congé pour un salarié qui n'est pas son subordonné."""
         login(client, "resp1", "resp123")
         resp = client.get(
-            f"/responsable/subordonn%C3%A9/{users['salarie_sans_resp'].id}/conge/ajouter",
+            f"/responsable/subordonne/{users['salarie_sans_resp'].id}/conge/ajouter",
             follow_redirects=True,
         )
         assert resp.status_code == 200
@@ -76,7 +76,7 @@ class TestAjoutCongeParResponsable:
         """Solde négatif autorisé : ajout effectué + avertissement, congé envoyé en attente RH."""
         login(client, "resp1", "resp123")
         resp = client.post(
-            f"/responsable/subordonn%C3%A9/{users['salarie'].id}/conge/ajouter",
+            f"/responsable/subordonne/{users['salarie'].id}/conge/ajouter",
             data={
                 "date_debut": "2026-01-05",
                 "date_fin": "2026-02-28",
