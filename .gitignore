@@ -20,10 +20,13 @@ pytest_out.txt
 .vscode/
 .DS_Store
 
-# Cursor / logs debug
-.cursor/debug.log
-.cursor/plans/
+# Cursor (outils de dev IDE — non versionnés)
+.cursor/
 debug*.log
+
+# BMAD (méthode / agents de dev — non versionnés, locaux au poste)
+_bmad/
+_bmad-output/
 
 # Base de données locale (ne doit pas être versionnée)
 gestion_conges.db
