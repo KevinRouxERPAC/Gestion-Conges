@@ -29,7 +29,7 @@
     </form>
 
     <form method="POST" class="bg-white rounded-xl shadow p-5 space-y-4"
-          onsubmit="return confirm('Archiver {{ nb_archivables }} congé(s) dont la date de fin est ≤ {{ date_cutoff.strftime('%d/%m/%Y') }} ?');">
+          data-confirm="Archiver {{ nb_archivables }} congé(s) dont la date de fin est ≤ {{ date_cutoff.strftime('%d/%m/%Y') }} ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="archiver">
         <input type="hidden" name="date_cutoff" value="{{ date_cutoff.isoformat() }}">
@@ -42,7 +42,7 @@
 
     {% if nb_archives > 0 %}
     <form method="POST" class="bg-white rounded-xl shadow p-5"
-          onsubmit="return confirm('Désarchiver l\'ensemble des {{ nb_archives }} congé(s) archivé(s) ?');">
+          data-confirm="Désarchiver l'ensemble des {{ nb_archives }} congé(s) archivé(s) ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="desarchiver">
         <button type="submit" class="text-sm text-gray-600 hover:text-erpac-primary underline">

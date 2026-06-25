@@ -141,7 +141,7 @@
                 <td class="px-4 py-2 text-sm font-medium">{{ jf.libelle }}</td>
                 <td class="px-4 py-2 text-sm text-gray-500">{{ 'Automatique' if jf.auto_genere else 'Manuel' }}</td>
                 <td class="px-4 py-2 text-right">
-                    <form method="POST" class="inline" onsubmit="return confirm('Supprimer ce jour férié ?')">
+                    <form method="POST" class="inline" data-confirm="Supprimer ce jour férié ?">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="supprimer_ferie">
                         <input type="hidden" name="ferie_id" value="{{ jf.id }}">

@@ -133,7 +133,7 @@
                        class="mr-2 text-sm font-medium text-erpac-primary hover:text-erpac-dark">Justificatif</a>
                     {% endif %}
                     {% if conge.statut in ['en_attente_responsable', 'en_attente_rh'] %}
-                    <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" onsubmit="return confirm('Annuler cette demande ?')">
+                    <form method="POST" action="{{ url_for('salarie.annuler_conge', conge_id=conge.id) }}" class="inline" data-confirm="Annuler cette demande ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="text-sm font-medium text-rose-600 hover:text-rose-700">Annuler</button>
                     </form>

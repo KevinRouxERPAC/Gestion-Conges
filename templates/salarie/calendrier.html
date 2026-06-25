@@ -182,7 +182,7 @@
 <script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
 <script type="application/json" id="calendar-events-data">{{ events|tojson }}</script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function() {
     function init() {
         var cb = document.getElementById('voir-tous');

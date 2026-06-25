@@ -101,7 +101,7 @@
     </form>
 </div>
 <script src="{{ url_for('static', filename='js/conge-form.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   const typeCongeEl = document.getElementById('type_conge');
   const rttHeuresEl = document.getElementById('nb_heures_rtt');

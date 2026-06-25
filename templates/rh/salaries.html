@@ -38,8 +38,7 @@
                 x-show='search === "" || {{ (salarie.nom ~ " " ~ salarie.prenom ~ " " ~ salarie.identifiant)|lower|tojson }}.includes(search.toLowerCase())'
                 role="button"
                 tabindex="0"
-                onclick="window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'"
-                onkeydown="if (event.key === 'Enter') window.location.href='{{ url_for('rh.salarie_detail', user_id=salarie.id) }}'">
+                data-row-href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}">
                 <td class="px-6 py-4">
                     <div class="font-medium text-gray-900">{{ salarie.nom }} {{ salarie.prenom }}</div>
                 </td>
@@ -67,7 +66,7 @@
                         <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
                     {% endif %}
                 </td>
-                <td class="px-6 py-4 text-right space-x-2" onclick="event.stopPropagation()">
+                <td class="px-6 py-4 text-right space-x-2">
                     <a href="{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}"
                        class="text-gray-700 hover:text-gray-900 text-sm font-medium">Modifier</a>
                 </td>

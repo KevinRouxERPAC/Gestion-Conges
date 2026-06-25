@@ -136,7 +136,7 @@
         </table>
     </div>
 </div>
-<script>
+<script nonce="{{ csp_nonce }}">
 function bulkCongesResp() {
     return {
         selected: [],
@@ -200,7 +200,7 @@ function bulkCongesResp() {
 
 <script src="{{ url_for('static', filename='vendor/fullcalendar.min.js') }}"></script>
 <script src="{{ url_for('static', filename='vendor/fullcalendar-fr.min.js') }}"></script>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.addEventListener('DOMContentLoaded', function() {
     const eventsData = {{ calendar_events|tojson }};
     const typeColors = {

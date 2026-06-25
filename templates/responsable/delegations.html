@@ -73,7 +73,7 @@
                     {% endif %}
                 </td>
                 <td class="px-6 py-3 text-right">
-                    <form method="POST" class="inline" onsubmit="return confirm('Supprimer cette délégation ?')">
+                    <form method="POST" class="inline" data-confirm="Supprimer cette délégation ?">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="delete">
                         <input type="hidden" name="delegation_id" value="{{ d.id }}">
