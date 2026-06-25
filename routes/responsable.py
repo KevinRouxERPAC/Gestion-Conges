@@ -247,7 +247,6 @@ def refuser_conge(conge_id):
 
 
 @responsable_bp.route("/subordonne/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
-@responsable_bp.route("/subordonné/<int:user_id>/conge/ajouter", methods=["GET", "POST"])
 @responsable_required
 def ajouter_conge_subordonne(user_id):
     """Le responsable crée un congé pour un de ses subordonnés (envoyé directement en attente RH)."""
