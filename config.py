@@ -51,6 +51,27 @@ class Config:
     JUSTIFICATIFS_DIR = os.environ.get("JUSTIFICATIFS_DIR") or os.path.join(BASE_DIR, "instance", "justificatifs")
     MAX_CONTENT_LENGTH = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))  # 5 Mo
 
+    # -------------------------------------------------------------------------
+    # Connexion ERP lecture seule (SILOG/Cegid PMI, SQL Server).
+    # Désactivé par défaut : l'app fonctionne sans l'ERP.
+    # Activer via ERP_DB_ENABLED=true + renseigner les variables ci-dessous
+    # (dans web.config sur IIS, jamais dans le dépôt Git).
+    # -------------------------------------------------------------------------
+    ERP_DB_ENABLED = os.environ.get("ERP_DB_ENABLED", "false").lower() == "true"
+    ERP_DB_SERVER = os.environ.get("ERP_DB_SERVER", "")
+    ERP_DB_DATABASE = os.environ.get("ERP_DB_DATABASE", "PMI")
+    ERP_DB_USER = os.environ.get("ERP_DB_USER", "")
+    ERP_DB_PASSWORD = os.environ.get("ERP_DB_PASSWORD", "")
+    ERP_DB_DRIVER = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 18 for SQL Server")
+    ERP_DB_ENCRYPT = os.environ.get("ERP_DB_ENCRYPT", "yes")
+    ERP_DB_TRUST_CERT = os.environ.get("ERP_DB_TRUST_CERT", "yes")
+    ERP_DB_TIMEOUT = int(os.environ.get("ERP_DB_TIMEOUT", "10"))
+    # Planification in-app de la synchro automatique (APScheduler).
+    # Jour : mon/tue/wed/thu/fri/sat/sun. Défaut : vendredi 17h30.
+    ERP_SYNC_JOUR = os.environ.get("ERP_SYNC_JOUR", "fri")
+    ERP_SYNC_HEURE = int(os.environ.get("ERP_SYNC_HEURE", "17"))
+    ERP_SYNC_MINUTE = int(os.environ.get("ERP_SYNC_MINUTE", "30"))
+
     # Web Push (notifications hors du site, sans donnée personnelle)
     # Clés : placer vapid_private.pem dans le répertoire de l'app (ou VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY en env).
     # Important : pour que la notification s'affiche chez l'utilisateur (même onglet fermé), le site doit être

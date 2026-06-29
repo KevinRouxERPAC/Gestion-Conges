@@ -1406,6 +1406,41 @@ def types_exceptionnels():
 
 
 
+@rh_bp.route("/sync-erp-heures", methods=["POST"])
+@rh_required
+def sync_erp_heures():
+    """Déclenche manuellement l'import des heures depuis l'ERP (semaine précédente ou choisie)."""
+    from services.erp.sync_heures import synchroniser_semaine
+    from services.erp.connexion import ErpNonConfigureError, erp_active
+
+    if not erp_active():
+        flash("La connexion ERP n'est pas activée (ERP_DB_ENABLED non défini).", "error")
+        return redirect(url_for("rh.heures_hebdo"))
+
+    semaine = (request.form.get("semaine_erp") or "").strip() or None
+    recalc = request.form.get("recalculer_rtt", "1") != "0"
+
+    try:
+        rapport = synchroniser_semaine(semaine_erp=semaine, recalculer_rtt=recalc)
+    except ErpNonConfigureError as e:
+        flash(str(e), "error")
+        return redirect(url_for("rh.heures_hebdo"))
+    except Exception as e:
+        flash(f"Erreur lors de la synchro ERP : {e}", "error")
+        return redirect(url_for("rh.heures_hebdo"))
+
+    msg = (
+        f"ERP semaine {rapport.semaine_erp} : {rapport.nb_importes} lignes importées"
+        f"{', RTT recalculé' if rapport.rtt_recalcule else ''}."
+    )
+    flash(msg, "success")
+    for w in rapport.avertissements:
+        flash(w, "warning")
+
+    # Redirige vers la semaine importée pour visualiser le résultat.
+    return redirect(url_for("rh.heures_hebdo", lundi=rapport.date_lundi.isoformat()))
+
+
 @rh_bp.route("/heures-hebdo", methods=["GET", "POST"])
 @rh_required
 def heures_hebdo():
@@ -1445,11 +1480,11 @@ def heures_hebdo():
         saved_user_ids = []
 
         for s in salaries:
-            hw_str = (request.form.get(f"u{s.id}_heures") or "").strip()
+            hw_str = (request.form.get(f"u{s.id}_heures") or "").strip().replace(",", ".")
             if hw_str == "":
                 continue
             try:
-                heures = int(hw_str)
+                heures = float(hw_str)
             except ValueError:
                 flash(f"Valeur invalide pour {s.prenom} {s.nom}.", "error")
                 return redirect(url_for("rh.heures_hebdo", lundi=lundi.isoformat()))
@@ -1458,7 +1493,7 @@ def heures_hebdo():
             if not row:
                 row = HeuresHebdo(user_id=s.id, date_lundi=lundi)
                 db.session.add(row)
-            row.heures_travaillees = max(0, heures)
+            row.heures_travaillees = round(max(0.0, heures), 2)
             row.source = "manuel"
             row.saisi_par_id = current_user.id
             saved_user_ids.append(s.id)
@@ -1481,6 +1516,17 @@ def heures_hebdo():
     by_user = {e.user_id: e for e in existing}
     absences = {s.id: jours_absence_semaine(s.id, lundi) for s in salaries}
 
+    from services.erp.connexion import erp_active
+    from services.erp.scheduler import prochain_passage, scheduler_actif
+
+    # Dernière synchro ERP : entrée la plus récente avec source='erp'.
+    derniere_synchro_erp = (
+        HeuresHebdo.query
+        .filter_by(source="erp")
+        .order_by(HeuresHebdo.saisi_le.desc())
+        .first()
+    )
+
     return render_template(
         "rh/heures_hebdo.html",
         parametrage=param,
@@ -1493,6 +1539,10 @@ def heures_hebdo():
         absences=absences,
         seuil_hebdo=seuil_hebdo_param(param),
         heures_par_jour=heures_par_jour_absence_param(param),
+        erp_active=erp_active(),
+        erp_scheduler_actif=scheduler_actif(),
+        erp_prochain_passage=prochain_passage(),
+        derniere_synchro_erp=derniere_synchro_erp,
     )
 
 

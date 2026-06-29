@@ -20,7 +20,8 @@ class HeuresHebdo(db.Model):
     # Lundi de la semaine ISO concernée.
     date_lundi = db.Column(db.Date, nullable=False)
 
-    heures_travaillees = db.Column(db.Integer, nullable=False, default=0)
+    # Numeric(5,2) pour accepter les demi-heures ERP (ex. 32,5 h depuis TEMPAS).
+    heures_travaillees = db.Column(db.Numeric(5, 2, asdecimal=False), nullable=False, default=0)
 
     source = db.Column(db.String(30), nullable=False, default="manuel")
     saisi_par_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)

@@ -122,7 +122,7 @@ cd /home/freebox/Gestion-Conges
 venv/bin/python scripts/create_admin.py
 ```
 
-Le script demande un mot de passe au clavier (au moins 6 caractères). Par défaut il crée l’utilisateur `admin` (nom : Admin, prénom : Gestion). Pour personnaliser :
+Le script demande un mot de passe au clavier (au moins 8 caractères). Par défaut il crée l’utilisateur `admin` (nom : Admin, prénom : Gestion). Pour personnaliser :
 
 ```bash
 ADMIN_IDENTIFIANT=rh ADMIN_NOM=Dupont ADMIN_PRENOM=Marie venv/bin/python scripts/create_admin.py

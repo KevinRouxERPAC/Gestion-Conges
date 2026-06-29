@@ -1,79 +1,216 @@
 {% extends "base.html" %}
 {% block title %}Heures hebdomadaires / RTT{% endblock %}
 {% block page_title %}Heures hebdomadaires / RTT{% endblock %}
-{% block page_subtitle %}Saisie des heures travaillées par semaine{% endblock %}
+{% block page_subtitle %}Saisie manuelle ou import ERP — recalcul automatique des RTT{% endblock %}
 
 {% block content %}
-<p class="mb-6 text-sm text-slate-500">
-  Le RTT acquis tient compte des absences : une absence réduit le seuil hebdomadaire ({{ seuil_hebdo }} h, −{{ heures_par_jour }} h par jour d'absence) afin de ne pas pénaliser le salarié.
-</p>
 
-<div class="bg-white rounded-xl shadow p-6 mb-8">
-  <form method="GET" class="flex flex-col md:flex-row gap-4 items-end">
+{# ── Navigation semaine ─────────────────────────────────────────────── #}
+<div class="bg-white rounded-xl shadow p-5 mb-6">
+  <form method="GET" class="flex flex-wrap gap-3 items-end">
     <div>
-      <label class="block text-sm text-gray-600 mb-1">Semaine (lundi)</label>
-      <input type="date" name="lundi" value="{{ lundi.isoformat() }}" class="px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+      <label class="block text-xs text-gray-500 mb-1">Semaine (lundi)</label>
+      <input type="date" name="lundi" value="{{ lundi.isoformat() }}"
+             class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
     </div>
-    <div class="flex items-end gap-2">
-      <button type="submit" class="bg-gray-900 hover:bg-black text-white font-medium py-2 px-4 rounded-lg transition">Afficher</button>
-    </div>
-    <div class="flex items-end gap-2">
-      <a href="{{ url_for('rh.heures_hebdo', lundi=lundi_prec.isoformat()) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-3 rounded-lg transition border border-gray-300 text-sm">&larr; Semaine précédente</a>
-      <a href="{{ url_for('rh.heures_hebdo', lundi=lundi_suiv.isoformat()) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-3 rounded-lg transition border border-gray-300 text-sm">Semaine suivante &rarr;</a>
-    </div>
-    <div class="ml-auto text-sm text-gray-500">
-      <div>Exercice actif : <span class="font-medium">{{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}</span></div>
+    <button type="submit"
+            class="bg-gray-900 hover:bg-black text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+      Afficher
+    </button>
+    <a href="{{ url_for('rh.heures_hebdo', lundi=lundi_prec.isoformat()) }}"
+       class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium py-2 px-3 rounded-lg border border-gray-300 transition">
+      ← Semaine précédente
+    </a>
+    <a href="{{ url_for('rh.heures_hebdo', lundi=lundi_suiv.isoformat()) }}"
+       class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium py-2 px-3 rounded-lg border border-gray-300 transition">
+      Semaine suivante →
+    </a>
+    <div class="ml-auto text-xs text-gray-400 self-center">
+      Exercice : {{ parametrage.debut_exercice.strftime("%d/%m/%Y") }} → {{ parametrage.fin_exercice.strftime("%d/%m/%Y") }}
     </div>
   </form>
 </div>
 
-<div class="bg-white rounded-xl shadow overflow-hidden">
-  <div class="px-6 py-4 border-b flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-    <h2 class="text-lg font-semibold text-gray-800">Semaine du {{ lundi.strftime("%d/%m/%Y") }} au {{ dimanche.strftime("%d/%m/%Y") }}</h2>
-    <div class="text-xs text-gray-500">Astuce : laissez une ligne vide pour ne pas la modifier.</div>
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+
+  {# ── Panneau ERP ──────────────────────────────────────────────────── #}
+  <div class="xl:col-span-1">
+    <div class="bg-white rounded-xl shadow h-full flex flex-col">
+      <div class="px-5 py-4 border-b flex items-center gap-2">
+        <span class="text-blue-600 text-lg">⟳</span>
+        <h2 class="font-semibold text-gray-800 text-sm">Import depuis l'ERP</h2>
+        {% if erp_active %}
+          <span class="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">Connecté</span>
+        {% else %}
+          <span class="ml-auto text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Inactif</span>
+        {% endif %}
+      </div>
+
+      <div class="px-5 py-4 flex-1 flex flex-col gap-4">
+
+        {% if erp_active %}
+        {# Statut planificateur #}
+        <div class="rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
+          {% if erp_scheduler_actif and erp_prochain_passage %}
+            <p class="text-blue-800 font-medium">Synchro automatique active</p>
+            <p class="text-blue-600 text-xs mt-0.5">
+              Prochaine exécution : <span class="font-mono">{{ erp_prochain_passage.strftime("%A %d/%m à %H:%M") }}</span>
+            </p>
+          {% else %}
+            <p class="text-amber-700 font-medium">Synchro auto non démarrée</p>
+            <p class="text-amber-600 text-xs mt-0.5">L'app tourne en mode développement (flask run). Démarrez via run_wsgi.py pour activer le planificateur.</p>
+          {% endif %}
+        </div>
+
+        {# Dernière synchro #}
+        <div class="text-xs text-gray-500">
+          {% if derniere_synchro_erp %}
+            Dernière synchro ERP :
+            <span class="font-medium text-gray-700">
+              {{ derniere_synchro_erp.saisi_le.strftime("%d/%m/%Y à %H:%M") }}
+            </span>
+          {% else %}
+            <span class="italic">Aucune synchro ERP effectuée.</span>
+          {% endif %}
+        </div>
+
+        {# Import manuel d'une semaine #}
+        <div class="border-t pt-4">
+          <p class="text-xs text-gray-500 mb-2 font-medium">Importer maintenant</p>
+          <form method="POST" action="{{ url_for('rh.sync_erp_heures') }}" class="flex flex-col gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="flex items-center gap-2">
+              <input type="text" name="semaine_erp"
+                     placeholder="AAAASS — vide = sem. précédente"
+                     class="flex-1 px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-400">
+            </div>
+            <p class="text-xs text-gray-400">
+              Ex : <span class="font-mono">202625</span> = semaine 25 de 2026.
+              Laissez vide pour importer la semaine précédente.
+            </p>
+            <button type="submit"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+              ↓ Importer depuis l'ERP
+            </button>
+          </form>
+        </div>
+
+        {% else %}
+        {# ERP non configuré #}
+        <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-4 text-sm text-gray-500">
+          <p class="font-medium text-gray-700 mb-1">ERP non configuré</p>
+          <p class="text-xs">
+            Pour activer la connexion à Cegid PMI, définissez dans <code class="bg-gray-100 px-1 rounded">web.config</code> :
+          </p>
+          <pre class="mt-2 text-xs bg-gray-100 rounded p-2 overflow-x-auto leading-relaxed">ERP_DB_ENABLED=true
+ERP_DB_SERVER=SRV18150RD1
+ERP_DB_DATABASE=PMI
+ERP_DB_USER=lecteur_app
+ERP_DB_PASSWORD=…</pre>
+        </div>
+        {% endif %}
+
+      </div>
+    </div>
   </div>
 
-  <form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="lundi" value="{{ lundi.isoformat() }}">
-
-    <div class="overflow-x-auto">
-      <table class="min-w-full">
-        <thead class="bg-gray-50">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jours d'absence (semaine)</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures travaillées</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-gray-200">
-          {% for s in salaries %}
-          {% set row = heures_by_user.get(s.id) %}
-          {% set abs = absences.get(s.id, 0) %}
-          <tr class="hover:bg-gray-50">
-            <td class="px-6 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
-            <td class="px-6 py-3 text-sm {% if abs > 0 %}text-amber-700 font-medium{% else %}text-gray-400{% endif %}">
-              {{ abs|nb_jours }} j
-              {% if abs > 0 %}<span class="text-xs text-gray-500">(seuil ajusté : {{ seuil_hebdo - (abs * heures_par_jour) }} h)</span>{% endif %}
-            </td>
-            <td class="px-6 py-3">
-              <input type="number" min="0" name="u{{ s.id }}_heures" value="{{ row.heures_travaillees if row else "" }}" class="w-40 px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-
-    <div class="px-6 py-4 border-t bg-white flex flex-col md:flex-row gap-3 md:items-center md:justify-between">
-      <div class="text-sm text-gray-500">
-        Recalcul RTT : met à jour <span class="font-medium">rtt_heures_allouees</span> de chaque salarié selon le seuil hebdomadaire paramétré ({{ seuil_hebdo }} h).
+  {# ── Info semaine ─────────────────────────────────────────────────── #}
+  <div class="xl:col-span-2">
+    <div class="bg-white rounded-xl shadow h-full flex flex-col">
+      <div class="px-5 py-4 border-b">
+        <h2 class="font-semibold text-gray-800 text-sm">
+          Semaine du {{ lundi.strftime("%d/%m/%Y") }} au {{ dimanche.strftime("%d/%m/%Y") }}
+        </h2>
+        <p class="text-xs text-gray-400 mt-0.5">
+          Seuil RTT : {{ seuil_hebdo }} h — seuil réduit de {{ heures_par_jour }} h par jour d'absence.
+          Les heures marquées <span class="text-blue-600 font-medium">ERP</span> ont été importées automatiquement.
+          Vous pouvez les corriger manuellement.
+        </p>
       </div>
-      <div class="flex gap-2">
-        <button type="submit" name="action" value="save" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer</button>
-        <button type="submit" name="action" value="save_recalc" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition">Enregistrer et recalculer RTT</button>
+
+      {# Résumé sources semaine affichée #}
+      {% set nb_erp = heures_by_user.values() | selectattr('source', 'equalto', 'erp') | list | length %}
+      {% set nb_manuel = heures_by_user.values() | selectattr('source', 'equalto', 'manuel') | list | length %}
+      {% if nb_erp > 0 or nb_manuel > 0 %}
+      <div class="px-5 py-2 bg-gray-50 border-b flex gap-4 text-xs text-gray-500">
+        {% if nb_erp > 0 %}
+          <span class="text-blue-700">● {{ nb_erp }} salarié(s) via ERP</span>
+        {% endif %}
+        {% if nb_manuel > 0 %}
+          <span class="text-gray-600">● {{ nb_manuel }} salarié(s) saisie manuelle</span>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="flex-1 overflow-x-auto">
+        <table class="min-w-full">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Absences</th>
+              <th class="px-5 py-3 text-left text-xs font-medium text-gray-500 uppercase">Heures travaillées</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100" id="heures-table">
+            {% for s in salaries %}
+            {% set row = heures_by_user.get(s.id) %}
+            {% set abs = absences.get(s.id, 0) %}
+            <tr class="hover:bg-gray-50">
+              <td class="px-5 py-3 text-sm font-medium text-gray-800">{{ s.prenom }} {{ s.nom }}</td>
+              <td class="px-5 py-3 text-sm {% if abs > 0 %}text-amber-700 font-medium{% else %}text-gray-400{% endif %}">
+                {{ abs|nb_jours }} j
+                {% if abs > 0 %}
+                  <span class="text-xs text-gray-400 ml-1">(seuil → {{ (seuil_hebdo - abs * heures_par_jour)|round(1) }} h)</span>
+                {% endif %}
+              </td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <input type="number" min="0" step="0.25"
+                         name="u{{ s.id }}_heures"
+                         form="form-manuel"
+                         value="{{ row.heures_travaillees if row else '' }}"
+                         class="w-24 px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary
+                                {% if row and row.source == 'erp' %}border-blue-300 bg-blue-50{% endif %}">
+                  {% if row %}
+                    {% if row.source == 'erp' %}
+                      <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium whitespace-nowrap">⟳ ERP</span>
+                    {% else %}
+                      <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full whitespace-nowrap">✎ Manuel</span>
+                    {% endif %}
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
-  </form>
+  </div>
+
 </div>
+
+{# ── Formulaire saisie manuelle ────────────────────────────────────── #}
+<form method="POST" id="form-manuel">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="lundi" value="{{ lundi.isoformat() }}">
+  <div class="bg-white rounded-xl shadow px-5 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+    <p class="text-sm text-gray-500">
+      Modifiez les heures ci-dessus et enregistrez. Une valeur manuelle
+      <strong>n'est pas écrasée</strong> par la prochaine synchro ERP.
+      Laissez un champ vide pour ne pas le modifier.
+    </p>
+    <div class="flex gap-2 shrink-0">
+      <button type="submit" name="action" value="save"
+              class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-4 rounded-lg transition text-sm">
+        Enregistrer
+      </button>
+      <button type="submit" name="action" value="save_recalc"
+              class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition text-sm">
+        Enregistrer + recalculer RTT
+      </button>
+    </div>
+  </div>
+</form>
+
 {% endblock %}

@@ -222,6 +222,50 @@ def create_app():
         with app.app_context():
             db.create_all()
 
+    # ------------------------------------------------------------------ #
+    # Commande CLI : flask sync-erp-heures [--semaine AAAASS]             #
+    # Destinée à être appelée par le Planificateur de tâches Windows      #
+    # chaque vendredi (ou manuellement).                                  #
+    # ------------------------------------------------------------------ #
+    import click
+
+    @app.cli.command("sync-erp-heures")
+    @click.option(
+        "--semaine",
+        default=None,
+        metavar="AAAASS",
+        help="Semaine à importer (ex. 202624). Défaut : semaine précédente.",
+    )
+    @click.option(
+        "--no-rtt",
+        is_flag=True,
+        default=False,
+        help="Importe les heures sans recalculer les RTT.",
+    )
+    def cmd_sync_erp_heures(semaine, no_rtt):
+        """Importe les heures hebdomadaires depuis l'ERP (SILOG/Cegid PMI)."""
+        from services.erp.sync_heures import synchroniser_semaine
+        from services.erp.connexion import ErpNonConfigureError
+
+        try:
+            rapport = synchroniser_semaine(
+                semaine_erp=semaine,
+                recalculer_rtt=not no_rtt,
+            )
+        except ErpNonConfigureError as e:
+            click.echo(f"[ERREUR] {e}", err=True)
+            raise SystemExit(1)
+        except Exception as e:
+            click.echo(f"[ERREUR] {e}", err=True)
+            raise SystemExit(1)
+
+        click.echo(f"Semaine ERP : {rapport.semaine_erp} (lundi {rapport.date_lundi})")
+        click.echo(f"  Heures importées     : {rapport.nb_importes}")
+        click.echo(f"  Sans matricule app   : {rapport.nb_skipped_sans_user}")
+        click.echo(f"  RTT recalculé        : {'oui' if rapport.rtt_recalcule else 'non'}")
+        for w in rapport.avertissements:
+            click.echo(f"  [!] {w}")
+
     return app
 
 

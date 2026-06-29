@@ -181,3 +181,5 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 ## Documentation complementaire
 
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) : architecture detaillee, modeles, flux et conventions pour les developpeurs.
+- [docs/DECISIONS.md](docs/DECISIONS.md) : decisions techniques et produit durables (cap intranet, RTT, RGPD, securite).
+- [docs/README.md](docs/README.md) : index complet de la documentation.

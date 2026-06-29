@@ -13,7 +13,10 @@ class User(UserMixin, db.Model):
     role = db.Column(db.String(20), nullable=False, default="salarie")  # "rh", "salarie" ou "responsable"
     actif = db.Column(db.Boolean, default=True)
     date_embauche = db.Column(db.Date, nullable=True)
-    email = db.Column(db.String(120), nullable=True)  # pour les notifications
+    email = db.Column(db.String(120), nullable=True)
+    # Matricule ERP (SILOG/PMI MAKTCODE, ex. "000011") : clé de rapprochement pour
+    # la synchro heures depuis TEMPAS. NULL = salarié non relié à l'ERP.
+    matricule = db.Column(db.String(20), nullable=True, unique=True, index=True)
     responsable_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)  # responsable hiérarchique (pour validation niveau 1)
 
     responsable = db.relationship("User", remote_side="User.id", foreign_keys=[responsable_id], backref="subordonnes")
