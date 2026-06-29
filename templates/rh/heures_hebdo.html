@@ -54,7 +54,7 @@
           {% if erp_scheduler_actif and erp_prochain_passage %}
             <p class="text-blue-800 font-medium">Synchro automatique active</p>
             <p class="text-blue-600 text-xs mt-0.5">
-              Prochaine exécution : <span class="font-mono">{{ erp_prochain_passage.strftime("%A %d/%m à %H:%M") }}</span>
+              Prochaine exécution : <span class="font-mono">{{ erp_prochain_passage_str }}</span>
             </p>
           {% else %}
             <p class="text-amber-700 font-medium">Synchro auto non démarrée</p>

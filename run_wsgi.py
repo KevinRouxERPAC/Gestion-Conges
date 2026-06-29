@@ -12,7 +12,16 @@ def _log(msg):
 
 _log("[run_wsgi] Demarrage...")
 
-
+# Charge .env.local si présent (dev uniquement, jamais commité).
+_env_local = os.path.join(_script_dir, ".env.local")
+if os.path.isfile(_env_local):
+    with open(_env_local) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _, _v = _line.partition("=")
+                os.environ.setdefault(_k.strip(), _v.strip())
+    _log("[run_wsgi] .env.local charge.")
 
 from app import create_app
 from waitress import serve

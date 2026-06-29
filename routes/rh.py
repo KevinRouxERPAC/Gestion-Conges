@@ -1527,6 +1527,12 @@ def heures_hebdo():
         .first()
     )
 
+    _jours_fr = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"]
+    _pp = prochain_passage()
+    erp_prochain_passage_str = (
+        f"{_jours_fr[_pp.weekday()]} {_pp.strftime('%d/%m à %H:%M')}" if _pp else None
+    )
+
     return render_template(
         "rh/heures_hebdo.html",
         parametrage=param,
@@ -1541,7 +1547,8 @@ def heures_hebdo():
         heures_par_jour=heures_par_jour_absence_param(param),
         erp_active=erp_active(),
         erp_scheduler_actif=scheduler_actif(),
-        erp_prochain_passage=prochain_passage(),
+        erp_prochain_passage=_pp,
+        erp_prochain_passage_str=erp_prochain_passage_str,
         derniere_synchro_erp=derniere_synchro_erp,
     )
 
