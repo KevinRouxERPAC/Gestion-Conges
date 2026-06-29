@@ -33,6 +33,11 @@ gestion_conges.db
 empty_for_migration.db
 instance/
 
+# Sauvegardes de base de données (backups manuels horodatés)
+*.db.bak
+*.db.bak-*
+*.bak
+
 # Logs IIS / déploiement Windows
 logs/
 
