@@ -74,23 +74,15 @@
           {% endif %}
         </div>
 
-        {# Import manuel d'une semaine #}
+        {# Import de la semaine affichée #}
         <div class="border-t pt-4">
-          <p class="text-xs text-gray-500 mb-2 font-medium">Importer maintenant</p>
-          <form method="POST" action="{{ url_for('rh.sync_erp_heures') }}" class="flex flex-col gap-2">
+          <form method="POST" action="{{ url_for('rh.sync_erp_heures') }}">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <div class="flex items-center gap-2">
-              <input type="text" name="semaine_erp"
-                     placeholder="AAAASS — vide = sem. précédente"
-                     class="flex-1 px-3 py-2 border rounded-lg text-xs focus:ring-2 focus:ring-blue-400">
-            </div>
-            <p class="text-xs text-gray-400">
-              Ex : <span class="font-mono">202625</span> = semaine 25 de 2026.
-              Laissez vide pour importer la semaine précédente.
-            </p>
+            <input type="hidden" name="semaine_erp" value="{{ semaine_erp_courante }}">
+            <input type="hidden" name="recalculer_rtt" value="1">
             <button type="submit"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
-              ↓ Importer depuis l'ERP
+                    class="w-full bg-erpac-primary hover:bg-erpac-dark text-white text-sm font-semibold py-2 px-4 rounded-lg transition">
+              ↓ Importer la semaine du {{ lundi.strftime("%d/%m") }}
             </button>
           </form>
         </div>

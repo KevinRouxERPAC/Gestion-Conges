@@ -1532,6 +1532,8 @@ def heures_hebdo():
     erp_prochain_passage_str = (
         f"{_jours_fr[_pp.weekday()]} {_pp.strftime('%d/%m à %H:%M')}" if _pp else None
     )
+    _iso = lundi.isocalendar()
+    semaine_erp_courante = f"{_iso[0]}{_iso[1]:02d}"
 
     return render_template(
         "rh/heures_hebdo.html",
@@ -1549,6 +1551,7 @@ def heures_hebdo():
         erp_scheduler_actif=scheduler_actif(),
         erp_prochain_passage=_pp,
         erp_prochain_passage_str=erp_prochain_passage_str,
+        semaine_erp_courante=semaine_erp_courante,
         derniere_synchro_erp=derniere_synchro_erp,
     )
 
