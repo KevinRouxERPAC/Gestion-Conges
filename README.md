@@ -114,7 +114,7 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 - **routes/** : auth, rh, salarie, notifications
 - **services/** : calcul_jours, jours_feries, solde, notifications, webpush, export
 - **templates/** : Jinja2 (base, auth, rh, salarie, notifications)
-- **static/** : CSS, JS (Alpine.js), sw.js (Service Worker Web Push)
+- **static/** : CSS, JS (Alpine.js), sw.js (Service Worker Web Push + cache offline PWA), manifest.webmanifest, offline.html
 - **scripts/** : create_admin.py, gen_vapid_keys.py, verifier_webpush.py, recap_hebdo.py ; **scripts/migrations/** : anciens scripts de migration (legacy, non rejoués)
 - **migrations/** : migrations Alembic (Flask-Migrate). `flask db upgrade` à chaque déploiement.
 - **deploy/** : Linux (systemd, nginx), Windows (IIS)
@@ -168,6 +168,7 @@ Base SQLite : `gestion_conges.db` creee automatiquement au premier lancement.
 | `scripts/create_admin.py` | Cree un utilisateur RH (premier acces). |
 | `scripts/gen_vapid_keys.py` | Genere vapid_private.pem et vapid_public.pem pour Web Push (a la racine du projet). |
 | `scripts/verifier_webpush.py` | Verifie la config Web Push (cles, endpoint vapid-public). |
+| `scripts/verifier_https.py` | Verifie HTTPS (certificat, cookies Secure, HSTS, VAPID) en un seul passage. |
 
 ---
 

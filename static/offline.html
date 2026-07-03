@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2f855a">
+    <title>Hors ligne - ERPAC Congés</title>
+    <style>
+        body { margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+               font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #f1f5f9; color: #1e293b; }
+        .card { text-align: center; padding: 2.5rem 2rem; background: white; border-radius: 1rem;
+                box-shadow: 0 4px 16px rgba(0,0,0,.06); max-width: 26rem; }
+        .icon { width: 4rem; height: 4rem; margin: 0 auto 1.25rem; display: grid; place-items: center;
+                border-radius: 50%; background: #dcfce7; color: #2f855a; }
+        h1 { font-size: 1.25rem; font-weight: 700; margin: 0 0 .5rem; }
+        p { font-size: .95rem; color: #64748b; margin: 0 0 1.5rem; line-height: 1.5; }
+        a { display: inline-block; padding: .6rem 1.25rem; background: #2f855a; color: white;
+            border-radius: .5rem; text-decoration: none; font-weight: 600; font-size: .9rem; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 1l22 22"></path>
+                <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                <line x1="12" y1="20" x2="12.01" y2="20"></line>
+            </svg>
+        </div>
+        <h1>Vous êtes hors ligne</h1>
+        <p>Impossible de charger cette page : aucune connexion réseau n'est disponible. Les données affichées précédemment restent consultables si elles ont été mises en cache.</p>
+        <a href="/">Réessayer</a>
+    </div>
+</body>
+</html>

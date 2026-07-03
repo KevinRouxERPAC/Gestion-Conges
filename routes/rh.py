@@ -26,6 +26,7 @@ from services.format_heures import format_heures_min, format_jours
 from services.notifications import notifier_conge_valide, notifier_conge_refuse
 from services.export import export_conges_excel, export_conges_equipe_excel, export_conges_pdf
 from services.export_comptable import export_compta_cp_rtt_xlsx
+from services.reporting import generer_rapport as generer_rapport_absenteisme
 from services.audit import log_action
 from models.audit_log import AuditLog
 import json as _json
@@ -664,6 +665,7 @@ def parametrage():
                 rtt_heures_par_jour = int(request.form.get("rtt_heures_par_jour_absence") or 7)
                 rtt_coef_surplus = float((request.form.get('rtt_coef_surplus') or '0').replace(',', '.').strip() or '0')
                 rtt_acquis_par_semaine = float((request.form.get('rtt_acquis_par_semaine') or '0').replace(',', '.').strip() or '0')
+                rtt_types_absence_exclus = (request.form.get('rtt_types_absence_exclus') or '').strip()
                 if rtt_seuil_hebdo <= 0 or rtt_heures_par_jour <= 0:
                     raise ValueError("seuil RTT invalide")
                 if rtt_acquis_par_semaine < 0:
@@ -681,6 +683,7 @@ def parametrage():
                     rtt_heures_par_jour_absence=rtt_heures_par_jour,
                     rtt_coef_surplus=rtt_coef_surplus,
                     rtt_acquis_par_semaine=rtt_acquis_par_semaine,
+                    rtt_types_absence_exclus=rtt_types_absence_exclus,
                     actif=True,
                 )
                 db.session.add(param)
@@ -692,6 +695,7 @@ def parametrage():
                 param.rtt_heures_par_jour_absence = rtt_heures_par_jour
                 param.rtt_coef_surplus = rtt_coef_surplus
                 param.rtt_acquis_par_semaine = rtt_acquis_par_semaine
+                param.rtt_types_absence_exclus = rtt_types_absence_exclus
 
             db.session.commit()
             flash("Paramétrage enregistré.", "success")
@@ -1409,7 +1413,11 @@ def types_exceptionnels():
 @rh_bp.route("/sync-erp-heures", methods=["POST"])
 @rh_required
 def sync_erp_heures():
-    """Déclenche manuellement l'import des heures depuis l'ERP (semaine précédente ou choisie)."""
+    """Déclenche manuellement l'import des heures depuis l'ERP (semaine précédente ou choisie).
+
+    Bouton « Aperçu » (dry_run=1) : affiche le diff sans écrire en base, pour
+    que la RH valide avant d'écraser une saisie ERP existante.
+    """
     from services.erp.sync_heures import synchroniser_semaine
     from services.erp.connexion import ErpNonConfigureError, erp_active
 
@@ -1419,15 +1427,32 @@ def sync_erp_heures():
 
     semaine = (request.form.get("semaine_erp") or "").strip() or None
     recalc = request.form.get("recalculer_rtt", "1") != "0"
+    dry_run = request.form.get("dry_run") == "1"
 
     try:
-        rapport = synchroniser_semaine(semaine_erp=semaine, recalculer_rtt=recalc)
+        rapport = synchroniser_semaine(
+            semaine_erp=semaine, recalculer_rtt=recalc, dry_run=dry_run
+        )
     except ErpNonConfigureError as e:
         flash(str(e), "error")
         return redirect(url_for("rh.heures_hebdo"))
     except Exception as e:
         flash(f"Erreur lors de la synchro ERP : {e}", "error")
         return redirect(url_for("rh.heures_hebdo"))
+
+    if dry_run:
+        flash(
+            f"Aperçu semaine {rapport.semaine_erp} : {rapport.nb_importes} ligne(s) à importer.",
+            "info",
+        )
+        for p in rapport.preview:
+            if p["action"] == "import":
+                anc = p.get("ancienne_valeur")
+                anc_str = f"{anc} h" if anc is not None else "nouveau"
+                flash(f"  matricule {p['matricule']} : {anc_str} → {p['heures_erp']} h", "info")
+        for w in rapport.avertissements:
+            flash(w, "warning")
+        return redirect(url_for("rh.heures_hebdo", lundi=rapport.date_lundi.isoformat()))
 
     msg = (
         f"ERP semaine {rapport.semaine_erp} : {rapport.nb_importes} lignes importées"
@@ -1456,6 +1481,7 @@ def heures_hebdo():
         _lundi,
         seuil_hebdo_param,
         heures_par_jour_absence_param,
+        types_absence_exclus_param,
     )
 
     param = get_parametrage_actif()
@@ -1514,7 +1540,8 @@ def heures_hebdo():
 
     existing = HeuresHebdo.query.filter_by(date_lundi=lundi).all()
     by_user = {e.user_id: e for e in existing}
-    absences = {s.id: jours_absence_semaine(s.id, lundi) for s in salaries}
+    exclus = types_absence_exclus_param(param)
+    absences = {s.id: jours_absence_semaine(s.id, lundi, exclus=exclus) for s in salaries}
 
     from services.erp.connexion import erp_active
     from services.erp.scheduler import prochain_passage, scheduler_actif
@@ -1785,6 +1812,58 @@ def audit_log():
         action_filter=action_filter,
         acteur_filter=acteur_filter,
         acteurs=acteurs,
+    )
+
+
+@rh_bp.route("/reporting")
+@rh_required
+def reporting():
+    """Reporting d'absentéisme agrégé : par type, par service, par mois, taux.
+
+    Permet de répondre aux besoins de pilotage RH (point ouvert §10 de la
+    checklist fonctionnelle) : vues agrégées sur une période donnée, distinctes
+    des soldes individuels.
+    """
+    param = get_parametrage_actif()
+    today = date.today()
+    # Période par défaut : exercice actif, ou année courante si pas de paramétrage.
+    if param:
+        debut_defaut = param.debut_exercice
+        fin_defaut = min(param.fin_exercice, today)
+    else:
+        debut_defaut = date(today.year, 1, 1)
+        fin_defaut = today
+
+    debut_str = (request.args.get("debut") or "").strip()
+    fin_str = (request.args.get("fin") or "").strip()
+    include_inactifs = request.args.get("include_inactifs") == "1"
+
+    try:
+        debut = datetime.strptime(debut_str, "%Y-%m-%d").date() if debut_str else debut_defaut
+    except ValueError:
+        debut = debut_defaut
+    try:
+        fin = datetime.strptime(fin_str, "%Y-%m-%d").date() if fin_str else fin_defaut
+    except ValueError:
+        fin = fin_defaut
+
+    if fin < debut:
+        fin = debut
+
+    rapport = generer_rapport_absenteisme(debut, fin, include_inactifs=include_inactifs)
+
+    # Totaux précalculés pour les indicateurs clés (Jinja n'a pas de filtre sum by attribute).
+    total_conges = sum(s.nb_conges for s in rapport.par_type)
+    total_jours = round(sum(s.nb_jours for s in rapport.par_type), 1)
+
+    return render_template(
+        "rh/reporting.html",
+        rapport=rapport,
+        debut=debut,
+        fin=fin,
+        include_inactifs=include_inactifs,
+        total_conges=total_conges,
+        total_jours=total_jours,
     )
 
 

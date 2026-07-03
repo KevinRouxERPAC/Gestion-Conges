@@ -64,6 +64,18 @@
                        value="{{ parametrage.rtt_acquis_par_semaine if parametrage else 0 }}"
                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
             </div>
+            <div class="sm:col-span-2">
+                <label class="block text-sm text-gray-600 mb-1">Types d'absence exclus du seuil RTT</label>
+                <input type="text" name="rtt_types_absence_exclus" placeholder="Maladie, Sans solde"
+                       value="{{ parametrage.rtt_types_absence_exclus if parametrage else '' }}"
+                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+                <p class="text-xs text-gray-500 mt-1">
+                    Codes séparés par des virgules (ex. « Maladie, Sans solde »).
+                    Ces absences ne réduisent pas le seuil hebdomadaire RTT — un
+                    arrêt maladie ne fait pas perdre de RTT. Vide = tous les congés
+                    validés réduisent le seuil (comportement par défaut).
+                </p>
+            </div>
             <div>
                 <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition w-full">
                     Enregistrer

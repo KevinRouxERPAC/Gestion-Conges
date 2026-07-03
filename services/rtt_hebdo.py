@@ -93,6 +93,20 @@ def rtt_acquis_par_semaine_param(param: ParametrageAnnuel | None) -> float:
     return 0.0
 
 
+def types_absence_exclus_param(param: ParametrageAnnuel | None) -> set[str]:
+    """Types d'absence exclus de la réduction du seuil hebdomadaire RTT.
+
+    Par défaut, tous les congés validés réduisent le seuil (comportement
+    historique). Un type exclu (ex. ``Maladie``) ne réduira pas le seuil : le
+    salarié ne perd pas de RTT en étant en arrêt maladie. Stocké comme une liste
+    de codes séparés par des virgules dans ``rtt_types_absence_exclus``.
+    """
+    if param is None:
+        return set()
+    raw = getattr(param, "rtt_types_absence_exclus", "") or ""
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
 def _semaines_exercice(param: ParametrageAnnuel) -> list:
     """Liste des lundis (semaines ISO) couvrant l'exercice [debut, fin]."""
     lundi = _lundi(param.debut_exercice)
@@ -110,20 +124,23 @@ def _absence_fraction_par_jour(user_id: int, param: ParametrageAnnuel) -> dict:
     La fraction d'un jour correspond à la part ouvrable réellement absente, en
     cohérence avec le calcul des jours ouvrables (demi-journées aux bordures).
     Tous les congés validés comptent comme absence (ils représentent du temps
-    non travaillé, ce qui justifie de réduire le seuil hebdomadaire).
+    non travaillé, ce qui justifie de réduire le seuil hebdomadaire), sauf les
+    types explicitement exclus via ``rtt_types_absence_exclus`` (ex. Maladie).
     """
     debut = param.debut_exercice
     fin = param.fin_exercice
     feries = get_dates_feries_set(debut, fin)
+    exclus = types_absence_exclus_param(param)
 
-    conges = (
-        Conge.query.filter(
-            Conge.user_id == user_id,
-            Conge.statut == "valide",
-            Conge.date_debut <= fin,
-            Conge.date_fin >= debut,
-        ).all()
+    q = Conge.query.filter(
+        Conge.user_id == user_id,
+        Conge.statut == "valide",
+        Conge.date_debut <= fin,
+        Conge.date_fin >= debut,
     )
+    if exclus:
+        q = q.filter(~Conge.type_conge.in_(exclus))
+    conges = q.all()
 
     fractions: dict = {}
     for c in conges:
@@ -151,22 +168,24 @@ def _lundi(d: date) -> date:
     return d - timedelta(days=d.weekday())
 
 
-def jours_absence_semaine(user_id: int, lundi: date) -> float:
+def jours_absence_semaine(user_id: int, lundi: date, exclus: set[str] | None = None) -> float:
     """Nombre de jours ouvrables d'absence (congés validés) sur la semaine du `lundi`.
 
     Utilisé par l'écran de saisie hebdomadaire pour afficher le contexte d'absence.
+    Les types listés dans ``exclus`` ne sont pas comptés (ex. Maladie).
     """
     lundi = _lundi(lundi)
     dimanche = lundi + timedelta(days=6)
     feries = get_dates_feries_set(lundi, dimanche)
-    conges = (
-        Conge.query.filter(
-            Conge.user_id == user_id,
-            Conge.statut == "valide",
-            Conge.date_debut <= dimanche,
-            Conge.date_fin >= lundi,
-        ).all()
+    q = Conge.query.filter(
+        Conge.user_id == user_id,
+        Conge.statut == "valide",
+        Conge.date_debut <= dimanche,
+        Conge.date_fin >= lundi,
     )
+    if exclus:
+        q = q.filter(~Conge.type_conge.in_(exclus))
+    conges = q.all()
     total = 0.0
     for c in conges:
         jour = max(c.date_debut, lundi)

@@ -242,7 +242,13 @@ def create_app():
         default=False,
         help="Importe les heures sans recalculer les RTT.",
     )
-    def cmd_sync_erp_heures(semaine, no_rtt):
+    @click.option(
+        "--dry-run",
+        is_flag=True,
+        default=False,
+        help="Aperçu : n'écrit rien en base, affiche le diff qui serait importé.",
+    )
+    def cmd_sync_erp_heures(semaine, no_rtt, dry_run):
         """Importe les heures hebdomadaires depuis l'ERP (SILOG/Cegid PMI)."""
         from services.erp.sync_heures import synchroniser_semaine
         from services.erp.connexion import ErpNonConfigureError
@@ -251,6 +257,7 @@ def create_app():
             rapport = synchroniser_semaine(
                 semaine_erp=semaine,
                 recalculer_rtt=not no_rtt,
+                dry_run=dry_run,
             )
         except ErpNonConfigureError as e:
             click.echo(f"[ERREUR] {e}", err=True)
@@ -259,12 +266,36 @@ def create_app():
             click.echo(f"[ERREUR] {e}", err=True)
             raise SystemExit(1)
 
-        click.echo(f"Semaine ERP : {rapport.semaine_erp} (lundi {rapport.date_lundi})")
+        mode = "APERÇU" if dry_run else "IMPORT"
+        click.echo(f"[{mode}] Semaine ERP : {rapport.semaine_erp} (lundi {rapport.date_lundi})")
         click.echo(f"  Heures importées     : {rapport.nb_importes}")
         click.echo(f"  Sans matricule app   : {rapport.nb_skipped_sans_user}")
         click.echo(f"  RTT recalculé        : {'oui' if rapport.rtt_recalcule else 'non'}")
+        if dry_run and rapport.preview:
+            click.echo(f"  --- Aperçu ({len(rapport.preview)} ligne(s)) ---")
+            for p in rapport.preview:
+                ancienne = p.get("ancienne_valeur")
+                ancienne_str = f"{ancienne} h" if ancienne is not None else "(nouveau)"
+                click.echo(
+                    f"    matricule={p['matricule']} user={p['user_id']} "
+                    f"{ancienne_str} → {p['heures_erp']} h [{p['action']}]"
+                )
         for w in rapport.avertissements:
             click.echo(f"  [!] {w}")
+
+    @app.cli.command("envoyer-rappels")
+    def cmd_envoyer_rappels():
+        """Envoie les rappels automatiques (demandes en attente, fin d'exercice).
+
+        À planifier une fois par jour (ex. via le Planificateur de tâches Windows
+        ou APScheduler).
+        """
+        from services.rappels import envoyer_rappels
+        bilan = envoyer_rappels()
+        click.echo(
+            f"Rappels envoyés : {bilan['en_attente']} demande(s) en attente, "
+            f"{bilan['fin_exercice']} rappel(s) fin d'exercice."
+        )
 
     return app
 

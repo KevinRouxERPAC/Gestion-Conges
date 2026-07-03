@@ -160,6 +160,96 @@ class TestParametrageSeuilRtt:
         assert heures_par_jour_absence_param(parametrage) == 7
 
 
+class TestTypesAbsenceExclus:
+    """Types d'absence exclus de la réduction du seuil hebdomadaire RTT.
+
+    Un arrêt maladie ne doit pas réduire le seuil RTT : sinon le salarié
+    perd du RTT en étant malade. Le paramétrage ``rtt_types_absence_exclus``
+    permet d'exclure ces types (liste de codes séparés par des virgules).
+    """
+
+    def test_aucun_exclu_par_defaut(self, db_session, parametrage):
+        from services.rtt_hebdo import types_absence_exclus_param
+        parametrage.rtt_types_absence_exclus = ""
+        assert types_absence_exclus_param(parametrage) == set()
+        assert types_absence_exclus_param(None) == set()
+
+    def test_parse_liste_separee_virgules(self, db_session, parametrage):
+        from services.rtt_hebdo import types_absence_exclus_param
+        parametrage.rtt_types_absence_exclus = "Maladie, Sans solde ,CP"
+        exclus = types_absence_exclus_param(parametrage)
+        assert exclus == {"Maladie", "Sans solde", "CP"}
+
+    def test_maladie_ne_reduit_pas_le_seuil(self, db_session, users, parametrage, allocations):
+        from services.rtt_hebdo import maj_rtt_allocations_hebdo
+        parametrage.rtt_types_absence_exclus = "Maladie"
+        db.session.commit()
+
+        # 1 jour de Maladie + 38 h travaillées : seuil reste 35 → 3 h RTT.
+        # Si la Maladie réduisait le seuil (28), 38 h donnerait 10 h RTT.
+        db.session.add(HeuresHebdo(
+            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=38
+        ))
+        db.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
+            nb_jours_ouvrables=1, type_conge="Maladie", statut="valide",
+        ))
+        db.session.commit()
+
+        maj_rtt_allocations_hebdo(parametrage)
+        alloc = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id, parametrage_id=parametrage.id
+        ).first()
+        # 38 h - seuil 35 (non réduit) = 3 h RTT.
+        assert alloc.rtt_heures_allouees == 3
+
+    def test_cp_exclu_nimpacte_pas_le_seuil(self, db_session, users, parametrage, allocations):
+        from services.rtt_hebdo import maj_rtt_allocations_hebdo
+        parametrage.rtt_types_absence_exclus = "CP"
+        db.session.commit()
+
+        # 1 jour de CP exclu → seuil reste 35. 38 h travaillées → 3 h RTT.
+        db.session.add(HeuresHebdo(
+            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=38
+        ))
+        db.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
+            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
+        ))
+        db.session.commit()
+
+        maj_rtt_allocations_hebdo(parametrage)
+        alloc = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id, parametrage_id=parametrage.id
+        ).first()
+        assert alloc.rtt_heures_allouees == 3
+
+    def test_type_non_exclu_reduit_toujours_le_seuil(self, db_session, users, parametrage, allocations):
+        from services.rtt_hebdo import maj_rtt_allocations_hebdo
+        # Seul "Maladie" est exclu ; le CP réduit toujours le seuil.
+        parametrage.rtt_types_absence_exclus = "Maladie"
+        db.session.commit()
+
+        # 1 jour de CP → seuil 28. 31 h travaillées → 3 h RTT.
+        db.session.add(HeuresHebdo(
+            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=31
+        ))
+        db.session.add(Conge(
+            user_id=users["salarie"].id,
+            date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
+            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
+        ))
+        db.session.commit()
+
+        maj_rtt_allocations_hebdo(parametrage)
+        alloc = AllocationConge.query.filter_by(
+            user_id=users["salarie"].id, parametrage_id=parametrage.id
+        ).first()
+        assert alloc.rtt_heures_allouees == 3
+
+
 class TestBaseAcquisitionHebdo:
     """Acquisition automatique de RTT par semaine (ex. 0,35 h), proratisée."""
 

@@ -66,6 +66,16 @@ document.addEventListener('DOMContentLoaded', function() {
         initWebPush();
     }
 
+    // PWA : enregistrement du Service Worker pour le cache hors-ligne, sur toutes les pages.
+    // Le SW gère aussi le Web Push : on s'assure qu'il est actif même sans bouton push présent.
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+            navigator.serviceWorker.register('/sw.js').catch(function (err) {
+                console.warn('SW registration failed', err);
+            });
+        });
+    }
+
     // Rafraîchissement du badge notifications (toutes les 12 s) pour voir les nouvelles demandes sans recharger
     var badge = document.getElementById('nav-notif-badge') || document.querySelector('.nav-notif-btn .rounded-full');
     if (badge && document.querySelector('.nav-notif-btn')) {
@@ -115,7 +125,8 @@ function initWebPush() {
         return;
     }
 
-    navigator.serviceWorker.register('/sw.js')
+    // Réutilise l'enregistrement SW déjà fait par app.js (PWA) plutôt qu'un doublon.
+    navigator.serviceWorker.ready
         .then(function(reg) {
             window._erpacSwReg = reg;
             btn.addEventListener('click', function() { subscribeUser(reg); });

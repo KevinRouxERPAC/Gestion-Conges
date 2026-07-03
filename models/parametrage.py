@@ -17,6 +17,12 @@ class ParametrageAnnuel(db.Model):
     # de 35 h nominale correspond à 34,65 h effectives). Proratisé selon les
     # absences. 0 = pas d'acquisition de base (seules les heures sup comptent).
     rtt_acquis_par_semaine = db.Column(db.Float, nullable=False, default=0.0, server_default="0")
+    # Types d'absence exclus de la réduction du seuil hebdomadaire RTT (liste de
+    # codes séparés par des virgules, ex. "Maladie,Sans solde"). Par défaut, tous
+    # les congés validés réduisent le seuil (comportement historique). Un arrêt
+    # maladie ne devrait typiquement pas réduire le seuil RTT, sinon le salarié
+    # perd du RTT en étant malade.
+    rtt_types_absence_exclus = db.Column(db.String(255), nullable=False, default="", server_default="")
 
     actif = db.Column(db.Boolean, default=True)
 

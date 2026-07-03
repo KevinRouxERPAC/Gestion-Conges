@@ -1,0 +1,52 @@
+{
+  "name": "ERPAC — Gestion des absences",
+  "short_name": "ERPAC Congés",
+  "description": "Gestion des congés, RTT et heures hebdomadaires des salariés ERPAC.",
+  "lang": "fr",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f1f5f9",
+  "theme_color": "#2f855a",
+  "categories": ["productivity", "business"],
+  "icons": [
+    {
+      "src": "/static/img/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/static/img/maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/static/img/maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Mes congés",
+      "short_name": "Congés",
+      "url": "/salarie/accueil/"
+    },
+    {
+      "name": "Calendrier",
+      "short_name": "Calendrier",
+      "url": "/salarie/calendrier/"
+    }
+  ]
+}

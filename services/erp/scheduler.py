@@ -71,12 +71,34 @@ def demarrer_scheduler(app) -> None:
         replace_existing=True,
     )
     _scheduler.start()
+
+    # Rappels automatiques quotidiens : demandes en attente + fin d'exercice.
+    def _job_rappels():
+        with app.app_context():
+            from services.rappels import envoyer_rappels
+            try:
+                bilan = envoyer_rappels()
+                logger.info(
+                    "Rappels auto : %d demande(s) en attente, %d fin d'exercice.",
+                    bilan["en_attente"], bilan["fin_exercice"],
+                )
+            except Exception:
+                logger.exception("Rappels auto : erreur non gérée.")
+
+    _scheduler.add_job(
+        _job_rappels,
+        CronTrigger(hour=8, minute=0, timezone="Europe/Paris"),
+        id="rappels_quotidiens",
+        name="Rappels : demandes en attente + fin d'exercice",
+        replace_existing=True,
+    )
     logger.info(
         "Planificateur ERP démarré : synchro automatique chaque %s à %02d:%02d (Europe/Paris).",
         jour,
         int(heure),
         int(minute),
     )
+    logger.info("Rappels quotidiens planifiés à 08:00 (Europe/Paris).")
 
 
 def arreter_scheduler() -> None:

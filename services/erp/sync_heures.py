@@ -37,6 +37,10 @@ class RapportSync:
     nb_skipped_sans_user: int = 0
     avertissements: list[str] = field(default_factory=list)
     rtt_recalcule: bool = False
+    # Mode aperçu (dry_run) : aucune écriture en base. Les lignes prévues pour
+    # import sont listées dans `preview` pour que la RH valide avant d'écraser.
+    dry_run: bool = False
+    preview: list[dict] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -63,12 +67,15 @@ def _lundi_depuis_semaine_erp(semaine_erp: str) -> date:
 def synchroniser_semaine(
     semaine_erp: str | None = None,
     recalculer_rtt: bool = True,
+    dry_run: bool = False,
 ) -> RapportSync:
     """Importe les heures d'une semaine ERP dans heures_hebdo.
 
     Args:
         semaine_erp: format AAAASS (ex. '202624'). None = semaine précédente.
         recalculer_rtt: si True, recalcule rtt_heures_allouees après import.
+        dry_run: si True, n'écrit rien en base et remplit ``rapport.preview``
+            avec les lignes qui seraient importées (aperçu avant validation RH).
 
     Retourne un RapportSync avec le bilan (nb importés, avertissements...).
     """
@@ -76,7 +83,7 @@ def synchroniser_semaine(
         semaine_erp = _semaine_precedente()
 
     date_lundi = _lundi_depuis_semaine_erp(semaine_erp)
-    rapport = RapportSync(semaine_erp=semaine_erp, date_lundi=date_lundi)
+    rapport = RapportSync(semaine_erp=semaine_erp, date_lundi=date_lundi, dry_run=dry_run)
 
     # Index matricule → user_id (uniquement salariés actifs avec matricule renseigné)
     users_par_matricule: dict[str, int] = {
@@ -112,20 +119,48 @@ def synchroniser_semaine(
         # Upsert heures_hebdo : on remplace la valeur source='erp', on laisse
         # source='manuel' en place si la RH l'a déjà corrigée à la main.
         row = HeuresHebdo.query.filter_by(user_id=user_id, date_lundi=date_lundi).first()
-        if row is None:
-            row = HeuresHebdo(user_id=user_id, date_lundi=date_lundi, source="erp")
-            db.session.add(row)
-        elif row.source == "manuel":
+        action = "import"
+        ancienne_valeur = None
+        if row is not None and row.source == "manuel":
             # La RH a corrigé manuellement → on ne l'écrase pas.
             rapport.avertissements.append(
                 f"Matricule {mat} ({date_lundi}) : valeur manuelle conservée "
                 f"({row.heures_travaillees} h saisi, ERP={ligne.heures} h)."
             )
+            action = "skip_manuel"
+        elif row is not None:
+            ancienne_valeur = row.heures_travaillees
+
+        # En mode aperçu : on ne touche pas à la base, on collecte juste le diff.
+        if dry_run:
+            rapport.preview.append({
+                "matricule": mat,
+                "user_id": user_id,
+                "heures_erp": round(ligne.heures, 2),
+                "ancienne_valeur": ancienne_valeur,
+                "action": action,
+            })
+            if action == "import":
+                rapport.nb_importes += 1
             continue
+
+        if action == "skip_manuel":
+            continue
+
+        if row is None:
+            row = HeuresHebdo(user_id=user_id, date_lundi=date_lundi, source="erp")
+            db.session.add(row)
 
         row.heures_travaillees = round(ligne.heures, 2)
         row.source = "erp"
         rapport.nb_importes += 1
+
+    if dry_run:
+        logger.info(
+            "Synchro ERP (APERÇU) semaine %s : %d ligne(s) prévue(s), %d avertissement(s).",
+            semaine_erp, rapport.nb_importes, len(rapport.avertissements),
+        )
+        return rapport
 
     db.session.commit()
     logger.info(
