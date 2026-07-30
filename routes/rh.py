@@ -28,10 +28,10 @@ from services.export import export_conges_excel, export_conges_equipe_excel, exp
 from services.export_comptable import export_compta_cp_rtt_xlsx
 from services.reporting import generer_rapport as generer_rapport_absenteisme
 from services.audit import log_action
+from services.db_safety import DbSaveError
 from models.audit_log import AuditLog
 import json as _json
 from models.interessement_periode import InteressementPeriode
-from models.interessement_regle import InteressementRegle
 from services.interessement import calculer_interessement
 from services.export_interessement import export_interessement_xlsx
 
@@ -661,15 +661,12 @@ def parametrage():
                 debut = datetime.strptime(request.form["debut_exercice"], "%Y-%m-%d").date()
                 fin = datetime.strptime(request.form["fin_exercice"], "%Y-%m-%d").date()
                 jours_defaut = int(request.form["jours_conges_defaut"])
-                rtt_seuil_hebdo = int(request.form.get("rtt_seuil_hebdo") or 35)
+                rtt_seuil_hebdo = float((request.form.get("rtt_seuil_hebdo") or "34.65").replace(",", "."))
                 rtt_heures_par_jour = int(request.form.get("rtt_heures_par_jour_absence") or 7)
                 rtt_coef_surplus = float((request.form.get('rtt_coef_surplus') or '0').replace(',', '.').strip() or '0')
-                rtt_acquis_par_semaine = float((request.form.get('rtt_acquis_par_semaine') or '0').replace(',', '.').strip() or '0')
                 rtt_types_absence_exclus = (request.form.get('rtt_types_absence_exclus') or '').strip()
                 if rtt_seuil_hebdo <= 0 or rtt_heures_par_jour <= 0:
                     raise ValueError("seuil RTT invalide")
-                if rtt_acquis_par_semaine < 0:
-                    raise ValueError("RTT acquis par semaine invalide")
             except (ValueError, KeyError):
                 flash("Données invalides.", "error")
                 return redirect(url_for("rh.parametrage"))
@@ -682,7 +679,6 @@ def parametrage():
                     rtt_seuil_hebdo=rtt_seuil_hebdo,
                     rtt_heures_par_jour_absence=rtt_heures_par_jour,
                     rtt_coef_surplus=rtt_coef_surplus,
-                    rtt_acquis_par_semaine=rtt_acquis_par_semaine,
                     rtt_types_absence_exclus=rtt_types_absence_exclus,
                     actif=True,
                 )
@@ -694,7 +690,6 @@ def parametrage():
                 param.rtt_seuil_hebdo = rtt_seuil_hebdo
                 param.rtt_heures_par_jour_absence = rtt_heures_par_jour
                 param.rtt_coef_surplus = rtt_coef_surplus
-                param.rtt_acquis_par_semaine = rtt_acquis_par_semaine
                 param.rtt_types_absence_exclus = rtt_types_absence_exclus
 
             db.session.commit()
@@ -824,7 +819,7 @@ def cloture_exercice():
             rtt_seuil_hebdo=ancien.rtt_seuil_hebdo,
             rtt_heures_par_jour_absence=ancien.rtt_heures_par_jour_absence,
             rtt_coef_surplus=ancien.rtt_coef_surplus,
-            rtt_acquis_par_semaine=ancien.rtt_acquis_par_semaine,
+            rtt_types_absence_exclus=ancien.rtt_types_absence_exclus,
             actif=False,
         )
         db.session.add(nouveau)
@@ -836,6 +831,8 @@ def cloture_exercice():
                 report_max_jours=plafond_cp,
                 report_max_heures_rtt=plafond_rtt,
             )
+        except DbSaveError:
+            raise
         except Exception:
             db.session.rollback()
             flash("Erreur lors de la clôture. Aucune modification n'a été appliquée.", "error")
@@ -1097,6 +1094,25 @@ def importer_salaries():
     return render_template("rh/import_salaries.html", preview=None)
 
 
+from services.erp.requetes import normaliser_matricule_erp
+
+
+def _matricule_depuis_form(raw: str, user_id_exclu: int | None = None) -> tuple[str | None, str | None]:
+    """Lit et valide le matricule ERP depuis le formulaire. Retourne (valeur, erreur)."""
+    brut = (raw or "").strip()
+    if not brut:
+        return None, None
+    mat = normaliser_matricule_erp(brut)
+    if len(mat) > 20:
+        return None, "Matricule ERP trop long (max 20 caractères)."
+    for u in User.query.filter(User.matricule.isnot(None)).all():
+        if user_id_exclu is not None and u.id == user_id_exclu:
+            continue
+        if u.matricule and normaliser_matricule_erp(u.matricule) == mat:
+            return None, f"Le matricule {mat!r} est déjà utilisé par un autre salarié."
+    return mat, None
+
+
 @rh_bp.route("/salarie/nouveau", methods=["GET", "POST"])
 @rh_required
 def creer_salarie():
@@ -1132,6 +1148,11 @@ def creer_salarie():
             flash("Un utilisateur avec cet identifiant existe déjà.", "error")
             return _reafficher_formulaire()
 
+        matricule, err_mat = _matricule_depuis_form(request.form.get("matricule", ""))
+        if err_mat:
+            flash(err_mat, "error")
+            return _reafficher_formulaire()
+
         date_embauche = None
         if date_embauche_str:
             try:
@@ -1145,6 +1166,7 @@ def creer_salarie():
             nom=nom,
             prenom=prenom,
             identifiant=identifiant,
+            matricule=matricule,
             mot_de_passe_hash=hash_password(mot_de_passe),
             role=role,
             actif=True,
@@ -1211,6 +1233,11 @@ def modifier_salarie(user_id):
             flash("Un autre utilisateur utilise déjà cet identifiant.", "error")
             return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
 
+        matricule, err_mat = _matricule_depuis_form(request.form.get("matricule", ""), user_id_exclu=user.id)
+        if err_mat:
+            flash(err_mat, "error")
+            return render_template("rh/salarie_form.html", salarie=user, mode="edit", responsables=responsables)
+
         date_embauche = None
         if date_embauche_str:
             try:
@@ -1243,6 +1270,7 @@ def modifier_salarie(user_id):
             "nom": user.nom,
             "prenom": user.prenom,
             "identifiant": user.identifiant,
+            "matricule": user.matricule,
             "role": user.role,
             "actif": user.actif,
             "responsable_id": user.responsable_id,
@@ -1250,6 +1278,7 @@ def modifier_salarie(user_id):
         user.nom = nom
         user.prenom = prenom
         user.identifiant = identifiant
+        user.matricule = matricule
         user.role = role
         user.date_embauche = date_embauche
         user.actif = actif_str == "on"
@@ -1262,6 +1291,7 @@ def modifier_salarie(user_id):
             "nom": user.nom,
             "prenom": user.prenom,
             "identifiant": user.identifiant,
+            "matricule": user.matricule,
             "role": user.role,
             "actif": user.actif,
             "responsable_id": user.responsable_id,
@@ -1418,50 +1448,76 @@ def sync_erp_heures():
     Bouton « Aperçu » (dry_run=1) : affiche le diff sans écrire en base, pour
     que la RH valide avant d'écraser une saisie ERP existante.
     """
-    from services.erp.sync_heures import synchroniser_semaine
+    from services.erp.sync_heures import synchroniser_exercice, synchroniser_semaine
     from services.erp.connexion import ErpNonConfigureError, erp_active
 
     if not erp_active():
         flash("La connexion ERP n'est pas activée (ERP_DB_ENABLED non défini).", "error")
         return redirect(url_for("rh.heures_hebdo"))
 
-    semaine = (request.form.get("semaine_erp") or "").strip() or None
+    depuis_exercice = request.form.get("depuis_debut_exercice") == "1"
     recalc = request.form.get("recalculer_rtt", "1") != "0"
     dry_run = request.form.get("dry_run") == "1"
 
     try:
-        rapport = synchroniser_semaine(
-            semaine_erp=semaine, recalculer_rtt=recalc, dry_run=dry_run
-        )
+        if depuis_exercice:
+            rapport = synchroniser_exercice(recalculer_rtt=recalc, dry_run=dry_run)
+        else:
+            semaine = (request.form.get("semaine_erp") or "").strip() or None
+            rapport = synchroniser_semaine(
+                semaine_erp=semaine, recalculer_rtt=recalc, dry_run=dry_run
+            )
     except ErpNonConfigureError as e:
         flash(str(e), "error")
         return redirect(url_for("rh.heures_hebdo"))
+    except DbSaveError:
+        raise
     except Exception as e:
         flash(f"Erreur lors de la synchro ERP : {e}", "error")
         return redirect(url_for("rh.heures_hebdo"))
 
     if dry_run:
-        flash(
-            f"Aperçu semaine {rapport.semaine_erp} : {rapport.nb_importes} ligne(s) à importer.",
-            "info",
-        )
+        if depuis_exercice:
+            flash(
+                f"Aperçu exercice ({rapport.semaines[0]} → {rapport.semaines[-1]}) : "
+                f"{rapport.nb_importes} ligne(s) à importer.",
+                "info",
+            )
+        else:
+            flash(
+                f"Aperçu semaine {rapport.semaine_erp} : {rapport.nb_importes} ligne(s) à importer.",
+                "info",
+            )
         for p in rapport.preview:
             if p["action"] == "import":
                 anc = p.get("ancienne_valeur")
                 anc_str = f"{anc} h" if anc is not None else "nouveau"
-                flash(f"  matricule {p['matricule']} : {anc_str} → {p['heures_erp']} h", "info")
+                semaine_info = p.get("semaine_erp", "")
+                prefixe = f"sem. {semaine_info} " if semaine_info else ""
+                flash(f"  {prefixe}matricule {p['matricule']} : {anc_str} → {p['heures_erp']} h", "info")
         for w in rapport.avertissements:
             flash(w, "warning")
+        if depuis_exercice:
+            return redirect(url_for("rh.heures_hebdo"))
         return redirect(url_for("rh.heures_hebdo", lundi=rapport.date_lundi.isoformat()))
 
-    msg = (
-        f"ERP semaine {rapport.semaine_erp} : {rapport.nb_importes} lignes importées"
-        f"{', RTT recalculé' if rapport.rtt_recalcule else ''}."
-    )
+    if depuis_exercice:
+        msg = (
+            f"ERP exercice ({rapport.semaines[0]} → {rapport.semaines[-1]}) : "
+            f"{rapport.nb_importes} lignes importées"
+            f"{', RTT recalculé' if rapport.rtt_recalcule else ''}."
+        )
+    else:
+        msg = (
+            f"ERP semaine {rapport.semaine_erp} : {rapport.nb_importes} lignes importées"
+            f"{', RTT recalculé' if rapport.rtt_recalcule else ''}."
+        )
     flash(msg, "success")
     for w in rapport.avertissements:
         flash(w, "warning")
 
+    if depuis_exercice:
+        return redirect(url_for("rh.heures_hebdo"))
     # Redirige vers la semaine importée pour visualiser le résultat.
     return redirect(url_for("rh.heures_hebdo", lundi=rapport.date_lundi.isoformat()))
 
@@ -1532,6 +1588,8 @@ def heures_hebdo():
             try:
                 res = maj_rtt_allocations_hebdo(param)
                 flash(f"RTT recalculées pour {len(res)} salarié(s).", "success")
+            except DbSaveError:
+                raise
             except Exception:
                 db.session.rollback()
                 flash("Erreur lors du recalcul RTT. Consultez les logs serveur.", "error")
@@ -1586,7 +1644,7 @@ def heures_hebdo():
 @rh_bp.route("/interessement", methods=["GET", "POST"])
 @rh_required
 def interessement():
-    """Gestion des périodes et règles d’intéressement."""
+    """Gestion des périodes d'intéressement (maladie seule + montant à répartir)."""
     periodes = InteressementPeriode.query.order_by(InteressementPeriode.date_debut.desc()).all()
 
     if request.method == "POST":
@@ -1596,8 +1654,8 @@ def interessement():
             libelle = (request.form.get("libelle") or "").strip()
             date_debut_str = (request.form.get("date_debut") or "").strip()
             date_fin_str = (request.form.get("date_fin") or "").strip()
-            base_points_str = (request.form.get("base_points") or "100").strip()
-            plancher_str = (request.form.get("plancher_points") or "0").strip()
+            montant_str = (request.form.get("montant_total_euros") or "").strip()
+            malus_str = (request.form.get("malus_maladie_par_jour") or "5").strip()
 
             if not libelle or not date_debut_str or not date_fin_str:
                 flash("Libellé, date de début et date de fin sont obligatoires.", "error")
@@ -1614,24 +1672,69 @@ def interessement():
                 flash("La date de fin doit être postérieure à la date de début.", "error")
                 return redirect(url_for("rh.interessement"))
 
+            montant_total_euros = None
+            if montant_str:
+                try:
+                    montant_total_euros = round(float(montant_str.replace(",", ".")), 2)
+                    if montant_total_euros < 0:
+                        raise ValueError
+                except ValueError:
+                    flash("Le montant total doit être un nombre positif.", "error")
+                    return redirect(url_for("rh.interessement"))
+
             try:
-                base_points = int(base_points_str)
-                plancher_points = int(plancher_str)
+                malus_maladie_par_jour = float(malus_str.replace(",", "."))
+                if malus_maladie_par_jour < 0:
+                    raise ValueError
             except ValueError:
-                flash("Base et plancher doivent être des entiers.", "error")
+                flash("Le malus maladie doit être un nombre positif ou nul.", "error")
                 return redirect(url_for("rh.interessement"))
 
             p = InteressementPeriode(
                 libelle=libelle,
                 date_debut=d_debut,
                 date_fin=d_fin,
-                base_points=base_points,
-                plancher_points=plancher_points,
+                base_points=100,
+                plancher_points=0,
+                montant_total_euros=montant_total_euros,
+                malus_maladie_par_jour=malus_maladie_par_jour,
                 actif=False,
             )
             db.session.add(p)
             db.session.commit()
             flash("Période créée.", "success")
+            return redirect(url_for("rh.interessement_apercu", periode_id=p.id))
+
+        if action == "set_montant":
+            try:
+                pid = int(request.form.get("periode_id") or "0")
+            except ValueError:
+                pid = 0
+            p = InteressementPeriode.query.get(pid)
+            montant_str = (request.form.get("montant_total_euros") or "").strip()
+            malus_str = (request.form.get("malus_maladie_par_jour") or "").strip()
+            montant_total_euros = None
+            if montant_str:
+                try:
+                    montant_total_euros = round(float(montant_str.replace(",", ".")), 2)
+                    if montant_total_euros < 0:
+                        raise ValueError
+                except ValueError:
+                    flash("Le montant total doit être un nombre positif.", "error")
+                    return redirect(url_for("rh.interessement"))
+            if p:
+                p.montant_total_euros = montant_total_euros
+                if malus_str:
+                    try:
+                        malus = float(malus_str.replace(",", "."))
+                        if malus < 0:
+                            raise ValueError
+                        p.malus_maladie_par_jour = malus
+                    except ValueError:
+                        flash("Le malus maladie doit être un nombre positif ou nul.", "error")
+                        return redirect(url_for("rh.interessement"))
+                db.session.commit()
+                flash("Paramètres mis à jour.", "success")
             return redirect(url_for("rh.interessement"))
 
         if action == "toggle_periode":
@@ -1661,75 +1764,36 @@ def interessement():
     return render_template("rh/interessement.html", periodes=periodes)
 
 
+@rh_bp.route("/interessement/<int:periode_id>/apercu")
+@rh_required
+def interessement_apercu(periode_id):
+    """Aperçu du calcul d'intéressement pour une période."""
+    periode = InteressementPeriode.query.get_or_404(periode_id)
+    include_inactifs = (request.args.get("include_inactifs") or "0").strip() == "1"
+    try:
+        resultats = calculer_interessement(periode, include_inactifs=include_inactifs)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("rh.interessement"))
+    total_euros = sum(r.part_euros or 0 for r in resultats)
+    resultats_visibles = [r for r in resultats if r.actif or include_inactifs]
+    nb_inactifs_masques = sum(1 for r in resultats if not r.actif) if not include_inactifs else 0
+    return render_template(
+        "rh/interessement_apercu.html",
+        periode=periode,
+        resultats=resultats_visibles,
+        include_inactifs=include_inactifs,
+        total_euros=total_euros,
+        nb_inactifs_masques=nb_inactifs_masques,
+    )
+
+
 @rh_bp.route("/interessement/<int:periode_id>/regles", methods=["GET", "POST"])
 @rh_required
 def interessement_regles(periode_id):
-    """Gestion des règles de pondération pour une période d’intéressement."""
-    periode = InteressementPeriode.query.get_or_404(periode_id)
-    regles = InteressementRegle.query.filter_by(periode_id=periode.id).order_by(InteressementRegle.type_absence).all()
-
-    types_conge_disponibles = ["CP", "Anciennete", "RTT", "Sans solde", "Maladie"]
-    from services.conges_exceptionnels import get_types_exceptionnels
-    for t in get_types_exceptionnels(actifs_only=False):
-        types_conge_disponibles.append(f"EXC:{t.code}")
-
-    if request.method == "POST":
-        action = request.form.get("action", "")
-
-        if action == "add_regle":
-            type_absence = (request.form.get("type_absence") or "").strip()
-            ppj_str = (request.form.get("points_par_jour") or "0").strip()
-
-            if not type_absence:
-                flash("Type d’absence obligatoire.", "error")
-                return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-            existing = InteressementRegle.query.filter_by(periode_id=periode.id, type_absence=type_absence).first()
-            if existing:
-                flash("Une règle existe déjà pour ce type d’absence.", "error")
-                return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-            try:
-                ppj = float(ppj_str)
-            except ValueError:
-                ppj = 0.0
-
-            r = InteressementRegle(periode_id=periode.id, type_absence=type_absence, points_par_jour=ppj)
-            db.session.add(r)
-            db.session.commit()
-            flash("Règle ajoutée.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-        if action == "update_regles":
-            for r in regles:
-                ppj_str = (request.form.get(f"ppj_{r.id}") or "").strip()
-                if ppj_str:
-                    try:
-                        r.points_par_jour = float(ppj_str)
-                    except ValueError:
-                        pass
-            db.session.commit()
-            flash("Règles mises à jour.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-        if action == "delete_regle":
-            try:
-                rid = int(request.form.get("regle_id") or "0")
-            except ValueError:
-                rid = 0
-            r = InteressementRegle.query.get(rid)
-            if r and r.periode_id == periode.id:
-                db.session.delete(r)
-                db.session.commit()
-                flash("Règle supprimée.", "success")
-            return redirect(url_for("rh.interessement_regles", periode_id=periode.id))
-
-    return render_template(
-        "rh/interessement_regles.html",
-        periode=periode,
-        regles=regles,
-        types_conge_disponibles=types_conge_disponibles,
-    )
+    """Redirection : les règles par type d'absence ne sont plus utilisées."""
+    flash("Seuls les arrêts maladie impactent l'intéressement. Utilisez l'aperçu du calcul.", "info")
+    return redirect(url_for("rh.interessement_apercu", periode_id=periode_id))
 
 
 @rh_bp.route("/interessement/<int:periode_id>/export")

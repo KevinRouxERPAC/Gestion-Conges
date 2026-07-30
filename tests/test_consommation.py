@@ -228,30 +228,26 @@ class TestCoherenceInterEcrans:
                 return row[2]  # colonne "Consommé (jours)"
         return None
 
-    def test_cp_coherent_solde_export_interessement(self, db_session, users, parametrage, allocations):
+    def test_maladie_coherent_interessement(self, db_session, users, parametrage, allocations):
         user = users["salarie"]
         _ajouter_conge(db_session, user.id, nb_jours_ouvrables=5, type_conge="CP")
         _ajouter_conge(
-            db_session, user.id, nb_jours_ouvrables=2, type_conge="Anciennete",
-            date_debut=date(2026, 3, 2), date_fin=date(2026, 3, 3),
+            db_session, user.id, nb_jours_ouvrables=3, type_conge="Maladie",
+            date_debut=date(2026, 3, 2), date_fin=date(2026, 3, 4),
         )
-
-        solde_consomme = calculer_jours_cps_consommes(user.id)
-        export_consomme = self._consomme_export_compta_cp(parametrage, user)
 
         from models.interessement_periode import InteressementPeriode
         periode = InteressementPeriode(
             libelle="2026", date_debut=parametrage.debut_exercice,
-            date_fin=parametrage.fin_exercice, base_points=100, plancher_points=0, actif=True,
+            date_fin=parametrage.fin_exercice, base_points=100, plancher_points=0,
+            malus_maladie_par_jour=5, actif=True,
         )
         db_session.session.add(periode)
         db_session.session.commit()
         res = [r for r in calculer_interessement(periode) if r.user_id == user.id][0]
-        interessement_cp = sum(d.jours for d in res.details if d.type_absence in ("CP", "Anciennete"))
-
-        assert solde_consomme == 7
-        assert export_consomme == 7
-        assert interessement_cp == 7
+        assert res.jours_maladie == 3
+        assert res.total_malus == 15.0
+        assert res.points_final == 85.0
 
     def test_rtt_coherent_solde_export(self, db_session, users, parametrage, allocations):
         user = users["salarie"]

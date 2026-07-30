@@ -1,6 +1,7 @@
 import os
 import sys
 import secrets
+import logging
 from datetime import timedelta
 from flask import Flask, redirect, url_for, Response, send_from_directory, g
 from flask_login import LoginManager
@@ -95,27 +96,19 @@ def create_app():
 
     @app.template_filter("nb_heures")
     def _format_nb_heures(valeur):
-        """Affiche un nombre d'heures en français (`16,1` au lieu de `16.1`).
-        Retire les zéros inutiles : 16.0 → "16", 16.1 → "16,1", 16.15 → "16,15".
-        Jusqu'à 2 décimales (heures RTT décimales, cf. R3).
-        """
-        if valeur is None:
-            return "0"
-        try:
-            v = float(valeur)
-        except (TypeError, ValueError):
-            return str(valeur)
-        if v == int(v):
-            return str(int(v))
-        return f"{v:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+        """Affiche un nombre d'heures au centième, sans unité (ex. 16,10)."""
+        from services.format_heures import format_heures_cent
+        return format_heures_cent(valeur)
+
+    @app.template_filter("nb_heures_cent")
+    def _format_nb_heures_cent(valeur):
+        """Alias de ``nb_heures`` : centième d'heure sans unité."""
+        from services.format_heures import format_heures_cent
+        return format_heures_cent(valeur)
 
     @app.template_filter("heures_min")
     def _format_heures_min(valeur):
-        """Affiche une durée RTT en notation horaire « H h MM » (5,25 → « 5 h 15 »).
-
-        Voir services/format_heures.py. Utilisé partout où une durée RTT
-        (congé, solde, allocation) est présentée à un humain.
-        """
+        """Affiche une durée en centièmes d'heure avec unité (ex. 5,25 h)."""
         from services.format_heures import format_heures_min
         return format_heures_min(valeur)
 
@@ -210,17 +203,35 @@ def create_app():
             )
         return response
 
-    # Schéma de base : laissé pour les environnements de test (SQLite in-memory) et
-    # le tout premier démarrage en l'absence de fichier de BDD. En production,
-    # les évolutions de schéma doivent passer par Alembic : `flask db upgrade`.
-    # Les anciens scripts scripts/migrations/migrate_*.py sont conservés pour
-    # référence historique mais ne sont plus rejoués automatiquement.
-    #
-    # Variable d'env SKIP_DB_CREATE_ALL=1 : utilisée lors de la génération
-    # autogen d'une migration Alembic pour partir d'une base vide.
-    if os.environ.get("SKIP_DB_CREATE_ALL") != "1":
-        with app.app_context():
-            db.create_all()
+    # Schéma de base : en production (SKIP_DB_CREATE_ALL=1), les évolutions passent
+    # par Alembic (`flask db upgrade`). Au démarrage on valide le schéma et on
+    # protège chaque commit (rollback automatique en cas d'erreur SQL).
+    from services.db_safety import DbSaveError, preparer_base_au_demarrage
+
+    preparer_base_au_demarrage(app)
+
+    @app.errorhandler(DbSaveError)
+    def _handle_db_save_error(exc: DbSaveError):
+        from flask import flash, jsonify, redirect, request, url_for
+
+        logger = logging.getLogger(__name__)
+        logger.warning("Enregistrement refusé : %s", exc.message, exc_info=exc.original)
+
+        if request.path.startswith("/api/"):
+            return jsonify({"error": exc.message}), 409
+
+        flash(exc.message, "error")
+        referrer = request.referrer
+        if referrer and referrer.startswith(request.host_url):
+            return redirect(referrer)
+        if request.blueprint == "rh":
+            return redirect(url_for("rh.dashboard"))
+        return redirect(url_for("auth.login"))
+
+    @app.teardown_request
+    def _rollback_session_si_erreur(exc):
+        if exc is not None:
+            db.session.rollback()
 
     # ------------------------------------------------------------------ #
     # Commande CLI : flask sync-erp-heures [--semaine AAAASS]             #
@@ -282,6 +293,35 @@ def create_app():
                 )
         for w in rapport.avertissements:
             click.echo(f"  [!] {w}")
+
+    @app.cli.command("backup-db")
+    @click.option("--forcer", is_flag=True, help="Ignore l'intervalle minimum entre sauvegardes.")
+    @click.option("--raison", default="manuel-cli", help="Libellé de la sauvegarde.")
+    def cmd_backup_db(forcer, raison):
+        """Sauvegarde la base SQLite dans le dossier backup/."""
+        from services.db_backup import sauvegarder_base
+
+        info = sauvegarder_base(raison, forcer=forcer)
+        if info is None:
+            click.echo("Aucune sauvegarde effectuée (pas de fichier SQLite ou intervalle non écoulé).")
+            raise SystemExit(1)
+        click.echo(f"Sauvegarde : {info.chemin} ({info.taille_octets} octets, users={info.users})")
+
+    @app.cli.command("list-db-backups")
+    def cmd_list_db_backups():
+        """Liste les sauvegardes disponibles dans backup/."""
+        from services.db_backup import lister_sauvegardes
+
+        sauvegardes = lister_sauvegardes()
+        if not sauvegardes:
+            click.echo("Aucune sauvegarde.")
+            return
+        for s in sauvegardes:
+            click.echo(
+                f"{s.cree_le:%Y-%m-%d %H:%M}  {s.raison:16}  "
+                f"{s.taille_octets:>8} o  users={s.users if s.users is not None else '?'}"
+                f"  {s.chemin.name}"
+            )
 
     @app.cli.command("envoyer-rappels")
     def cmd_envoyer_rappels():

@@ -34,6 +34,10 @@ empty_for_migration.db
 instance/
 
 # Sauvegardes de base de données (backups manuels horodatés)
+# On ignore l'intégralité du dossier backup/ : il contient des copies de la base
+# de production (données personnelles) et des fichiers sans extension standard
+# (*.db.before-restore-*, *.db.vide-par-pytest-*, etc.) non couverts par les règles précédentes.
+backup/
 *.db.bak
 *.db.bak-*
 *.bak

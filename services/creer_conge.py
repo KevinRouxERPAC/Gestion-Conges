@@ -139,13 +139,11 @@ def construire_conge(
     elif date_debut == date_fin and demi_debut and demi_fin and demi_debut == demi_fin:
         demi_fin = None  # on conserve uniquement debut pour cohérence
 
-    # Règle métier : une demi-journée doit obligatoirement être posée en RTT.
-    # (Une demi-journée correspond à des heures, gérées via le compteur RTT.)
-    if (demi_debut or demi_fin) and type_conge != "RTT":
-        result.errors.append(
-            ("error", "Une demi-journée doit obligatoirement être posée en RTT.")
-        )
-        return result
+    # Règle métier : matin/après-midi = RTT uniquement.
+    if demi_debut or demi_fin:
+        type_conge = "RTT"
+        exc_code = None
+        exc_type = None
 
     # 4. Calcul des jours ouvrables (avec demi-journées)
     nb_jours = compter_jours_ouvrables_avec_demi(date_debut, date_fin, demi_debut, demi_fin)
@@ -196,7 +194,7 @@ def construire_conge(
         if nb_heures_rtt_val <= 0 or not est_multiple_quart(nb_heures_rtt_val):
             result.errors.append((
                 "error",
-                "Merci de saisir un nombre d'heures RTT valide (multiple de 0,25 h, ex. 5,25 = 5 h 15).",
+                "Merci de saisir un nombre d'heures RTT valide (multiple de 0,25 h, ex. 5,25 h).",
             ))
             return result
 

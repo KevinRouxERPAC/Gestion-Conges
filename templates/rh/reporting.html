@@ -9,13 +9,13 @@
 <div class="bg-white rounded-xl shadow p-5 mb-6">
   <form method="GET" class="flex flex-wrap gap-3 items-end">
     <div>
-      <label class="block text-xs text-gray-500 mb-1">Du</label>
-      <input type="date" name="debut" value="{{ debut.isoformat() }}"
+      <label for="reporting-debut" class="block text-xs text-gray-500 mb-1">Du</label>
+      <input type="date" id="reporting-debut" name="debut" value="{{ debut.isoformat() }}"
              class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
     </div>
     <div>
-      <label class="block text-xs text-gray-500 mb-1">Au</label>
-      <input type="date" name="fin" value="{{ fin.isoformat() }}"
+      <label for="reporting-fin" class="block text-xs text-gray-500 mb-1">Au</label>
+      <input type="date" id="reporting-fin" name="fin" value="{{ fin.isoformat() }}"
              class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
     </div>
     <label class="flex items-center gap-2 text-sm text-gray-600">
@@ -77,7 +77,7 @@
             <td class="px-5 py-3 text-sm text-gray-600 text-right">{{ s.nb_conges }}</td>
             <td class="px-5 py-3 text-sm text-gray-600 text-right">{{ s.nb_jours | round(1) }}</td>
             <td class="px-5 py-3 text-sm text-gray-600 text-right">
-              {% if s.nb_heures_rtt %}{{ s.nb_heures_rtt | round(1) }}{% else %}—{% endif %}
+              {% if s.nb_heures_rtt %}{{ s.nb_heures_rtt | heures_min }}{% else %}—{% endif %}
             </td>
           </tr>
           {% else %}

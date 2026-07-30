@@ -268,6 +268,8 @@ def ajouter_conge_subordonne(user_id):
 
     if request.method == "POST":
         from services.creer_conge import construire_conge, MODE_RESPONSABLE
+        from services.justificatifs import enregistrer_justificatif, verifier_justificatif_obligatoire
+
         result = construire_conge(
             user,
             request.form,
@@ -288,6 +290,32 @@ def ajouter_conge_subordonne(user_id):
             )
 
         db.session.add(result.conge)
+        db.session.flush()
+
+        fichier = request.files.get("justificatif")
+        if fichier and fichier.filename:
+            err_j = enregistrer_justificatif(result.conge, fichier, current_user)
+            if err_j:
+                db.session.rollback()
+                flash(err_j, "error")
+                return render_template(
+                    "responsable/ajouter_conge.html",
+                    salarie=user,
+                    solde=solde_info,
+                    types_exceptionnels=types_exceptionnels,
+                )
+
+        err_j = verifier_justificatif_obligatoire(result.conge)
+        if err_j:
+            db.session.rollback()
+            flash(err_j, "error")
+            return render_template(
+                "responsable/ajouter_conge.html",
+                salarie=user,
+                solde=solde_info,
+                types_exceptionnels=types_exceptionnels,
+            )
+
         db.session.commit()
 
         notifier_rh_nouvelle_demande(result.conge)

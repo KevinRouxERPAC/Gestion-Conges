@@ -1,0 +1,220 @@
+/* =========================================================================
+   ERPAC — Design Tokens v1.0
+   Source de vérité unique des valeurs de design.
+   Aucune valeur brute ne doit apparaître ailleurs que dans ce fichier.
+   ---------------------------------------------------------------------
+   Convention de nommage :  --erp-{catégorie}-{rôle}-{variante}
+   Les alias historiques (--green, --ink…) sont conservés en fin de fichier
+   pour compatibilité avec assets/css/site.css.
+   ========================================================================= */
+
+:root {
+
+  /* ---------------------------------------------------------------------
+     1. COULEURS — Échelles primitives
+     Ne jamais utiliser directement dans un composant : passer par les
+     tokens sémantiques (section 2).
+     --------------------------------------------------------------------- */
+
+  /* Vert ERPAC — teinte 145°, le vert de marque historique tombe sur le 500 */
+  --erp-green-50:   #EDFCF4;
+  --erp-green-100:  #D3F5E1;
+  --erp-green-200:  #A5E6C0;
+  --erp-green-300:  #73D19A;
+  --erp-green-400:  #36B269;
+  --erp-green-500:  #008C3A;  /* vert de marque — identité, aplats, logo */
+  --erp-green-600:  #007330;  /* actions pleines : 6.01:1 sur blanc */
+  --erp-green-700:  #005925;
+  --erp-green-800:  #00451D;
+  --erp-green-900:  #002E13;
+
+  /* Neutres — légèrement teintés vert pour s'harmoniser avec la marque */
+  --erp-neutral-0:    #FFFFFF;
+  --erp-neutral-50:   #F6FBF9;
+  --erp-neutral-100:  #ECF4F0;
+  --erp-neutral-200:  #DAE6E1;
+  --erp-neutral-300:  #B9C7C1;
+  --erp-neutral-400:  #8B9993;
+  --erp-neutral-500:  #64706B;
+  --erp-neutral-600:  #4B5752;
+  --erp-neutral-700:  #36403C;
+  --erp-neutral-800:  #232B28;
+  --erp-neutral-900:  #131A17;
+
+  /* Encre — noirs profonds verdis, réservés aux fonds sombres */
+  --erp-ink:         #0C1611;
+  --erp-ink-soft:    #1A241E;
+
+  /* Couleurs de statut — toutes ≥ 4.5:1 sur blanc (texte AA) */
+  --erp-success-500: #0F7B3D;
+  --erp-success-50:  #E8F6EE;
+  --erp-warning-500: #8A5A00;
+  --erp-warning-50:  #FCF3E3;
+  --erp-danger-500:  #B42318;
+  --erp-danger-50:   #FDECEA;
+  --erp-info-500:    #0B5F8A;
+  --erp-info-50:     #E7F2F8;
+
+  /* ---------------------------------------------------------------------
+     2. COULEURS — Tokens sémantiques
+     C'est ce que les composants consomment.
+     --------------------------------------------------------------------- */
+
+  --erp-color-brand:            var(--erp-green-500);
+  --erp-color-brand-strong:     var(--erp-green-700);
+
+  /* Action : plus foncé que la marque pour tenir le contraste AA du libellé */
+  --erp-color-action:           var(--erp-green-600);
+  --erp-color-action-hover:     var(--erp-green-700);
+  --erp-color-action-active:    var(--erp-green-800);
+  --erp-color-on-action:        var(--erp-neutral-0);
+
+  --erp-color-surface:          var(--erp-neutral-0);
+  --erp-color-surface-subtle:   var(--erp-neutral-50);
+  --erp-color-surface-muted:    var(--erp-neutral-100);
+  --erp-color-surface-inverse:  var(--erp-ink);
+
+  --erp-color-text:             var(--erp-ink-soft);
+  --erp-color-text-muted:       var(--erp-neutral-500);
+  --erp-color-text-inverse:     var(--erp-neutral-0);
+  --erp-color-text-on-inverse-muted: rgba(255,255,255,.72);
+  --erp-color-text-link:        var(--erp-green-600);
+
+  --erp-color-border:           var(--erp-neutral-200);
+  --erp-color-border-strong:    var(--erp-neutral-300);
+  --erp-color-border-inverse:   rgba(255,255,255,.14);
+
+  /* Anneau de focus : le vert de marque tient ≥3:1 sur fond clair ET sombre */
+  --erp-color-focus:            var(--erp-green-500);
+
+  /* ---------------------------------------------------------------------
+     3. TYPOGRAPHIE
+     --------------------------------------------------------------------- */
+
+  --erp-font-display: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+  --erp-font-body:    'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --erp-font-mono:    'JetBrains Mono', 'Consolas', ui-monospace, monospace;
+
+  /* Échelle modulaire, ratio 1.200 (tierce mineure) sur base 16px */
+  --erp-text-xs:    0.75rem;   /* 12 — mentions légales, légendes */
+  --erp-text-sm:    0.875rem;  /* 14 — texte secondaire, tableaux */
+  --erp-text-base:  1rem;      /* 16 — corps de texte */
+  --erp-text-lg:    1.125rem;  /* 18 — chapô */
+  --erp-text-xl:    1.375rem;  /* 22 — h4 */
+  --erp-text-2xl:   1.625rem;  /* 26 — h3 */
+  --erp-text-3xl:   2rem;      /* 32 — h2 */
+  --erp-text-4xl:   2.5rem;    /* 40 — h1 page interne */
+
+  /* Tailles fluides — titres de bandeau uniquement */
+  --erp-display-sm: clamp(1.75rem, 3vw + 0.5rem, 2.5rem);
+  --erp-display-md: clamp(2rem, 4vw + 0.5rem, 3rem);
+  --erp-display-lg: clamp(2.6rem, 6vw, 4.6rem);
+
+  --erp-weight-regular:  400;
+  --erp-weight-medium:   500;
+  --erp-weight-semibold: 600;
+  --erp-weight-bold:     700;
+
+  --erp-leading-tight:   1.1;   /* titres */
+  --erp-leading-snug:    1.35;  /* sous-titres */
+  --erp-leading-normal:  1.65;  /* corps */
+
+  --erp-tracking-tight:  -0.02em; /* titres Space Grotesk */
+  --erp-tracking-normal: 0;
+  --erp-tracking-wide:   0.14em;  /* sur-titres capitales */
+
+  /* ---------------------------------------------------------------------
+     4. ESPACEMENT — base 4px
+     --------------------------------------------------------------------- */
+
+  --erp-space-0:  0;
+  --erp-space-1:  0.25rem;  /*  4 */
+  --erp-space-2:  0.5rem;   /*  8 */
+  --erp-space-3:  0.75rem;  /* 12 */
+  --erp-space-4:  1rem;     /* 16 */
+  --erp-space-5:  1.5rem;   /* 24 */
+  --erp-space-6:  2rem;     /* 32 */
+  --erp-space-7:  3rem;     /* 48 */
+  --erp-space-8:  4rem;     /* 64 */
+  --erp-space-9:  6rem;     /* 96 */
+  --erp-space-10: 8rem;     /* 128 */
+
+  /* Rythme vertical des sections */
+  --erp-section-y: clamp(var(--erp-space-8), 9vw, var(--erp-space-9));
+
+  /* ---------------------------------------------------------------------
+     5. FORMES & ÉLÉVATION
+     --------------------------------------------------------------------- */
+
+  --erp-radius-xs:   6px;
+  --erp-radius-sm:   12px;
+  --erp-radius-md:   18px;   /* rayon signature ERPAC */
+  --erp-radius-lg:   28px;
+  --erp-radius-full: 999px;
+
+  --erp-border-width:        1px;
+  --erp-border-width-strong: 2px;
+
+  --erp-shadow-sm: 0 8px 24px -16px rgba(12, 40, 24, .40);
+  --erp-shadow-md: 0 18px 50px -24px rgba(12, 40, 24, .35);
+  --erp-shadow-lg: 0 24px 64px -24px rgba(12, 40, 24, .45);
+  --erp-shadow-focus: 0 0 0 4px rgba(0, 140, 58, .28);
+
+  /* ---------------------------------------------------------------------
+     6. MOUVEMENT
+     --------------------------------------------------------------------- */
+
+  --erp-ease:        cubic-bezier(.22, .61, .36, 1);
+  --erp-duration-1:  150ms;  /* micro-interactions */
+  --erp-duration-2:  250ms;  /* survol, boutons */
+  --erp-duration-3:  400ms;  /* panneaux, menus */
+  --erp-duration-4:  850ms;  /* apparition au défilement */
+
+  /* ---------------------------------------------------------------------
+     7. MISE EN PAGE
+     --------------------------------------------------------------------- */
+
+  --erp-container-max: 1180px;
+  --erp-container-pad: clamp(1.2rem, 4vw, 2rem);
+  --erp-header-height: 68px;
+
+  --erp-bp-sm:  680px;
+  --erp-bp-md:  900px;
+  --erp-bp-lg:  920px;
+  --erp-bp-xl:  1180px;
+
+  --erp-z-base:     0;
+  --erp-z-sticky:   50;
+  --erp-z-header:   100;
+  --erp-z-nav:      110;
+  --erp-z-overlay:  9999;
+  --erp-z-modal:    10001;
+
+  /* ---------------------------------------------------------------------
+     8. ALIAS DE COMPATIBILITÉ
+     --------------------------------------------------------------------- */
+
+  --green:        var(--erp-green-500);
+  --green-bright: var(--erp-green-400);
+  --green-deep:   var(--erp-green-700);
+  --ink:          var(--erp-ink);
+  --ink-soft:     var(--erp-ink-soft);
+  --text:         var(--erp-color-text);
+  --muted:        var(--erp-color-text-muted);
+  --line:         var(--erp-color-border);
+  --bg:           var(--erp-color-surface);
+  --bg-soft:      var(--erp-color-surface-subtle);
+  --bg-cream:     var(--erp-neutral-50);
+  --radius:       var(--erp-radius-md);
+  --radius-sm:    var(--erp-radius-sm);
+  --shadow:       var(--erp-shadow-md);
+  --shadow-sm:    var(--erp-shadow-sm);
+  --max:          var(--erp-container-max);
+  --ease:         var(--erp-ease);
+
+  /* Alias applicatif (custom.css / Tailwind erpac-*) */
+  --erpac-primary:       var(--erp-color-brand);
+  --erpac-primary-dark:  var(--erp-color-action-hover);
+  --erpac-primary-light: var(--erp-green-400);
+  --erpac-primary-bg:    var(--erp-green-50);
+}

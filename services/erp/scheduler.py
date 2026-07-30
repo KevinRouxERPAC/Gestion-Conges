@@ -100,6 +100,31 @@ def demarrer_scheduler(app) -> None:
     )
     logger.info("Rappels quotidiens planifiés à 08:00 (Europe/Paris).")
 
+    def _job_backup():
+        with app.app_context():
+            from services.db_backup import sauvegarder_base
+            try:
+                info = sauvegarder_base("planifie", forcer=True)
+                if info:
+                    logger.info("Sauvegarde planifiée : %s", info.chemin.name)
+            except Exception:
+                logger.exception("Sauvegarde planifiée : erreur non gérée.")
+
+    heure_bak = int(app.config.get("DB_BACKUP_CRON_HOUR", 2))
+    minute_bak = int(app.config.get("DB_BACKUP_CRON_MINUTE", 0))
+    _scheduler.add_job(
+        _job_backup,
+        CronTrigger(hour=heure_bak, minute=minute_bak, timezone="Europe/Paris"),
+        id="backup_quotidien",
+        name="Sauvegarde quotidienne base SQLite",
+        replace_existing=True,
+    )
+    logger.info(
+        "Sauvegarde BDD planifiée chaque jour à %02d:%02d (Europe/Paris).",
+        heure_bak,
+        minute_bak,
+    )
+
 
 def arreter_scheduler() -> None:
     """Arrête proprement le planificateur (appelé à l'arrêt du serveur)."""

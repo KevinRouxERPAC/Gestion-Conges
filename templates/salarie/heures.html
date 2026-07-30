@@ -14,14 +14,15 @@
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
   <div class="bg-white rounded-xl shadow p-6">
     <div class="text-sm font-medium text-gray-500">Total heures travaillées</div>
-    <div class="text-3xl font-bold text-gray-800 mt-1">{{ total_heures }}</div>
+    <div class="text-3xl font-bold text-gray-800 mt-1">{{ total_heures | heures_min }}</div>
   </div>
   <div class="bg-white rounded-xl shadow p-6">
     <div class="text-sm font-medium text-gray-500">RTT acquis (calculé)</div>
     <div class="text-3xl font-bold text-purple-900 mt-1">{{ (rtt_calc.rtt_calculee if rtt_calc else 0) | heures_min }}</div>
+    <p class="text-xs text-gray-400 mt-1">Somme des surplus hebdomadaires sur l'exercice.</p>
   </div>
   <div class="bg-white rounded-xl shadow p-6">
-    <div class="text-sm font-medium text-gray-500">Allocation RTT (exercice)</div>
+    <div class="text-sm font-medium text-gray-500">Droit RTT (exercice)</div>
     <div class="text-3xl font-bold text-gray-800 mt-1">
       {{ (allocation.rtt_heures_allouees if allocation else 0) | heures_min }}
     </div>
@@ -32,8 +33,14 @@
 </div>
 
 <div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-8 text-sm text-purple-900">
-  Le RTT est calculé chaque semaine : le surplus d'heures au-delà du seuil hebdomadaire génère du RTT.
-  Une absence (congé, maladie…) réduit le seuil de la semaine pour ne pas vous pénaliser.
+  Le RTT est calculé à partir du <strong>surplus d'heures travaillées</strong>
+  au-delà du seuil hebdomadaire
+  {% if parametrage.rtt_seuil_hebdo is not none %}
+  ({{ parametrage.rtt_seuil_hebdo|heures_min }} sur votre exercice)
+  {% else %}
+  (34,65 h par défaut)
+  {% endif %}.
+  Une absence réduit le seuil de la semaine pour ne pas vous pénaliser.
 </div>
 
 <div class="bg-white rounded-xl shadow overflow-hidden">
@@ -55,7 +62,7 @@
       {% for d in detail %}
       <tr class="hover:bg-gray-50">
         <td class="px-6 py-4 text-sm font-medium">{{ d.lundi.strftime("%d/%m/%Y") }}</td>
-        <td class="px-6 py-4 text-sm">{{ d.heures }}</td>
+        <td class="px-6 py-4 text-sm">{{ d.heures | heures_min }}</td>
         <td class="px-6 py-4 text-sm">{{ d.jours_absence | nb_jours }}</td>
         <td class="px-6 py-4 text-sm font-medium text-purple-900">{{ d.rtt | heures_min }}</td>
       </tr>
@@ -64,7 +71,9 @@
   </table>
 </div>
   {% else %}
-  <div class="px-6 py-12 text-center text-gray-500">Aucune heure hebdomadaire saisie sur l'exercice.</div>
+  <div class="px-6 py-12 text-center text-gray-500">
+    Aucune semaine exploitable sur l'exercice (ni heures saisies, ni absence validée).
+  </div>
   {% endif %}
 </div>
 {% endif %}

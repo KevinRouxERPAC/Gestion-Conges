@@ -1,5 +1,7 @@
 from datetime import date, datetime, timezone
 
+from sqlalchemy import Numeric
+
 from models import db
 
 
@@ -13,6 +15,9 @@ class InteressementPeriode(db.Model):
 
     base_points = db.Column(db.Integer, nullable=False, default=100)
     plancher_points = db.Column(db.Integer, nullable=False, default=0)
+    montant_total_euros = db.Column(Numeric(precision=12, scale=2), nullable=True)
+    # Malus appliqué par jour d'arrêt maladie validé (seul type impactant l'intéressement).
+    malus_maladie_par_jour = db.Column(db.Float, nullable=False, default=5.0)
 
     actif = db.Column(db.Boolean, nullable=False, default=False)
     cree_le = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))

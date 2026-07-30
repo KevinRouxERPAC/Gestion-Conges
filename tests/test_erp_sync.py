@@ -12,11 +12,13 @@ import pytest
 from models import db
 from models.heures_hebdo import HeuresHebdo
 from models.user import User
-from services.erp.requetes import HeuresSemaine
+from services.erp.requetes import HeuresSemaine, SalarieErp, normaliser_matricule_erp
 from services.erp.sync_heures import (
+    synchroniser_exercice,
     synchroniser_semaine,
     _lundi_depuis_semaine_erp,
     _semaine_precedente,
+    _semaines_erp_exercice,
 )
 
 
@@ -53,8 +55,10 @@ def test_import_creheures_pour_matricule_connenu(mock_heures, mock_conn, db_sess
 
 @patch("services.erp.sync_heures.erp_connexion")
 @patch("services.erp.sync_heures.heures_semaine")
-def test_import_matricule_inconnu_avertit(mock_heures, mock_conn, db_session, users, parametrage):
+@patch("services.erp.sync_heures.salaries_erp")
+def test_import_matricule_inconnu_avertit(mock_salaries, mock_heures, mock_conn, db_session, users, parametrage):
     """Un matricule absent de l'app est signalé, pas bloquant."""
+    mock_salaries.return_value = []
     mock_heures.return_value = [_ligne("999999", "202623", 35.0)]
 
     rapport = synchroniser_semaine(semaine_erp="202623", recalculer_rtt=False)
@@ -62,6 +66,55 @@ def test_import_matricule_inconnu_avertit(mock_heures, mock_conn, db_session, us
     assert rapport.nb_importes == 0
     assert rapport.nb_skipped_sans_user == 1
     assert any("999999" in w for w in rapport.avertissements)
+
+
+@patch("services.erp.sync_heures.erp_connexion")
+@patch("services.erp.sync_heures.heures_semaine")
+@patch("services.erp.sync_heures.salaries_erp")
+def test_auto_rattache_matricule_par_nom_unique(
+    mock_salaries, mock_heures, mock_conn, db_session, users, parametrage
+):
+    """Si un seul salarié actif sans matricule matche le nom ERP, on le rattache."""
+    users["salarie"].matricule = None
+    db.session.commit()
+    mock_heures.return_value = [_ligne("000011", "202623", 39.0)]
+    nom_erp = f"{users['salarie'].nom} {users['salarie'].prenom}"
+    mock_salaries.return_value = [SalarieErp(matricule="000011", nom_complet=nom_erp)]
+
+    rapport = synchroniser_semaine(semaine_erp="202623", recalculer_rtt=False)
+
+    assert rapport.nb_importes == 1
+    assert users["salarie"].matricule == "000011"
+    assert any("auto-rattaché" in w for w in rapport.avertissements)
+
+
+@patch("services.erp.sync_heures.erp_connexion")
+@patch("services.erp.sync_heures.heures_semaine")
+@patch("services.erp.sync_heures.salaries_erp")
+def test_auto_rattache_pas_si_nom_ambigu(
+    mock_salaries, mock_heures, mock_conn, db_session, users, parametrage
+):
+    """Le rattachement auto est ignoré en cas d'ambiguïté de nom."""
+    users["salarie"].matricule = None
+    clone = User(
+        nom=users["salarie"].nom,
+        prenom=users["salarie"].prenom,
+        identifiant="clone_test",
+        mot_de_passe_hash=users["salarie"].mot_de_passe_hash,
+        role="salarie",
+        actif=True,
+    )
+    db.session.add(clone)
+    db.session.commit()
+    mock_heures.return_value = [_ligne("000011", "202623", 39.0)]
+    nom_erp = f"{users['salarie'].nom} {users['salarie'].prenom}"
+    mock_salaries.return_value = [SalarieErp(matricule="000011", nom_complet=nom_erp)]
+
+    rapport = synchroniser_semaine(semaine_erp="202623", recalculer_rtt=False)
+
+    assert rapport.nb_importes == 0
+    assert users["salarie"].matricule is None
+    assert any("absent de l'app" in w for w in rapport.avertissements)
 
 
 @patch("services.erp.sync_heures.erp_connexion")
@@ -178,3 +231,75 @@ def test_semaine_precedente_format_aaaass():
 
 def test_lundi_depuis_semaine_erp():
     assert _lundi_depuis_semaine_erp("202623") == date(2026, 6, 1)
+
+
+class TestNormaliserMatricule:
+    def test_zeros_initiaux(self):
+        assert normaliser_matricule_erp("24") == "000024"
+        assert normaliser_matricule_erp("000024") == "000024"
+        assert normaliser_matricule_erp("  11  ") == "000011"
+
+
+@patch("services.erp.sync_heures.salaries_erp")
+@patch("services.erp.sync_heures.erp_connexion")
+@patch("services.erp.sync_heures.heures_semaine")
+def test_import_matricule_format_erp_avec_zeros(
+    mock_heures, mock_conn, mock_salaries, db_session, users, parametrage
+):
+    """ERP '000024' matche un salarié saisi avec '24'."""
+    users["salarie"].matricule = "24"
+    db.session.commit()
+    mock_salaries.return_value = []
+    mock_heures.return_value = [_ligne("000024", "202623", 35.0)]
+
+    rapport = synchroniser_semaine(semaine_erp="202623", recalculer_rtt=False)
+
+    assert rapport.nb_importes == 1
+    assert rapport.nb_skipped_sans_user == 0
+
+
+@patch("services.erp.sync_heures.salaries_erp")
+@patch("services.erp.sync_heures.erp_connexion")
+@patch("services.erp.sync_heures.heures_semaine")
+def test_import_matricule_format_erp_sans_zeros(
+    mock_heures, mock_conn, mock_salaries, db_session, users, parametrage
+):
+    """ERP '24' matche un salarié saisi avec '000024'."""
+    users["salarie"].matricule = "000024"
+    db.session.commit()
+    mock_salaries.return_value = []
+    mock_heures.return_value = [_ligne("24", "202623", 35.0)]
+
+    rapport = synchroniser_semaine(semaine_erp="202623", recalculer_rtt=False)
+
+    assert rapport.nb_importes == 1
+    assert rapport.nb_skipped_sans_user == 0
+
+
+@patch("services.erp.sync_heures.erp_connexion")
+@patch("services.erp.sync_heures.heures_periode")
+@patch("services.erp.sync_heures.salaries_erp")
+def test_import_exercice_plusieurs_semaines(
+    mock_salaries, mock_heures_periode, mock_conn, db_session, users, parametrage
+):
+    """L'import exercice récupère toutes les semaines depuis le début de l'exercice."""
+    users["salarie"].matricule = "000011"
+    db.session.commit()
+    mock_salaries.return_value = []
+    mock_heures_periode.return_value = [
+        _ligne("000011", "202601", 38.0),
+        _ligne("000011", "202602", 40.0),
+    ]
+
+    rapport = synchroniser_exercice(recalculer_rtt=False)
+
+    assert rapport.nb_importes == 2
+    assert len(rapport.semaines) > 0
+    assert HeuresHebdo.query.filter_by(user_id=users["salarie"].id).count() == 2
+
+
+def test_semaines_erp_exercice_couvre_debut_a_aujourdhui(parametrage):
+    semaines = _semaines_erp_exercice(parametrage, jusqu_a=date(2026, 1, 12))
+    assert semaines[0] == "202601"
+    assert "202603" in semaines
+    assert "202604" not in semaines

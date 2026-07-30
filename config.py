@@ -62,7 +62,7 @@ class Config:
     ERP_DB_DATABASE = os.environ.get("ERP_DB_DATABASE", "PMI")
     ERP_DB_USER = os.environ.get("ERP_DB_USER", "")
     ERP_DB_PASSWORD = os.environ.get("ERP_DB_PASSWORD", "")
-    ERP_DB_DRIVER = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 18 for SQL Server")
+    ERP_DB_DRIVER = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 17 for SQL Server")
     ERP_DB_ENCRYPT = os.environ.get("ERP_DB_ENCRYPT", "yes")
     ERP_DB_TRUST_CERT = os.environ.get("ERP_DB_TRUST_CERT", "yes")
     ERP_DB_TIMEOUT = int(os.environ.get("ERP_DB_TIMEOUT", "10"))
@@ -71,6 +71,15 @@ class Config:
     ERP_SYNC_JOUR = os.environ.get("ERP_SYNC_JOUR", "fri")
     ERP_SYNC_HEURE = int(os.environ.get("ERP_SYNC_HEURE", "17"))
     ERP_SYNC_MINUTE = int(os.environ.get("ERP_SYNC_MINUTE", "30"))
+
+    # Sauvegardes automatiques SQLite (dossier backup/, journal logs/database.log).
+    DB_BACKUP_DIR = os.environ.get("DB_BACKUP_DIR") or os.path.join(BASE_DIR, "backup")
+    DB_BACKUP_MAX_COUNT = int(os.environ.get("DB_BACKUP_MAX_COUNT", "30"))
+    DB_BACKUP_ON_STARTUP = os.environ.get("DB_BACKUP_ON_STARTUP", "true").lower() == "true"
+    DB_BACKUP_MIN_INTERVAL_HOURS = int(os.environ.get("DB_BACKUP_MIN_INTERVAL_HOURS", "6"))
+    DB_BACKUP_CRON_HOUR = int(os.environ.get("DB_BACKUP_CRON_HOUR", "2"))
+    DB_BACKUP_CRON_MINUTE = int(os.environ.get("DB_BACKUP_CRON_MINUTE", "0"))
+    DB_LOG_FILE = os.environ.get("DB_LOG_FILE") or os.path.join(BASE_DIR, "logs", "database.log")
 
     # Web Push (notifications hors du site, sans donnée personnelle)
     # Clés : placer vapid_private.pem dans le répertoire de l'app (ou VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY en env).

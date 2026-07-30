@@ -22,20 +22,20 @@
         return;
     }
 
-    // Règle métier : une demi-journée doit obligatoirement être posée en RTT.
-    // Quand une demi-journée est sélectionnée, on force le type sur RTT et on
-    // désactive les autres types ; on réactive tout quand la demi-journée est retirée.
+    // Règle métier : matin/après-midi = RTT uniquement.
+    // Force RTT et désactive les autres types ; réactive tout quand la demi-journée est retirée.
     function enforceDemiRtt() {
         if (!typeConge) return;
         const hasDemi = (demiDebut && demiDebut.value) || (demiFin && demiFin.value);
         Array.prototype.forEach.call(typeConge.options, function (opt) {
-            if (!opt.value) return; // garde le placeholder éventuel
+            if (!opt.value) return;
             opt.disabled = !!hasDemi && opt.value !== "RTT";
         });
-        if (hasDemi && typeConge.value !== "RTT") {
-            typeConge.value = "RTT";
-            // Notifie les scripts inline (affichage du bloc heures RTT).
-            typeConge.dispatchEvent(new Event("change"));
+        if (hasDemi) {
+            if (typeConge.value !== "RTT") {
+                typeConge.value = "RTT";
+                typeConge.dispatchEvent(new Event("change"));
+            }
         }
     }
 

@@ -11,7 +11,7 @@ Configuration (variables d'environnement, ex. dans web.config) :
   ERP_DB_DATABASE  = PMI
   ERP_DB_USER      = lecteur_app
   ERP_DB_PASSWORD  = ...           # jamais dans le dépôt
-  ERP_DB_DRIVER    = ODBC Driver 18 for SQL Server
+  ERP_DB_DRIVER    = ODBC Driver 17 for SQL Server
   ERP_DB_ENCRYPT         = yes
   ERP_DB_TRUST_CERT      = yes     # certificat auto-signé interne
   ERP_DB_TIMEOUT         = 10      # secondes
@@ -35,8 +35,18 @@ def erp_active() -> bool:
     return os.environ.get("ERP_DB_ENABLED", "").lower() == "true"
 
 
+def _pilotes_odbc_sql_server() -> list[str]:
+    """Liste les pilotes ODBC SQL Server installés sur la machine."""
+    if pyodbc is None:
+        return []
+    try:
+        return [d for d in pyodbc.drivers() if "SQL Server" in d]
+    except Exception:
+        return []
+
+
 def _conn_str() -> str:
-    driver = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 18 for SQL Server")
+    driver = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 17 for SQL Server")
     server = os.environ.get("ERP_DB_SERVER", "")
     database = os.environ.get("ERP_DB_DATABASE", "")
     user = os.environ.get("ERP_DB_USER", "")
@@ -71,7 +81,20 @@ def erp_connexion():
     if pyodbc is None:
         raise ErpNonConfigureError("Le module pyodbc n'est pas installé (pip install pyodbc).")
 
-    conn = pyodbc.connect(_conn_str(), autocommit=True, timeout=10, readonly=True)
+    try:
+        conn = pyodbc.connect(_conn_str(), autocommit=True, timeout=10, readonly=True)
+    except pyodbc.Error as e:
+        code = e.args[0] if e.args else ""
+        if code == "IM002":
+            driver = os.environ.get("ERP_DB_DRIVER", "ODBC Driver 17 for SQL Server")
+            installes = _pilotes_odbc_sql_server()
+            liste = ", ".join(installes) if installes else "(aucun pilote SQL Server détecté)"
+            raise ErpNonConfigureError(
+                f"Pilote ODBC introuvable : {driver!r}. "
+                f"Pilotes SQL Server installés : {liste}. "
+                "Installez « ODBC Driver 17/18 for SQL Server » ou ajustez ERP_DB_DRIVER dans web.config."
+            ) from e
+        raise
     try:
         yield conn
     finally:

@@ -75,7 +75,7 @@
         </div>
 
         {# Import de la semaine affichée #}
-        <div class="border-t pt-4">
+        <div class="border-t pt-4 space-y-3">
           <form method="POST" action="{{ url_for('rh.sync_erp_heures') }}" class="space-y-2">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="semaine_erp" value="{{ semaine_erp_courante }}">
@@ -88,6 +88,20 @@
                     class="w-full bg-white border border-erpac-primary text-erpac-primary hover:bg-erpac-50 text-sm font-medium py-2 px-4 rounded-lg transition">
               👁 Aperçu (sans écriture)
             </button>
+          </form>
+
+          <form method="POST" action="{{ url_for('rh.sync_erp_heures') }}" class="space-y-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="depuis_debut_exercice" value="1">
+            <input type="hidden" name="recalculer_rtt" value="1">
+            <button type="submit"
+                    onclick="return confirm('Importer toutes les heures depuis le début de l\'exercice ? Cela peut prendre quelques instants.');"
+                    class="w-full bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-4 rounded-lg transition">
+              ↓↓ Importer tout l'exercice + recalcul RTT
+            </button>
+            <p class="text-xs text-gray-500">
+              Récupère toutes les semaines depuis le début de l'exercice pour un recalcul RTT complet.
+            </p>
           </form>
         </div>
 
@@ -120,7 +134,8 @@ ERP_DB_PASSWORD=…</pre>
         <p class="text-xs text-gray-400 mt-0.5">
           Seuil RTT : {{ seuil_hebdo }} h — seuil réduit de {{ heures_par_jour }} h par jour d'absence.
           Les heures marquées <span class="text-blue-600 font-medium">ERP</span> ont été importées automatiquement.
-          Vous pouvez les corriger manuellement.
+          Vous pouvez les corriger manuellement. Sans heure importée, vérifiez si le salarié est en congé,
+          en arrêt, ou simplement non pointé dans l'ERP.
         </p>
       </div>
 
@@ -156,7 +171,7 @@ ERP_DB_PASSWORD=…</pre>
               <td class="px-5 py-3 text-sm {% if abs > 0 %}text-amber-700 font-medium{% else %}text-gray-400{% endif %}">
                 {{ abs|nb_jours }} j
                 {% if abs > 0 %}
-                  <span class="text-xs text-gray-400 ml-1">(seuil → {{ (seuil_hebdo - abs * heures_par_jour)|round(1) }} h)</span>
+                  <span class="text-xs text-gray-400 ml-1">(seuil → {{ (seuil_hebdo - abs * heures_par_jour) | nb_heures }} h)</span>
                 {% endif %}
               </td>
               <td class="px-5 py-3">
@@ -173,6 +188,10 @@ ERP_DB_PASSWORD=…</pre>
                     {% else %}
                       <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full whitespace-nowrap">✎ Manuel</span>
                     {% endif %}
+                  {% elif abs > 0 %}
+                    <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full whitespace-nowrap">Absence détectée</span>
+                  {% else %}
+                    <span class="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full whitespace-nowrap">Aucune heure importée</span>
                   {% endif %}
                 </div>
               </td>

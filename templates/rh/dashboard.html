@@ -97,8 +97,9 @@
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             Demandes en attente de validation ({{ demandes_attente|length }})
         </h2>
-        <div class="flex items-center gap-2 text-xs">
+        <div class="flex flex-wrap items-center gap-2 text-xs">
             <span class="text-amber-700" x-text="`${selected.length} sélectionnée(s)`"></span>
+            <p x-show="bulkError" x-text="bulkError" class="w-full basis-full text-rose-600 font-medium"></p>
             <form method="POST" action="{{ url_for('rh.valider_lots') }}" class="inline" @submit="prepareForm($event)">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <template x-for="id in selected" :key="id"><input type="hidden" name="conge_ids" :value="id"></template>
@@ -175,6 +176,7 @@
 function bulkConges() {
     return {
         selected: [],
+        bulkError: '',
         toggle(id, ev) {
             if (ev.target.checked) {
                 if (!this.selected.includes(id)) this.selected.push(id);
@@ -193,7 +195,10 @@ function bulkConges() {
         prepareForm(ev) {
             if (this.selected.length === 0) {
                 ev.preventDefault();
+                this.bulkError = 'Sélectionnez au moins une demande.';
+                return;
             }
+            this.bulkError = '';
         },
     };
 }

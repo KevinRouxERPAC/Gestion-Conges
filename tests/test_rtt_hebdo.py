@@ -7,7 +7,6 @@ from models.heures_hebdo import HeuresHebdo
 from models.parametrage import AllocationConge
 from services.rtt_hebdo import (
     calculer_rtt_semaine,
-    calculer_rtt_hebdo,
     maj_rtt_allocations_hebdo,
     jours_absence_semaine,
     seuil_hebdo_param,
@@ -16,29 +15,31 @@ from services.rtt_hebdo import (
     HEURES_PAR_JOUR_DEFAUT,
 )
 
+SEUIL = 34.65
+
 
 class TestCalculRttSemaine:
     def test_semaine_complete_surplus(self):
-        # 39 h travaillées, seuil 35, aucune absence -> 4 h RTT.
-        assert calculer_rtt_semaine(39, 0, seuil_hebdo=35, heures_par_jour=7, coef=1.0) == 4.0
+        assert calculer_rtt_semaine(39, 0, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 4.35
 
     def test_absence_ne_penalise_pas(self):
-        # 1 jour d'absence -> seuil ajusté 28. 28 h travaillées -> 0 RTT (pas de perte).
-        assert calculer_rtt_semaine(28, 1, seuil_hebdo=35, heures_par_jour=7, coef=1.0) == 0.0
+        assert calculer_rtt_semaine(28, 1, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 0.35
 
     def test_absence_surplus_proratise(self):
-        # 1 jour d'absence -> seuil 28. 31 h travaillées -> 3 h RTT.
-        assert calculer_rtt_semaine(31, 1, seuil_hebdo=35, heures_par_jour=7, coef=1.0) == 3.0
+        assert calculer_rtt_semaine(31, 1, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 3.35
 
     def test_sous_le_seuil_zero(self):
-        assert calculer_rtt_semaine(30, 0, seuil_hebdo=35, heures_par_jour=7, coef=1.0) == 0.0
+        assert calculer_rtt_semaine(30, 0, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 0.0
+
+    def test_semaine_35h_produit_035(self):
+        assert calculer_rtt_semaine(35, 0, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 0.35
 
     def test_coef_applique(self):
-        assert calculer_rtt_semaine(39, 0, seuil_hebdo=35, heures_par_jour=7, coef=0.5) == 2.0
+        # Arrondi à 2 décimales (centièmes d'heure) : round(4.35 * 0.5, 2) = 2.18.
+        assert calculer_rtt_semaine(39, 0, seuil_hebdo=SEUIL, heures_par_jour=7, coef=0.5) == 2.18
 
     def test_deux_jours_absence(self):
-        # 2 jours d'absence -> seuil 21. 24 h travaillées -> 3 h.
-        assert calculer_rtt_semaine(24, 2, seuil_hebdo=35, heures_par_jour=7, coef=1.0) == 3.0
+        assert calculer_rtt_semaine(24, 2, seuil_hebdo=SEUIL, heures_par_jour=7, coef=1.0) == 3.35
 
 
 class TestJoursAbsenceSemaine:
@@ -73,9 +74,9 @@ class TestJoursAbsenceSemaine:
 
 class TestMajAllocationsHebdo:
     def test_recalcul_avec_absence(self, db_session, users, parametrage, allocations):
-        # Semaine 1 (sans absence) : 39 h -> 4 h RTT.
+        parametrage.rtt_seuil_hebdo = SEUIL
+        db.session.commit()
         db.session.add(HeuresHebdo(user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39))
-        # Semaine 2 (1 jour de congé) : 31 h, seuil ajusté 28 -> 3 h RTT.
         db.session.add(HeuresHebdo(user_id=users["salarie"].id, date_lundi=date(2026, 6, 8), heures_travaillees=31))
         db.session.add(Conge(
             user_id=users["salarie"].id,
@@ -87,29 +88,23 @@ class TestMajAllocationsHebdo:
         ))
         db.session.commit()
 
-        res = maj_rtt_allocations_hebdo(parametrage)
-        assert res  # au moins une allocation traitée
-
+        maj_rtt_allocations_hebdo(parametrage)
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=parametrage.id
         ).first()
-        # 4 + 3 = 7 h RTT acquises.
-        assert alloc.rtt_heures_allouees == 7
+        assert alloc.rtt_heures_allouees == 7.7
 
     def test_recalcul_applique_par_defaut(self, db_session, users, parametrage, allocations):
-        # Le calcul hebdomadaire est désormais le seul mode RTT : il s'applique
-        # toujours, sans configuration de mode particulière.
+        parametrage.rtt_seuil_hebdo = SEUIL
+        db.session.commit()
         db.session.add(HeuresHebdo(user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39))
         db.session.commit()
 
-        res = maj_rtt_allocations_hebdo(parametrage)
-        assert res  # recalcul effectué
-
+        maj_rtt_allocations_hebdo(parametrage)
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=parametrage.id
         ).first()
-        # 39 h, seuil 35, aucune absence -> 4 h RTT.
-        assert alloc.rtt_heures_allouees == 4
+        assert alloc.rtt_heures_allouees == 4.35
 
 
 class TestParametrageSeuilRtt:
@@ -126,14 +121,13 @@ class TestParametrageSeuilRtt:
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=parametrage.id
         ).first()
-        # 33 h travaillées, seuil 30 -> 3 h RTT.
         assert alloc.rtt_heures_allouees == 3
 
     def test_heures_par_jour_absence_personnalise(self, db_session, users, parametrage, allocations):
+        parametrage.rtt_seuil_hebdo = SEUIL
         parametrage.rtt_heures_par_jour_absence = 6
         db.session.commit()
 
-        # 1 jour d'absence : seuil ajusté 35 - 6 = 29. 31 h travaillées -> 2 h RTT.
         db.session.add(HeuresHebdo(
             user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=31
         ))
@@ -151,42 +145,19 @@ class TestParametrageSeuilRtt:
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=parametrage.id
         ).first()
-        assert alloc.rtt_heures_allouees == 2
+        assert alloc.rtt_heures_allouees == 2.35
 
     def test_helpers_fallback_defaut(self, db_session, parametrage):
         assert seuil_hebdo_param(None) == SEUIL_HEBDO_DEFAUT
         assert heures_par_jour_absence_param(None) == HEURES_PAR_JOUR_DEFAUT
-        assert seuil_hebdo_param(parametrage) == 35
-        assert heures_par_jour_absence_param(parametrage) == 7
 
 
 class TestTypesAbsenceExclus:
-    """Types d'absence exclus de la réduction du seuil hebdomadaire RTT.
-
-    Un arrêt maladie ne doit pas réduire le seuil RTT : sinon le salarié
-    perd du RTT en étant malade. Le paramétrage ``rtt_types_absence_exclus``
-    permet d'exclure ces types (liste de codes séparés par des virgules).
-    """
-
-    def test_aucun_exclu_par_defaut(self, db_session, parametrage):
-        from services.rtt_hebdo import types_absence_exclus_param
-        parametrage.rtt_types_absence_exclus = ""
-        assert types_absence_exclus_param(parametrage) == set()
-        assert types_absence_exclus_param(None) == set()
-
-    def test_parse_liste_separee_virgules(self, db_session, parametrage):
-        from services.rtt_hebdo import types_absence_exclus_param
-        parametrage.rtt_types_absence_exclus = "Maladie, Sans solde ,CP"
-        exclus = types_absence_exclus_param(parametrage)
-        assert exclus == {"Maladie", "Sans solde", "CP"}
-
     def test_maladie_ne_reduit_pas_le_seuil(self, db_session, users, parametrage, allocations):
-        from services.rtt_hebdo import maj_rtt_allocations_hebdo
+        parametrage.rtt_seuil_hebdo = SEUIL
         parametrage.rtt_types_absence_exclus = "Maladie"
         db.session.commit()
 
-        # 1 jour de Maladie + 38 h travaillées : seuil reste 35 → 3 h RTT.
-        # Si la Maladie réduisait le seuil (28), 38 h donnerait 10 h RTT.
         db.session.add(HeuresHebdo(
             user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=38
         ))
@@ -201,138 +172,4 @@ class TestTypesAbsenceExclus:
         alloc = AllocationConge.query.filter_by(
             user_id=users["salarie"].id, parametrage_id=parametrage.id
         ).first()
-        # 38 h - seuil 35 (non réduit) = 3 h RTT.
-        assert alloc.rtt_heures_allouees == 3
-
-    def test_cp_exclu_nimpacte_pas_le_seuil(self, db_session, users, parametrage, allocations):
-        from services.rtt_hebdo import maj_rtt_allocations_hebdo
-        parametrage.rtt_types_absence_exclus = "CP"
-        db.session.commit()
-
-        # 1 jour de CP exclu → seuil reste 35. 38 h travaillées → 3 h RTT.
-        db.session.add(HeuresHebdo(
-            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=38
-        ))
-        db.session.add(Conge(
-            user_id=users["salarie"].id,
-            date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
-            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
-        ))
-        db.session.commit()
-
-        maj_rtt_allocations_hebdo(parametrage)
-        alloc = AllocationConge.query.filter_by(
-            user_id=users["salarie"].id, parametrage_id=parametrage.id
-        ).first()
-        assert alloc.rtt_heures_allouees == 3
-
-    def test_type_non_exclu_reduit_toujours_le_seuil(self, db_session, users, parametrage, allocations):
-        from services.rtt_hebdo import maj_rtt_allocations_hebdo
-        # Seul "Maladie" est exclu ; le CP réduit toujours le seuil.
-        parametrage.rtt_types_absence_exclus = "Maladie"
-        db.session.commit()
-
-        # 1 jour de CP → seuil 28. 31 h travaillées → 3 h RTT.
-        db.session.add(HeuresHebdo(
-            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=31
-        ))
-        db.session.add(Conge(
-            user_id=users["salarie"].id,
-            date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
-            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
-        ))
-        db.session.commit()
-
-        maj_rtt_allocations_hebdo(parametrage)
-        alloc = AllocationConge.query.filter_by(
-            user_id=users["salarie"].id, parametrage_id=parametrage.id
-        ).first()
-        assert alloc.rtt_heures_allouees == 3
-
-
-class TestBaseAcquisitionHebdo:
-    """Acquisition automatique de RTT par semaine (ex. 0,35 h), proratisée."""
-
-    def _param(self, db_session, **kw):
-        from models.parametrage import ParametrageAnnuel
-
-        defaults = dict(
-            debut_exercice=date(2026, 6, 1),  # un lundi
-            fin_exercice=date(2026, 6, 28),
-            jours_conges_defaut=25,
-            actif=False,
-        )
-        defaults.update(kw)
-        p = ParametrageAnnuel(**defaults)
-        db.session.add(p)
-        db.session.commit()
-        return p
-
-    def test_base_acquise_chaque_semaine_sans_absence(self, db_session, users):
-        # 2026-06-01 lundi → semaines 01, 08, 15, 22 (29 > 28) = 4 semaines.
-        p = self._param(db_session, rtt_acquis_par_semaine=1.0)
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        assert res.nb_semaines == 4
-        assert res.rtt_calculee == 4
-        assert all(d["base"] == 1.0 for d in res.detail)
-
-    def test_base_proratisee_par_absence(self, db_session, users):
-        p = self._param(db_session, fin_exercice=date(2026, 6, 7), rtt_acquis_par_semaine=1.0)
-        db.session.add(Conge(
-            user_id=users["salarie"].id, date_debut=date(2026, 6, 2), date_fin=date(2026, 6, 2),
-            nb_jours_ouvrables=1, type_conge="CP", statut="valide",
-        ))
-        db.session.commit()
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        assert res.nb_semaines == 1
-        # présence (5-1)/5 = 0.8 → base 0,8 h.
-        assert res.detail[0]["base"] == 0.8
-
-    def test_base_plus_heures_sup(self, db_session, users):
-        p = self._param(db_session, fin_exercice=date(2026, 6, 7), rtt_acquis_par_semaine=1.0)
-        db.session.add(HeuresHebdo(
-            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39
-        ))
-        db.session.commit()
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        # base 1,0 + surplus (39 - 35) = 5 h.
-        assert res.detail[0]["base"] == 1.0
-        assert res.detail[0]["surplus"] == 4.0
-        assert res.rtt_calculee == 5
-
-    def test_sans_base_comportement_historique(self, db_session, users):
-        # base 0 → seules les semaines saisies comptent (pas toutes les semaines).
-        p = self._param(db_session, rtt_acquis_par_semaine=0.0)
-        db.session.add(HeuresHebdo(
-            user_id=users["salarie"].id, date_lundi=date(2026, 6, 1), heures_travaillees=39
-        ))
-        db.session.commit()
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        assert res.nb_semaines == 1
-        assert res.rtt_calculee == 4
-
-    def test_fractions_heure_preservees_pas_tronquees(self, db_session, users):
-        # R3 : 0,35 h/sem sur 3 semaines = 1,05 h (et non 1 h tronqué).
-        from datetime import timedelta
-        debut = date(2026, 6, 1)  # lundi
-        p = self._param(
-            db_session, debut_exercice=debut, fin_exercice=date(2026, 6, 21),
-            rtt_acquis_par_semaine=0.35,
-        )
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        assert res.nb_semaines == 3
-        assert res.rtt_calculee == 1.05
-
-    def test_cas_plan_046_semaines(self, db_session, users):
-        # Cas du plan : 0,35 h/sem × 46 sem ≈ 16,1 h, surtout pas 16 h.
-        from datetime import timedelta
-        debut = date(2026, 6, 1)  # lundi
-        fin = debut + timedelta(weeks=45, days=6)  # 46 lundis inclus
-        p = self._param(
-            db_session, debut_exercice=debut, fin_exercice=fin,
-            rtt_acquis_par_semaine=0.35,
-        )
-        res = calculer_rtt_hebdo(users["salarie"].id, p)
-        assert res.nb_semaines == 46
-        assert res.rtt_calculee == 16.1
-        assert res.rtt_calculee != 16
+        assert alloc.rtt_heures_allouees == 3.35

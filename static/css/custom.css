@@ -1,108 +1,106 @@
-/* Custom styles for ERPAC Gestion des Congés */
-/* Couleurs officielles ERPAC (site kevinrouxerpac.github.io / repo KevinRouxERPAC/KevinRouxERPAC.github.io) */
-:root {
-  --erpac-primary: #008C3A;
-  --erpac-primary-dark: #006c2d;
-  --erpac-primary-light: #00a945;
-  --erpac-primary-bg: #e6f5ec;
-}
+/* Styles applicatifs — s'appuie sur erpac-tokens.css et erpac-composants.css */
 
-/* Boutons d'action (fallback indépendant de Tailwind) */
+/* Bouton primaire (alias rétrocompatible → design system) */
 .erpac-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: .5rem;
-    padding: .5rem 1rem;
-    border-radius: .5rem;
-    font-size: .875rem;
-    font-weight: 600;
-    line-height: 1.25rem;
-    color: #fff;
-    background: var(--erpac-primary);
-    border: 1px solid rgba(0,0,0,0.20);
-    box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+    gap: var(--erp-space-2);
+    min-height: 44px;
+    padding: var(--erp-space-3) var(--erp-space-5);
+    border-radius: var(--erp-radius-full);
+    font-size: var(--erp-text-sm);
+    font-weight: var(--erp-weight-semibold);
+    line-height: 1.2;
+    color: var(--erp-color-on-action);
+    background: var(--erp-color-action);
+    border: var(--erp-border-width) solid transparent;
+    box-shadow: none;
     text-decoration: none;
     white-space: nowrap;
+    cursor: pointer;
 }
 .erpac-btn:hover {
-    background: var(--erpac-primary-dark);
-    color: #fff;
+    background: var(--erp-color-action-hover);
+    color: var(--erp-color-on-action);
 }
 .erpac-btn:focus-visible {
-    outline: 2px solid rgba(0, 140, 58, 0.45);
-    outline-offset: 2px;
+    outline: var(--erp-border-width-strong) solid var(--erp-color-focus);
+    outline-offset: 4px;
+    box-shadow: var(--erp-shadow-focus);
 }
 .erpac-btn:disabled,
 .erpac-btn[aria-disabled="true"] {
-    opacity: .55;
+    opacity: .45;
     cursor: not-allowed;
 }
 .erpac-btn--sm {
-    padding: .45rem .75rem;
-    border-radius: .375rem;
+    min-height: 36px;
+    padding: var(--erp-space-2) var(--erp-space-4);
+    font-size: var(--erp-text-xs);
 }
 .erpac-btn--dark {
-    background: #111827;
+    background: var(--erp-ink);
+    color: var(--erp-color-on-action);
 }
 .erpac-btn--dark:hover {
-    background: #000;
+    background: var(--erp-ink-soft);
 }
 
-/* Lien « retour » discret et homogène (remplace les liens verts bruts). */
+/* Lien « retour » discret */
 .btn-retour {
     display: inline-flex;
     align-items: center;
-    gap: .375rem;
-    font-size: .8125rem;
-    font-weight: 500;
-    color: #4b5563;
-    background: #f3f4f6;
-    border: 1px solid #e5e7eb;
-    padding: .375rem .75rem;
-    border-radius: .5rem;
+    gap: var(--erp-space-2);
+    font-size: var(--erp-text-sm);
+    font-weight: var(--erp-weight-medium);
+    color: var(--erp-neutral-600);
+    background: var(--erp-color-surface-muted);
+    border: var(--erp-border-width) solid var(--erp-color-border);
+    padding: var(--erp-space-2) var(--erp-space-3);
+    border-radius: var(--erp-radius-sm);
     text-decoration: none;
 }
 .btn-retour:hover {
-    color: var(--erpac-primary);
-    background: var(--erpac-primary-bg);
-    border-color: #a7f3d0;
+    color: var(--erp-color-action);
+    background: var(--erp-green-50);
+    border-color: var(--erp-green-200);
 }
 
-/* Print styles */
+/* Print */
 @media print {
     nav, footer, button, .no-print {
         display: none !important;
     }
 }
 
-/* Skip-link : caché par défaut, visible au focus clavier. */
+/* Skip-link : aligné sur le composant design system */
 .skip-link {
     position: absolute;
-    left: -9999px;
-    top: 0;
-    z-index: 100;
-    background: var(--erpac-primary);
-    color: #fff;
-    padding: .75rem 1rem;
-    border-radius: 0 0 .5rem 0;
-    font-weight: 600;
+    top: -100%;
+    left: 0;
+    z-index: var(--erp-z-modal);
+    background: var(--erp-color-action);
+    color: var(--erp-color-on-action);
+    padding: var(--erp-space-3) var(--erp-space-5);
+    font-weight: var(--erp-weight-semibold);
+    border-radius: 0 0 var(--erp-radius-xs) 0;
     text-decoration: none;
 }
+.skip-link:focus,
 .skip-link:focus-visible {
-    left: 0;
-    outline: 3px solid #fff;
-    outline-offset: -3px;
+    top: 0;
+    outline: var(--erp-border-width-strong) solid var(--erp-color-focus);
+    outline-offset: 3px;
 }
 
-/* Transitions on interactive elements only */
+/* Transitions sur les éléments interactifs */
 a, button, input, select, textarea, [role="button"] {
-    transition-property: background-color, border-color, color, box-shadow;
-    transition-duration: 150ms;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-property: background-color, border-color, color, box-shadow, transform;
+    transition-duration: var(--erp-duration-1);
+    transition-timing-function: var(--erp-ease);
 }
 
-/* Respecte la préférence utilisateur "réduire les animations". */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
@@ -112,87 +110,117 @@ a, button, input, select, textarea, [role="button"] {
     }
 }
 
-/* Focus visible : anneau net au clavier (a11y) sans halo à la souris.
-   Remplace l'ancien `outline:none` global qui supprimait le focus des champs
-   ne possédant pas de `focus:ring` Tailwind (régression pour le clavier). */
+/* Focus visible (a11y) */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [role="button"]:focus-visible {
-    outline: 2px solid var(--erpac-primary);
-    outline-offset: 2px;
+    outline: var(--erp-border-width-strong) solid var(--erp-color-focus);
+    outline-offset: 3px;
 }
-/* Souris/tactile : pas de halo sur les champs (le focus clavier reste géré ci-dessus). */
 input:focus:not(:focus-visible),
 select:focus:not(:focus-visible),
 textarea:focus:not(:focus-visible) {
     outline: none;
 }
 
-/* Alpine.js : empêche le flash des éléments masqués (x-cloak) avant l'init JS. */
 [x-cloak] {
     display: none !important;
 }
 
-
-/* Barre d'actions RH (layout robuste sans dépendre de Tailwind responsive) */
+/* Barre d'actions RH */
 .erpac-toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: .75rem;
-    margin-top: .25rem;
+    gap: var(--erp-space-3);
+    margin-top: var(--erp-space-1);
 }
 .erpac-toolbar-group {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: .5rem;
+    gap: var(--erp-space-2);
 }
 .erpac-toolbar-card {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: .5rem;
-    padding: .5rem .625rem;
-    border: 1px solid #e5e7eb;
-    border-radius: .5rem;
-    background: rgba(255,255,255,.75);
+    gap: var(--erp-space-2);
+    padding: var(--erp-space-2) var(--erp-space-3);
+    border: var(--erp-border-width) solid var(--erp-color-border);
+    border-radius: var(--erp-radius-sm);
+    background: rgba(255, 255, 255, .75);
 }
 .erpac-toolbar-label {
-    font-size: .75rem;
-    font-weight: 600;
-    color: #4b5563;
-    margin-right: .125rem;
+    font-size: var(--erp-text-xs);
+    font-weight: var(--erp-weight-semibold);
+    color: var(--erp-neutral-600);
+    margin-right: var(--erp-space-1);
 }
 .erpac-quick-link {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: .25rem .625rem;
-    border-radius: .375rem;
-    border: 1px solid #bfdbfe;
-    background: #eff6ff;
-    color: #1e3a8a;
-    font-size: .75rem;
-    font-weight: 700;
+    padding: var(--erp-space-1) var(--erp-space-3);
+    border-radius: var(--erp-radius-xs);
+    border: var(--erp-border-width) solid var(--erp-info-500);
+    background: var(--erp-info-50);
+    color: var(--erp-info-500);
+    font-size: var(--erp-text-xs);
+    font-weight: var(--erp-weight-bold);
     text-decoration: none;
 }
 .erpac-quick-link:hover {
-    background: #dbeafe;
-    color: #1e3a8a;
+    background: var(--erp-info-50);
+    filter: brightness(.95);
+    color: var(--erp-info-500);
 }
 .erpac-date-input {
-    padding: .45rem .625rem;
-    border: 1px solid #d1d5db;
-    border-radius: .375rem;
-    font-size: .875rem;
+    padding: var(--erp-space-2) var(--erp-space-3);
+    border: var(--erp-border-width) solid var(--erp-color-border-strong);
+    border-radius: var(--erp-radius-xs);
+    font-size: var(--erp-text-sm);
     min-width: 10.5rem;
 }
 @media (max-width: 900px) {
     .erpac-toolbar {
         align-items: flex-start;
     }
+}
+
+/* Cartes applicatives (alias design system) */
+.erpac-card {
+    background: var(--erp-color-surface);
+    border: var(--erp-border-width) solid var(--erp-color-border);
+    border-radius: var(--erp-radius-md);
+    padding: var(--erp-space-5);
+    box-shadow: var(--erp-shadow-sm);
+}
+
+/* Champs de formulaire Tailwind → design system */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+select,
+textarea {
+    border-radius: var(--erp-radius-xs);
+    border-color: var(--erp-color-border-strong);
+}
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="search"]:focus,
+select:focus,
+textarea:focus {
+    border-color: var(--erp-color-action);
 }

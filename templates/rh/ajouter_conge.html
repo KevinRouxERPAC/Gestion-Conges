@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Ajouter un congé - {{ salarie.prenom }} {{ salarie.nom }}{% endblock %}
+{% block page_title %}Ajouter un congé{% endblock %}
+{% block page_subtitle %}{{ salarie.prenom }} {{ salarie.nom }}{% endblock %}
 
 {% block content %}
 <div class="mb-6">
     <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}" class="btn-retour">&larr; Retour au profil</a>
-    <h1 class="text-2xl font-bold text-gray-800 mt-2">Ajouter un congé</h1>
-    <p class="text-gray-500">
-        Pour {{ salarie.prenom }} {{ salarie.nom }}
-        &middot; Solde CP : <strong>{{ solde.solde_restant }}</strong> jour(s)
+    <p class="text-gray-500 mt-2 text-sm">
+        Solde CP : <strong>{{ solde.solde_restant }}</strong> jour(s)
         {% if solde.rtt_total_alloue is defined %}
             &middot; Solde RTT : <strong>{{ solde.rtt_solde_restant|heures_min }}</strong>
         {% endif %}
@@ -22,7 +22,8 @@
                 <label for="date_debut" class="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
                 <input type="date" id="date_debut" name="date_debut" required
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <select id="demi_journee_debut" name="demi_journee_debut"
+                <label for="demi_journee_debut" class="block text-xs text-gray-500 mt-2 mb-1">Précision début</label>
+                <select id="demi_journee_debut" name="demi_journee_debut" aria-label="Précision début de journée"
                         class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
                     <option value="">Journée complète</option>
                     <option value="matin">Matin seulement</option>
@@ -33,7 +34,8 @@
                 <label for="date_fin" class="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
                 <input type="date" id="date_fin" name="date_fin" required
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <select id="demi_journee_fin" name="demi_journee_fin"
+                <label for="demi_journee_fin" class="block text-xs text-gray-500 mt-2 mb-1">Précision fin</label>
+                <select id="demi_journee_fin" name="demi_journee_fin" aria-label="Précision fin de journée"
                         class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
                     <option value="">Journée complète</option>
                     <option value="matin">Matin seulement</option>
@@ -42,7 +44,7 @@
             </div>
         </div>
         <div class="text-sm font-medium hidden" data-conge-jours-ouvrables aria-live="polite"></div>
-        <p class="text-xs text-gray-400">Une demi-journée est obligatoirement posée en RTT.</p>
+        <p class="text-xs text-gray-400">Matin ou après-midi : type RTT obligatoire (les autres types sont désactivés).</p>
 
         <div>
             <label for="type_conge" class="block text-sm font-medium text-gray-700 mb-1">Type de congé</label>
@@ -79,7 +81,7 @@
                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
                    placeholder="Nombre d'heures RTT (ex : 5,25)">
             <p class="text-xs text-gray-400 mt-1">
-                Pour un RTT, indiquez le nombre d'heures consommées par quart d'heure (multiple de 0,25 ; ex. 5,25 = 5 h 15).
+                Pour un RTT, indiquez le nombre d'heures consommées par quart d'heure (multiple de 0,25 ; ex. 5,25 h).
             </p>
         </div>
 

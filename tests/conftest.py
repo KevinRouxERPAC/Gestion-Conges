@@ -7,6 +7,10 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-pytest")
+# IMPORTANT : forcer la BDD de test AVANT create_app(), sinon pytest peut
+# initialiser SQLAlchemy sur gestion_conges.db et drop_all() efface la prod.
+os.environ["SQLALCHEMY_DATABASE_URI"] = "sqlite:///:memory:"
+os.environ["SKIP_DB_CREATE_ALL"] = "1"
 
 from app import create_app
 from models import db as _db
@@ -15,6 +19,9 @@ from models import db as _db
 @pytest.fixture(scope="session")
 def app():
     """Crée l'application Flask pour les tests (SQLite in-memory)."""
+    assert ":memory:" in os.environ.get("SQLALCHEMY_DATABASE_URI", ""), (
+        "SQLALCHEMY_DATABASE_URI doit pointer vers :memory: avant create_app()"
+    )
     app = create_app()
     justificatifs_dir = tempfile.mkdtemp(prefix="justificatifs_test_")
     app.config.update({

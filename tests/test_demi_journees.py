@@ -76,18 +76,21 @@ class TestDemandeAvecDemiJournee:
         assert conge.demi_journee_debut == "apres_midi"
         assert conge.type_conge == "RTT"
 
-    def test_demi_journee_cp_refusee(self, client, db_session, users, parametrage, allocations):
-        """Règle métier : une demi-journée n'est pas autorisée pour un CP."""
+    def test_demi_journee_force_rtt(self, client, db_session, users, parametrage, allocations):
+        """Une demi-journée soumise en CP est automatiquement convertie en RTT."""
         login(client, "jean1", "jean123")
         resp = client.post("/salarie/demander-conge", data={
             "date_debut": "2026-06-01",
             "date_fin": "2026-06-01",
             "type_conge": "CP",
+            "nb_heures_rtt": "4",
             "demi_journee_debut": "apres_midi",
         }, follow_redirects=True)
         assert resp.status_code == 200
-        # Aucun congé ne doit avoir été créé.
-        assert Conge.query.filter_by(user_id=users["salarie"].id).count() == 0
+        conge = Conge.query.filter_by(user_id=users["salarie"].id).first()
+        assert conge is not None
+        assert conge.type_conge == "RTT"
+        assert conge.nb_jours_ouvrables == 0.5
 
     def test_rh_pose_demi_journee_finale(self, client, db_session, users, parametrage, allocations):
         """RH crée un RTT de 5 jours qui finit le matin du vendredi → 4,5 j."""

@@ -253,14 +253,14 @@
             return y + '-' + m + '-' + j;
         }
 
-        // Formate une durée RTT décimale en notation « H h MM » (5,25 → « 5 h 15 »).
+        // Formate une durée RTT décimale en centièmes d'heure (5,25 → « 5,25 h »).
         // Doit rester cohérent avec services/format_heures.py (filtre heures_min).
         function fmtHeuresRtt(h) {
-            h = Math.abs(Number(h) || 0);
-            var tot = Math.round(h * 60);
-            var hh = Math.floor(tot / 60);
-            var mm = tot % 60;
-            return mm === 0 ? (hh + ' h') : (hh + ' h ' + String(mm).padStart(2, '0'));
+            var v = Number(h) || 0;
+            var sign = v < 0 ? '-' : '';
+            var abs = Math.abs(v);
+            var txt = abs.toFixed(2).replace('.', ',');
+            return sign + txt + ' h';
         }
 
         function toCalendarEvent(e) {

@@ -1,12 +1,13 @@
 """Calcul RTT hebdomadaire tenant compte des absences (points 7 + 9).
 
-Règle métier : le RTT provient des heures travaillées au-delà d'un seuil hebdomadaire
-(par défaut 35 h). Une absence dans la semaine (congé, arrêt maladie...) ne doit PAS
-faire perdre de RTT au salarié : on réduit donc le seuil au prorata des jours d'absence.
+Règle métier : le RTT provient uniquement des heures travaillées au-delà d'un seuil
+hebdomadaire (par défaut 34,65 h). Une semaine à 35 h nominale produit donc
+0,35 h de RTT (35 − 34,65). Une absence dans la semaine ne doit PAS faire perdre de
+RTT au salarié : on réduit le seuil au prorata des jours d'absence.
 
-Exemple : seuil 35 h, 1 jour d'absence (7 h) -> seuil ajusté 28 h. Si le salarié a
-travaillé 28 h cette semaine-là, RTT = max(0, 28 - 28) = 0 (aucun RTT enlevé). S'il a
-travaillé 31 h, RTT = 3 h.
+Exemple : seuil 34,65 h, 1 jour d'absence (7 h) -> seuil ajusté 27,65 h. Si le
+salarié a travaillé 28 h cette semaine-là, RTT = 0,35 h (équivalent d'une semaine
+pleine à 35 h).
 
 Le module expose :
 - `calculer_rtt_semaine(...)` : fonction pure, unitairement testable.
@@ -26,8 +27,8 @@ from models.heures_hebdo import HeuresHebdo
 from models.parametrage import AllocationConge, ParametrageAnnuel
 from services.calcul_jours import get_dates_feries_set, _est_ouvrable
 
-# Valeurs par défaut (modifiables ultérieurement via paramétrage si besoin).
-SEUIL_HEBDO_DEFAUT = 35
+# Valeurs par défaut (modifiables via paramétrage annuel).
+SEUIL_HEBDO_DEFAUT = 34.65
 HEURES_PAR_JOUR_DEFAUT = 7
 
 
@@ -54,7 +55,10 @@ def calculer_rtt_semaine(
     """
     seuil_ajuste = max(0.0, float(seuil_hebdo) - float(jours_absence) * float(heures_par_jour))
     surplus = max(0.0, float(heures_reelles) - seuil_ajuste)
-    return surplus * float(coef)
+    # Arrondi à 2 décimales pour neutraliser les artefacts du flottant
+    # (ex. 39 - 34.65 = 4.350000000000001) ; cohérent avec le round(total, 2)
+    # appliqué par calculer_rtt_hebdo sur l'agrégat.
+    return round(surplus * float(coef), 2)
 
 
 def _coef_param(param: ParametrageAnnuel) -> float:
@@ -67,7 +71,7 @@ def seuil_hebdo_param(param: ParametrageAnnuel | None) -> float:
     """Seuil hebdomadaire RTT depuis le paramétrage actif, sinon constante par défaut."""
     if param is not None:
         val = getattr(param, "rtt_seuil_hebdo", None)
-        if val is not None and int(val) > 0:
+        if val is not None and float(val) > 0:
             return float(val)
     return float(SEUIL_HEBDO_DEFAUT)
 
@@ -79,18 +83,6 @@ def heures_par_jour_absence_param(param: ParametrageAnnuel | None) -> float:
         if val is not None and int(val) > 0:
             return float(val)
     return float(HEURES_PAR_JOUR_DEFAUT)
-
-
-def rtt_acquis_par_semaine_param(param: ParametrageAnnuel | None) -> float:
-    """RTT acquis automatiquement par semaine (ex. 0,35 h). 0 si non configuré."""
-    if param is not None:
-        val = getattr(param, "rtt_acquis_par_semaine", None)
-        if val is not None:
-            try:
-                return max(0.0, float(val))
-            except (TypeError, ValueError):
-                return 0.0
-    return 0.0
 
 
 def types_absence_exclus_param(param: ParametrageAnnuel | None) -> set[str]:
@@ -107,10 +99,14 @@ def types_absence_exclus_param(param: ParametrageAnnuel | None) -> set[str]:
     return {t.strip() for t in raw.split(",") if t.strip()}
 
 
-def _semaines_exercice(param: ParametrageAnnuel) -> list:
-    """Liste des lundis (semaines ISO) couvrant l'exercice [debut, fin]."""
+def _semaines_exercice(param: ParametrageAnnuel, jusqu_a: date | None = None) -> list:
+    """Liste des lundis (semaines ISO) couvrant l'exercice, borné à ``jusqu_a``.
+
+    Par défaut, le calcul s'arrête à aujourd'hui pour éviter d'anticiper des RTT
+    sur des semaines futures de l'exercice.
+    """
     lundi = _lundi(param.debut_exercice)
-    fin = param.fin_exercice
+    fin = min(param.fin_exercice, jusqu_a or date.today())
     semaines = []
     while lundi <= fin:
         semaines.append(lundi)
@@ -206,23 +202,20 @@ def jours_absence_semaine(user_id: int, lundi: date, exclus: set[str] | None = N
     return total
 
 
-def calculer_rtt_hebdo(user_id: int, param: ParametrageAnnuel) -> RttHebdoResult:
+def calculer_rtt_hebdo(
+    user_id: int,
+    param: ParametrageAnnuel,
+    jusqu_a: date | None = None,
+) -> RttHebdoResult:
     """Agrège le RTT hebdomadaire d'un salarié sur l'exercice.
 
-    Deux composantes, additionnées par semaine :
-    - Base automatique : ``rtt_acquis_par_semaine`` (ex. 0,35 h) acquis pour chaque
-      semaine de l'exercice, proratisé selon les absences (semaine entièrement en
-      congé → 0). Indépendant de toute saisie d'heures.
-    - Heures supplémentaires : surplus des heures travaillées (HeuresHebdo)
-      au-delà du seuil hebdomadaire ajusté.
-
-    Si aucune base n'est configurée (0), on conserve le comportement historique :
-    seules les semaines avec des heures saisies génèrent du RTT.
+    Le RTT provient uniquement du surplus d'heures travaillées (HeuresHebdo)
+    au-delà du seuil hebdomadaire ajusté selon les absences.
     """
     seuil = seuil_hebdo_param(param)
     heures_jour = heures_par_jour_absence_param(param)
     coef = _coef_param(param)
-    base_hebdo = rtt_acquis_par_semaine_param(param)
+    fin_calcul = min(param.fin_exercice, jusqu_a or date.today())
 
     # Absences par semaine (lundi -> total jours d'absence ouvrables).
     absences_jour = _absence_fraction_par_jour(user_id, param)
@@ -235,26 +228,20 @@ def calculer_rtt_hebdo(user_id: int, param: ParametrageAnnuel) -> RttHebdoResult
         HeuresHebdo.query.filter(
             HeuresHebdo.user_id == user_id,
             HeuresHebdo.date_lundi >= _lundi(param.debut_exercice),
-            HeuresHebdo.date_lundi <= param.fin_exercice,
+            HeuresHebdo.date_lundi <= fin_calcul,
         ).all()
     )
     heures_par_lundi = {r.date_lundi: (r.heures_travaillees or 0) for r in rows}
 
-    # Avec une base hebdomadaire, on parcourt toutes les semaines de l'exercice
-    # (acquisition automatique). Sinon, uniquement les semaines saisies.
-    if base_hebdo > 0:
-        semaines = _semaines_exercice(param)
-    else:
-        semaines = sorted(heures_par_lundi.keys())
+    # Semaines avec heures saisies ou absences (pour le détail UI).
+    semaines = sorted(
+        s for s in (set(heures_par_lundi.keys()) | set(absences_semaine.keys())) if s <= fin_calcul
+    )
 
     total = 0.0
     detail = []
     for lundi in semaines:
         jours_absence = absences_semaine.get(lundi, 0.0)
-        # Présence de la semaine sur 5 jours ouvrables de référence, bornée [0,1].
-        presence = max(0.0, min(1.0, (5.0 - jours_absence) / 5.0))
-        base = base_hebdo * presence
-
         heures = heures_par_lundi.get(lundi)
         surplus = 0.0
         if heures is not None:
@@ -266,13 +253,12 @@ def calculer_rtt_hebdo(user_id: int, param: ParametrageAnnuel) -> RttHebdoResult
                 coef=coef,
             )
 
-        rtt = base + surplus
+        rtt = surplus
         total += rtt
         detail.append({
             "lundi": lundi,
             "heures": heures or 0,
             "jours_absence": jours_absence,
-            "base": round(base, 2),
             "surplus": surplus,
             "rtt": rtt,
         })

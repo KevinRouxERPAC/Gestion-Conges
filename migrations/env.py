@@ -79,6 +79,14 @@ def run_migrations_online():
     and associate a connection with the context.
 
     """
+    try:
+        if current_app and not current_app.config.get("TESTING"):
+            from services.db_backup import sauvegarder_base
+            info = sauvegarder_base("pre-migration", forcer=True)
+            if info:
+                logger.info("Sauvegarde pre-migration : %s", info.chemin.name)
+    except Exception:
+        logger.exception("Sauvegarde pre-migration echouee — migration continue.")
 
     # this callback is used to prevent an auto-migration from being generated
     # when there are no changes to the schema

@@ -10,12 +10,10 @@ class ParametrageAnnuel(db.Model):
     jours_conges_defaut = db.Column(db.Integer, nullable=False, default=25)
 
     # RTT hebdomadaire (cf. services/rtt_hebdo.py).
-    rtt_seuil_hebdo = db.Column(db.Integer, nullable=False, default=35)
+    rtt_seuil_hebdo = db.Column(db.Numeric(5, 2, asdecimal=False), nullable=False, default=34.65)
     rtt_heures_par_jour_absence = db.Column(db.Integer, nullable=False, default=7)
     rtt_coef_surplus = db.Column(db.Float, nullable=False, default=0.0)
-    # RTT acquis automatiquement par semaine travaillée (ex. 0,35 h : une semaine
-    # de 35 h nominale correspond à 34,65 h effectives). Proratisé selon les
-    # absences. 0 = pas d'acquisition de base (seules les heures sup comptent).
+    # Conservé pour compatibilité schéma ; non utilisé (RTT = surplus d'heures uniquement).
     rtt_acquis_par_semaine = db.Column(db.Float, nullable=False, default=0.0, server_default="0")
     # Types d'absence exclus de la réduction du seuil hebdomadaire RTT (liste de
     # codes séparés par des virgules, ex. "Maladie,Sans solde"). Par défaut, tous

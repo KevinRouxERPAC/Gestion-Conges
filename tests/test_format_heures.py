@@ -1,31 +1,31 @@
-"""Tests de la saisie RTT au quart d'heure et de l'affichage « H h MM »."""
+"""Tests de la saisie RTT au quart d'heure et de l'affichage en centièmes d'heure."""
 from models.conge import Conge
-from services.format_heures import format_heures_min, est_multiple_quart
+from services.format_heures import format_heures_cent, format_heures_min, est_multiple_quart
 from tests.conftest import login
 
 
 class TestFormatHeuresMin:
     def test_heure_pleine(self):
-        assert format_heures_min(7) == "7 h"
-        assert format_heures_min(7.0) == "7 h"
+        assert format_heures_min(7) == "7,00 h"
+        assert format_heures_min(7.0) == "7,00 h"
 
     def test_quarts(self):
-        assert format_heures_min(5.25) == "5 h 15"
-        assert format_heures_min(5.5) == "5 h 30"
-        assert format_heures_min(5.75) == "5 h 45"
-        assert format_heures_min(0.25) == "0 h 15"
+        assert format_heures_min(5.25) == "5,25 h"
+        assert format_heures_min(5.5) == "5,50 h"
+        assert format_heures_min(5.75) == "5,75 h"
+        assert format_heures_min(0.25) == "0,25 h"
 
     def test_zero_et_none(self):
-        assert format_heures_min(0) == "0 h"
-        assert format_heures_min(None) == "0 h"
+        assert format_heures_min(0) == "0,00 h"
+        assert format_heures_min(None) == "0,00 h"
 
     def test_negatif(self):
         # Report de déficit RTT : le signe est conservé.
-        assert format_heures_min(-2.5) == "-2 h 30"
+        assert format_heures_min(-2.5) == "-2,50 h"
 
-    def test_decimale_non_quart_arrondie_minute(self):
-        # 16,1 h = 16 h 06 (acquisition hebdomadaire décimale)
-        assert format_heures_min(16.1) == "16 h 06"
+    def test_decimale_acquisition_hebdo(self):
+        assert format_heures_min(16.1) == "16,10 h"
+        assert format_heures_cent(16.1) == "16,10"
 
 
 class TestEstMultipleQuart:

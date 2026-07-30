@@ -1,3 +1,11 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  h1, h2, h3, h4 {
+    font-family: var(--erp-font-display);
+    letter-spacing: var(--erp-tracking-tight);
+    line-height: var(--erp-leading-tight);
+  }
+}
