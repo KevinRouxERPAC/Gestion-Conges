@@ -17,6 +17,8 @@ const PRECACHE_URLS = [
   '/static/img/logo_complet_vert.png',
   '/static/img/icon-192.png',
   '/static/img/icon-512.png',
+  '/static/css/erpac-tokens.css',
+  '/static/css/erpac-composants.css',
   '/static/css/tailwind.css',
   '/static/css/custom.css',
   '/static/vendor/alpine.min.js',
@@ -69,6 +71,7 @@ function isCacheable(request) {
   if (url.pathname.startsWith('/api/')) return false;
   if (url.pathname.startsWith('/notifications/')) return false;
   if (url.pathname.startsWith('/auth/')) return false;
+  if (isHtmlRequest(request)) return false;
   return true;
 }
 
@@ -112,7 +115,7 @@ self.addEventListener('fetch', function (event) {
   if (url.origin !== self.location.origin) return;
 
   if (isHtmlRequest(request)) {
-    event.respondWith(networkFirst(request));
+    event.respondWith(fetch(request).catch(function () { return caches.match('/static/offline.html'); }));
   } else if (isStaticAsset(url)) {
     event.respondWith(staleWhileRevalidate(request));
   }

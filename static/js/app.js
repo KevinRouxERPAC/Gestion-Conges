@@ -18,18 +18,55 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // CSP : confirmation de soumission via data-confirm (remplace onsubmit="return confirm(...)").
-    // Capture-phase : s'exécute avant l'anti-double-soumission ; si l'utilisateur annule,
-    // stopPropagation empêche aussi la désactivation inutile du bouton.
+    // Confirmation ERPAC accessible pour les actions destructives ou longues.
+    var confirmDialog = document.getElementById('erpac-confirm');
+    var confirmMessage = document.getElementById('erpac-confirm-message');
+    var confirmPanel = confirmDialog ? confirmDialog.querySelector('[role="dialog"]') : null;
+    var confirmForm = null;
+    var confirmTrigger = null;
+    function closeConfirm() {
+        if (!confirmDialog) return;
+        confirmDialog.hidden = true;
+        confirmDialog.setAttribute('aria-hidden', 'true');
+        if (confirmTrigger) confirmTrigger.focus();
+        confirmForm = null;
+    }
+    function openConfirm(form) {
+        if (!confirmDialog || !confirmPanel) return false;
+        confirmForm = form;
+        confirmTrigger = document.activeElement;
+        confirmMessage.textContent = form.getAttribute('data-confirm') || 'Confirmer cette action ?';
+        confirmDialog.hidden = false;
+        confirmDialog.setAttribute('aria-hidden', 'false');
+        confirmPanel.focus();
+        return true;
+    }
     document.addEventListener('submit', function(e) {
         var form = e.target;
-        if (form && form.hasAttribute && form.hasAttribute('data-confirm')) {
-            if (!window.confirm(form.getAttribute('data-confirm'))) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-        }
+        if (!form || !form.hasAttribute || !form.hasAttribute('data-confirm') || form.dataset.confirmed === 'true') return;
+        e.preventDefault();
+        e.stopPropagation();
+        openConfirm(form);
     }, true);
+    if (confirmDialog) {
+        confirmDialog.querySelector('[data-confirm-ok]').addEventListener('click', function() {
+            if (!confirmForm) return;
+            confirmForm.dataset.confirmed = 'true';
+            closeConfirm();
+            confirmForm.requestSubmit();
+        });
+        confirmDialog.querySelectorAll('[data-confirm-cancel]').forEach(function(el) { el.addEventListener('click', closeConfirm); });
+        confirmDialog.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); return; }
+            if (e.key !== 'Tab') return;
+            var focusables = confirmDialog.querySelectorAll('button:not([disabled])');
+            if (!focusables.length) return;
+            var first = focusables[0];
+            var last = focusables[focusables.length - 1];
+            if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        });
+    }
 
     // CSP : navigation de ligne via data-row-href (remplace onclick/onkeydown inline sur <tr>).
     // Un clic sur un lien/bouton interne (cellule "Actions") ne déclenche pas la navigation.
@@ -40,11 +77,17 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = row.getAttribute('data-row-href');
     });
     document.addEventListener('keydown', function(e) {
-        if (e.key !== 'Enter') return;
+        if (e.key !== 'Enter' && e.key !== ' ') return;
         var row = e.target.closest('[data-row-href]');
         if (row && e.target === row) {
+            e.preventDefault();
             window.location.href = row.getAttribute('data-row-href');
         }
+    });
+
+    document.querySelectorAll('[data-progress]').forEach(function (bar) {
+        var value = Math.max(0, Math.min(100, Number(bar.getAttribute('data-progress')) || 0));
+        bar.style.setProperty('--erp-progress', value + '%');
     });
 
     // Anti double-soumission : désactive le bouton après le premier clic
@@ -88,8 +131,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (prevCount !== null && c > prevCount) {
                         var toast = document.createElement('div');
                         toast.setAttribute('role', 'alert');
-                        toast.style.cssText = 'position:fixed; top:80px; left:50%; transform:translateX(-50%); z-index:99999; background:#008C3A; color:#fff; padding:14px 24px; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.2); display:flex; align-items:center; gap:12px; max-width:90%; font-size:15px;';
-                        toast.innerHTML = '<a href="/notifications/" style="color:inherit; text-decoration:underline; font-weight:600;">Nouvelle(s) notification(s) – cliquer pour voir</a><button type="button" style="background:transparent; border:none; color:rgba(255,255,255,0.9); font-size:22px; line-height:1; cursor:pointer; padding:0 0 0 8px;" aria-label="Fermer">&times;</button>';
+                        toast.className = 'erpac-live-toast';
+                        toast.innerHTML = '<a href="/notifications/">Nouvelle(s) notification(s) – cliquer pour voir</a><button type="button" aria-label="Fermer">&times;</button>';
                         // CSP : pas de onclick inline ; on attache l'écouteur de fermeture programmatiquement.
                         var tClose = toast.querySelector('button');
                         if (tClose) { tClose.addEventListener('click', function() { toast.remove(); }); }
@@ -102,8 +145,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 })
                 .catch(function() {});
         }
+        var pollTimer;
+        function schedulePoll() {
+            if (pollTimer) clearTimeout(pollTimer);
+            if (document.visibilityState === 'visible') {
+                pollTimer = setTimeout(function () { pollNotif(); schedulePoll(); }, 12000);
+            }
+        }
         pollNotif();
-        setInterval(pollNotif, 12000);
+        schedulePoll();
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'visible') { pollNotif(); schedulePoll(); }
+        });
     }
 });
 

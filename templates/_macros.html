@@ -11,11 +11,11 @@
 {# Badge de statut de demande de congé (cohérent partout). #}
 {% macro badge_statut(statut, motif_refus=None) -%}
     {%- set classes = {
-        'valide': 'bg-green-100 text-green-800',
-        'en_attente_responsable': 'bg-amber-100 text-amber-800',
-        'en_attente_rh': 'bg-amber-100 text-amber-800',
-        'refuse': 'bg-red-100 text-red-800',
-        'annule': 'bg-gray-100 text-gray-600',
+        'valide': 'erp-badge--success',
+        'en_attente_responsable': 'erp-badge--warning',
+        'en_attente_rh': 'erp-badge--warning',
+        'refuse': 'erp-badge--danger',
+        'annule': 'erp-badge--neutral',
     } -%}
     {%- set libelles = {
         'valide': 'Validé',
@@ -24,7 +24,7 @@
         'refuse': 'Refusé',
         'annule': 'Annulé',
     } -%}
-    <span class="px-3 py-1 rounded-full text-xs font-medium {{ classes.get(statut, 'bg-gray-100 text-gray-800') }}"
+    <span class="erp-badge {{ classes.get(statut, 'erp-badge--neutral') }}"
           {%- if motif_refus and statut == 'refuse' %} title="{{ motif_refus }}"{% endif %}>
         {{ libelles.get(statut, statut) }}
     </span>
@@ -33,20 +33,20 @@
 {# Badge de type de congé. #}
 {% macro badge_type_conge(type_conge) -%}
     {%- set classes = {
-        'CP': 'bg-erpac-100 text-erpac-800',
-        'Anciennete': 'bg-green-100 text-green-800',
-        'RTT': 'bg-purple-100 text-purple-800',
-        'Sans solde': 'bg-yellow-100 text-yellow-900',
-        'Maladie': 'bg-red-100 text-red-800',
+        'CP': 'erp-badge--brand',
+        'Anciennete': 'erp-badge--success',
+        'RTT': 'erp-badge--info',
+        'Sans solde': 'erp-badge--warning',
+        'Maladie': 'erp-badge--danger',
     } -%}
     {%- set libelles = {
         'CP': 'Congés',
         'Anciennete': 'Ancienneté',
     } -%}
     {%- if type_conge and type_conge.startswith('EXC:') %}
-        <span class="px-3 py-1 rounded-full text-xs font-medium bg-indigo-100 text-indigo-800">{{ type_conge[4:] | libelle_exceptionnel }}</span>
+        <span class="erp-badge erp-badge--info">{{ type_conge[4:] | libelle_exceptionnel }}</span>
     {%- else %}
-        <span class="px-3 py-1 rounded-full text-xs font-medium {{ classes.get(type_conge, 'bg-gray-100 text-gray-800') }}">
+        <span class="erp-badge {{ classes.get(type_conge, 'erp-badge--neutral') }}">
             {{ libelles.get(type_conge, type_conge or '?') }}
         </span>
     {%- endif %}

@@ -10,7 +10,7 @@
     <a href="#file-validation" class="group rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-soft ring-1 ring-amber-100 transition hover:ring-amber-300">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-amber-800">À valider</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-amber-700">{{ demandes_attente|length }}</div>
         <div class="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">Traiter les demandes <svg class="h-3 w-3 transition group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
@@ -19,7 +19,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">À valider</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-slate-800">0</div>
         <div class="mt-1 text-xs text-slate-400">aucune demande en attente</div>
@@ -29,7 +29,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Mon solde CP</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold {% if solde.solde_restant <= 5 %}text-red-600{% elif solde.solde_restant <= 10 %}text-orange-600{% else %}text-erpac-primary{% endif %}">{{ solde.solde_restant }} <span class="text-base font-medium text-slate-400">j</span></div>
         <div class="mt-1 text-xs text-slate-400">sur {{ solde.total_alloue }} j · consommé {{ solde.total_consomme }}</div>
@@ -38,7 +38,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Mon RTT</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-purple-50 text-purple-600"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-purple-50 text-purple-600"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-purple-600">{{ solde.rtt_solde_restant|default(0)|heures_min }}</div>
         <div class="mt-1 text-xs text-slate-400">sur {{ solde.rtt_total_alloue|default(0)|heures_min }}</div>
@@ -47,7 +47,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Mon équipe</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-slate-100 text-slate-500"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-slate-800">{{ subordonnes|length if subordonnes else 0 }}</div>
         <div class="mt-1 text-xs text-slate-400">subordonné(s)</div>
@@ -59,7 +59,7 @@
 <div id="file-validation" class="mt-6 overflow-hidden rounded-xl border border-amber-200 bg-white shadow-soft" x-data="bulkCongesResp()">
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-6 py-4">
         <h2 class="flex items-center gap-2 text-sm font-semibold text-amber-900">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             Demandes en attente ({{ demandes_attente|length }})
         </h2>
         <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -78,7 +78,7 @@
         </div>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="erp-table erp-table--hover">
             <thead class="bg-slate-50">
                 <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
                     <th class="w-10 px-6 py-3">

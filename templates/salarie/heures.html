@@ -9,19 +9,19 @@
 {% endif %}
 
 {% if not parametrage %}
-<div class="bg-white rounded-xl shadow p-6 text-gray-700">Aucun exercice actif configuré.</div>
+<div class="erp-card p-6">Aucun exercice actif configuré.</div>
 {% else %}
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-  <div class="bg-white rounded-xl shadow p-6">
+  <div class="erp-card p-6">
     <div class="text-sm font-medium text-gray-500">Total heures travaillées</div>
     <div class="text-3xl font-bold text-gray-800 mt-1">{{ total_heures | heures_min }}</div>
   </div>
-  <div class="bg-white rounded-xl shadow p-6">
+  <div class="erp-card p-6">
     <div class="text-sm font-medium text-gray-500">RTT acquis (calculé)</div>
     <div class="text-3xl font-bold text-purple-900 mt-1">{{ (rtt_calc.rtt_calculee if rtt_calc else 0) | heures_min }}</div>
     <p class="text-xs text-gray-400 mt-1">Somme des surplus hebdomadaires sur l'exercice.</p>
   </div>
-  <div class="bg-white rounded-xl shadow p-6">
+  <div class="erp-card p-6">
     <div class="text-sm font-medium text-gray-500">Droit RTT (exercice)</div>
     <div class="text-3xl font-bold text-gray-800 mt-1">
       {{ (allocation.rtt_heures_allouees if allocation else 0) | heures_min }}
@@ -32,7 +32,7 @@
   </div>
 </div>
 
-<div class="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-8 text-sm text-purple-900">
+<div class="erp-alert erp-alert--info mb-8">
   Le RTT est calculé à partir du <strong>surplus d'heures travaillées</strong>
   au-delà du seuil hebdomadaire
   {% if parametrage.rtt_seuil_hebdo is not none %}
@@ -43,13 +43,13 @@
   Une absence réduit le seuil de la semaine pour ne pas vous pénaliser.
 </div>
 
-<div class="bg-white rounded-xl shadow overflow-hidden">
+<div class="erp-card overflow-hidden p-0">
   <div class="px-6 py-4 border-b">
-    <h2 class="text-lg font-semibold text-gray-800">Détail par semaine</h2>
+    <h2 class="erp-h3">Détail par semaine</h2>
   </div>
   {% if detail %}
   <div class="overflow-x-auto">
-<table class="w-full">
+<table class="erp-table erp-table--hover">
     <thead class="bg-gray-50">
       <tr>
         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Semaine (lundi)</th>

@@ -1,109 +1,114 @@
 {% extends "base.html" %}
 {% block title %}{% if mode == 'create' %}Nouveau salarié{% else %}Modifier {{ salarie.prenom }} {{ salarie.nom }}{% endif %}{% endblock %}
+{% block page_title %}{% if mode == 'create' %}Nouveau salarié{% else %}Modifier le salarié{% endif %}{% endblock %}
+{% block page_subtitle %}{% if mode == 'edit' %}Modification de {{ salarie.prenom }} {{ salarie.nom }}{% else %}Création d’un compte salarié{% endif %}{% endblock %}
 
 {% block content %}
 <div class="mb-6">
     <a href="{{ url_for('rh.liste_salaries') }}" class="btn-retour">&larr; Retour à la liste des salariés</a>
-    <h1 class="text-2xl font-bold text-gray-800 mt-2">{% if mode == 'create' %}Nouveau salarié{% else %}Modifier le salarié{% endif %}</h1>
-    <p class="text-gray-500">{% if mode == 'edit' %}Modification de {{ salarie.prenom }} {{ salarie.nom }}{% else %}Création d'un compte salarié{% endif %}</p>
+    <h1 class="erp-h2 mt-2">{% if mode == 'create' %}Nouveau salarié{% else %}Modifier le salarié{% endif %}</h1>
+    <p class="erp-lead">{% if mode == 'edit' %}Modification de {{ salarie.prenom }} {{ salarie.nom }}{% else %}Création d'un compte salarié{% endif %}</p>
 </div>
 
-<div class="bg-white rounded-xl shadow p-8 max-w-2xl">
-    <form method="POST" action="{% if mode == 'create' %}{{ url_for('rh.creer_salarie') }}{% else %}{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}{% endif %}" class="space-y-6">
+<div class="erp-card max-w-2xl p-8">
+    <form method="POST" action="{% if mode == 'create' %}{{ url_for('rh.creer_salarie') }}{% else %}{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}{% endif %}" class="space-y-8">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="nom" class="block text-sm font-medium text-gray-700 mb-1">Nom</label>
-                <input type="text" id="nom" name="nom" required
-                       value="{{ request.form.nom if request.form.nom is defined and request.form.nom else (salarie.nom if salarie else '') }}"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-            </div>
-            <div>
-                <label for="prenom" class="block text-sm font-medium text-gray-700 mb-1">Prénom</label>
-                <input type="text" id="prenom" name="prenom" required
-                       value="{{ request.form.prenom if request.form.prenom is defined and request.form.prenom else (salarie.prenom if salarie else '') }}"
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-            </div>
-        </div>
-
-        <div>
-            <label for="identifiant" class="block text-sm font-medium text-gray-700 mb-1">Identifiant (connexion)</label>
-            <input type="text" id="identifiant" name="identifiant" required
-                   value="{{ request.form.identifiant if request.form.identifiant is defined and request.form.identifiant else (salarie.identifiant if salarie else '') }}"
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   {% if mode == 'edit' %}placeholder="Identifiant actuel"{% endif %}>
-            {% if mode == 'edit' %}<p class="text-xs text-gray-500 mt-1">Modifier uniquement si vous souhaitez changer l'identifiant de connexion.</p>{% endif %}
-        </div>
-
-        <div>
-            <label for="matricule" class="block text-sm font-medium text-gray-700 mb-1">Matricule ERP (optionnel)</label>
-            <input type="text" id="matricule" name="matricule" maxlength="20"
-                   value="{{ request.form.matricule if request.form.matricule is defined and request.form.matricule else (salarie.matricule if salarie and salarie.matricule else '') }}"
-                   placeholder="ex. 000024 (6 chiffres)"
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary font-mono">
-            <p class="text-xs text-gray-500 mt-1">
-                Code salarié Cegid PMI (<code class="bg-gray-100 px-1 rounded">MAKTCODE</code>) utilisé pour l'import des heures et le calcul RTT.
-                Laissez vide si non relié à l'ERP.
-            </p>
-        </div>
-
-        <div>
-            <label for="mot_de_passe" class="block text-sm font-medium text-gray-700 mb-1">Mot de passe {% if mode == 'edit' %}(laisser vide pour ne pas changer){% else %}<span class="text-red-600">*</span>{% endif %}</label>
-            <input type="password" id="mot_de_passe" name="mot_de_passe" {% if mode == 'create' %}required{% endif %}
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   placeholder="{% if mode == 'edit' %}Laisser vide pour conserver{% else %}Mot de passe{% endif %}">
-        </div>
 
         {% set role_sel = request.form.role if request.form.role else (salarie.role if salarie else 'salarie') %}
         {% set responsable_sel = request.form.responsable_id if request.form.responsable_id is defined else (salarie.responsable_id|string if salarie and salarie.responsable_id else '') %}
         {% set date_embauche_val = request.form.date_embauche if request.form.date_embauche else (salarie.date_embauche.strftime('%Y-%m-%d') if salarie and salarie.date_embauche else '') %}
-        <div>
-            <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Rôle</label>
-            <select id="role" name="role"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <option value="salarie" {% if role_sel == 'salarie' %}selected{% endif %}>Salarié</option>
-                <option value="rh" {% if role_sel == 'rh' %}selected{% endif %}>RH</option>
-                <option value="responsable" {% if role_sel == 'responsable' %}selected{% endif %}>Responsable</option>
-            </select>
-        </div>
-        <div>
-            <label for="responsable_id" class="block text-sm font-medium text-gray-700 mb-1">Responsable hiérarchique (optionnel)</label>
-            <select id="responsable_id" name="responsable_id" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <option value="">Aucun</option>
-                {% for r in responsables|default([]) %}
-                <option value="{{ r.id }}" {% if responsable_sel == r.id|string %}selected{% endif %}>{{ r.prenom }} {{ r.nom }} ({{ r.role }})</option>
-                {% endfor %}
-            </select>
-            <p class="text-xs text-gray-500 mt-1">Pour les salariés : demande de congé envoyée d'abord à ce responsable (niveau 1), puis aux RH.</p>
-        </div>
 
-        <div>
-            <label for="date_embauche" class="block text-sm font-medium text-gray-700 mb-1">Date d'embauche (optionnel)</label>
-            <input type="date" id="date_embauche" name="date_embauche"
-                   value="{{ date_embauche_val }}"
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-        </div>
+        <fieldset class="space-y-4">
+            <legend class="erp-h3 text-base">Identité</legend>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label for="nom" class="erp-label">Nom</label>
+                    <input type="text" id="nom" name="nom" required
+                           value="{{ request.form.nom if request.form.nom is defined and request.form.nom else (salarie.nom if salarie else '') }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="prenom" class="erp-label">Prénom</label>
+                    <input type="text" id="prenom" name="prenom" required
+                           value="{{ request.form.prenom if request.form.prenom is defined and request.form.prenom else (salarie.prenom if salarie else '') }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="identifiant" class="erp-label">Identifiant (connexion)</label>
+                    <input type="text" id="identifiant" name="identifiant" required
+                           value="{{ request.form.identifiant if request.form.identifiant is defined and request.form.identifiant else (salarie.identifiant if salarie else '') }}"
+                           class="erp-input"
+                           {% if mode == 'edit' %}placeholder="Identifiant actuel"{% endif %}>
+                    {% if mode == 'edit' %}<p class="erp-hint mt-1">Modifier uniquement pour changer l'identifiant de connexion.</p>{% endif %}
+                </div>
+                <div>
+                    <label for="matricule" class="erp-label">Matricule ERP (optionnel)</label>
+                    <input type="text" id="matricule" name="matricule" maxlength="20"
+                           value="{{ request.form.matricule if request.form.matricule is defined and request.form.matricule else (salarie.matricule if salarie and salarie.matricule else '') }}"
+                           placeholder="ex. 000024 (6 chiffres)"
+                           class="erp-input font-mono">
+                    <p class="erp-hint mt-1">
+                        Code Cegid PMI (<code class="bg-gray-100 px-1 rounded">MAKTCODE</code>). Vide si non relié à l'ERP.
+                    </p>
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset class="space-y-4">
+            <legend class="erp-h3 text-base">Accès et organisation</legend>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label for="mot_de_passe" class="erp-label">Mot de passe {% if mode == 'edit' %}(laisser vide pour ne pas changer){% else %}<span class="text-red-600">*</span>{% endif %}</label>
+                    <input type="password" id="mot_de_passe" name="mot_de_passe" {% if mode == 'create' %}required{% endif %}
+                           class="erp-input"
+                           placeholder="{% if mode == 'edit' %}Laisser vide pour conserver{% else %}Mot de passe{% endif %}">
+                </div>
+                <div>
+                    <label for="role" class="erp-label">Rôle</label>
+                    <select id="role" name="role" class="erp-select">
+                        <option value="salarie" {% if role_sel == 'salarie' %}selected{% endif %}>Salarié</option>
+                        <option value="rh" {% if role_sel == 'rh' %}selected{% endif %}>RH</option>
+                        <option value="responsable" {% if role_sel == 'responsable' %}selected{% endif %}>Responsable</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="responsable_id" class="erp-label">Responsable hiérarchique (optionnel)</label>
+                    <select id="responsable_id" name="responsable_id" class="erp-select">
+                        <option value="">Aucun</option>
+                        {% for r in responsables|default([]) %}
+                        <option value="{{ r.id }}" {% if responsable_sel == r.id|string %}selected{% endif %}>{{ r.prenom }} {{ r.nom }} ({{ r.role }})</option>
+                        {% endfor %}
+                    </select>
+                    <p class="erp-hint mt-1">Pour les salariés : validation niveau 1 avant les RH.</p>
+                </div>
+                <div>
+                    <label for="date_embauche" class="erp-label">Date d'embauche (optionnel)</label>
+                    <input type="date" id="date_embauche" name="date_embauche"
+                           value="{{ date_embauche_val }}"
+                           class="erp-input">
+                </div>
+            </div>
+        </fieldset>
 
         {% if mode == 'edit' %}
         {% set actif_sel = request.form.actif if request.form.actif else ('on' if salarie.actif else 'off') %}
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Statut du compte</label>
-            <select name="actif" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <option value="on" {% if actif_sel == 'on' %}selected{% endif %}>Actif</option>
-                <option value="off" {% if actif_sel == 'off' %}selected{% endif %}>Inactif</option>
-            </select>
-        </div>
+        <fieldset class="space-y-4">
+            <legend class="erp-h3 text-base">Statut du compte</legend>
+            <div class="max-w-xs">
+                <label for="actif" class="erp-label">Compte</label>
+                <select id="actif" name="actif" class="erp-select">
+                    <option value="on" {% if actif_sel == 'on' %}selected{% endif %}>Actif</option>
+                    <option value="off" {% if actif_sel == 'off' %}selected{% endif %}>Inactif</option>
+                </select>
+            </div>
+        </fieldset>
         {% endif %}
 
-        <div class="flex space-x-4">
-            <button type="submit"
-                    class="bg-erpac-primary hover:bg-erpac-dark text-white font-semibold py-3 px-6 rounded-lg transition shadow">
+        <div class="flex space-x-4 border-t border-slate-100 pt-6">
+            <button type="submit" class="erp-btn erp-btn--primary">
                 {% if mode == 'create' %}Créer le salarié{% else %}Enregistrer{% endif %}
             </button>
-            <a href="{{ url_for('rh.liste_salaries') }}"
-               class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition">
-                Annuler
-            </a>
+            <a href="{{ url_for('rh.liste_salaries') }}" class="erp-btn erp-btn--tertiary">Annuler</a>
         </div>
     </form>
 </div>

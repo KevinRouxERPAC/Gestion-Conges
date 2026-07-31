@@ -224,3 +224,56 @@ select:focus,
 textarea:focus {
     border-color: var(--erp-color-action);
 }
+
+
+/* =========================================================================
+   Harmonisation globale ERPAC — écrans hérités Tailwind
+   ========================================================================= */
+html { background: var(--erp-color-surface-subtle); }
+body.erpac-app,
+body.min-h-screen {
+    font-family: var(--erp-font-body);
+    color: var(--erp-color-text);
+    background: radial-gradient(circle at 100% 0%, rgba(115, 209, 154, .12), transparent 26rem), var(--erp-color-surface-subtle) !important;
+}
+.bg-white { background-color: var(--erp-color-surface) !important; }
+.bg-slate-100, .bg-slate-50 { background-color: var(--erp-color-surface-subtle) !important; }
+.border-slate-200, .border-slate-100 { border-color: var(--erp-color-border) !important; }
+.text-slate-900, .text-slate-800, .text-slate-700 { color: var(--erp-color-text) !important; }
+.text-slate-600, .text-slate-500, .text-slate-400 { color: var(--erp-color-text-muted) !important; }
+aside { background: var(--erp-color-surface) !important; border-color: var(--erp-color-border) !important; box-shadow: 12px 0 34px -28px rgba(12, 40, 24, .45); }
+aside > div > a:first-child { min-height: var(--erp-header-height); background: linear-gradient(135deg, var(--erp-green-50), var(--erp-color-surface)); }
+aside nav a { border-radius: var(--erp-radius-sm) !important; }
+aside nav a:hover { background: var(--erp-green-50) !important; color: var(--erp-color-brand-strong) !important; }
+header.sticky { min-height: var(--erp-header-height); background: rgba(255, 255, 255, .88) !important; border-color: var(--erp-color-border) !important; box-shadow: 0 8px 26px -24px rgba(12, 40, 24, .45); }
+main > div { max-width: var(--erp-container-max) !important; }
+.rounded-xl, .rounded-2xl, .rounded-lg { border-radius: var(--erp-radius-md) !important; }
+.shadow-xl, .shadow-lg, .shadow-md, .shadow-soft { box-shadow: var(--erp-shadow-md) !important; }
+input, select, textarea { font-family: var(--erp-font-body); }
+input:not([type="checkbox"]):not([type="radio"]), select, textarea { border-color: var(--erp-color-border-strong) !important; border-radius: var(--erp-radius-xs) !important; }
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus { border-color: var(--erp-color-action) !important; box-shadow: var(--erp-shadow-focus) !important; outline: none; }
+.bg-erpac-primary { background-color: var(--erp-color-action) !important; }
+.bg-erpac-primary:hover, .hover\:bg-erpac-dark:hover { background-color: var(--erp-color-action-hover) !important; }
+footer { color: var(--erp-color-text-muted) !important; background: var(--erp-color-surface) !important; border-color: var(--erp-color-border) !important; }
+.erpac-live-toast { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); z-index: var(--erp-z-overlay); display: flex; align-items: center; gap: var(--erp-space-3); max-width: 90%; padding: var(--erp-space-3) var(--erp-space-5); color: var(--erp-color-on-action); background: var(--erp-color-action); border-radius: var(--erp-radius-sm); box-shadow: var(--erp-shadow-md); font-size: var(--erp-text-sm); }
+.erpac-live-toast a { color: inherit; font-weight: var(--erp-weight-semibold); text-decoration: underline; }
+.erpac-live-toast button { padding: 0 0 0 var(--erp-space-2); color: rgba(255,255,255,.9); background: transparent; border: 0; font-size: 1.375rem; line-height: 1; cursor: pointer; }
+@media (max-width: 680px) { header.sticky { padding-inline: var(--erp-space-4); } main > div { padding-block: var(--erp-space-5) !important; } }
+
+.erp-calendar-swatch { display: inline-block; width: 18px; height: 18px; border-radius: var(--erp-radius-xs); flex: 0 0 auto; }
+.erp-calendar-swatch--cp { background: var(--erp-green-500); }
+.erp-calendar-swatch--anciennete { background: var(--erp-success-500); }
+.erp-calendar-swatch--rtt { background: var(--erp-info-500); }
+.erp-calendar-swatch--sans-solde { background: var(--erp-warning-500); }
+.erp-calendar-swatch--maladie { background: var(--erp-danger-500); }
+.erp-calendar-swatch--exceptionnel { background: var(--erp-info-500); }
+.erp-calendar-swatch--attente { background: var(--erp-warning-50); border: var(--erp-border-width-strong) dashed var(--erp-warning-500); }
+
+[data-progress] { width: var(--erp-progress, 0%); }
+.erpac-confirm { position: fixed; inset: 0; z-index: var(--erp-z-modal); display: grid; place-items: center; padding: var(--erp-space-5); }
+.erpac-confirm[hidden] { display: none; }
+.erpac-confirm__backdrop { position: absolute; inset: 0; background: rgba(12, 22, 17, .55); }
+.erpac-confirm__dialog { position: relative; width: min(100%, 30rem); max-width: 30rem; padding: var(--erp-space-6); background: var(--erp-color-surface); border: var(--erp-border-width) solid var(--erp-color-border); border-radius: var(--erp-radius-md); box-shadow: var(--erp-shadow-lg); }
+.erpac-confirm__dialog .erp-lead { margin-top: var(--erp-space-3); font-size: var(--erp-text-base); }
+.erpac-confirm__actions { display: flex; justify-content: flex-end; gap: var(--erp-space-3); margin-top: var(--erp-space-6); }
+@media (max-width: 680px) { .erpac-confirm__actions { flex-direction: column-reverse; } .erpac-confirm__actions .erp-btn { width: 100%; } }

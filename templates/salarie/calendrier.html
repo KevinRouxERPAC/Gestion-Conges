@@ -9,10 +9,10 @@
 <div class="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
     <div class="flex items-center gap-2">
         <a href="{{ url_for('salarie.calendrier', annee=year - 1, tous=1) if voir_tous else url_for('salarie.calendrier', annee=year - 1) }}"
-           class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">← {{ year - 1 }}</a>
-        <span class="rounded-lg bg-erpac-primary px-3.5 py-2 text-sm font-bold text-white">{{ year }}</span>
+           class="erp-btn erp-btn--tertiary erp-btn--sm">← {{ year - 1 }}</a>
+        <span class="erp-btn erp-btn--primary erp-btn--sm">{{ year }}</span>
         <a href="{{ url_for('salarie.calendrier', annee=year + 1, tous=1) if voir_tous else url_for('salarie.calendrier', annee=year + 1) }}"
-           class="rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">{{ year + 1 }} →</a>
+           class="erp-btn erp-btn--tertiary erp-btn--sm">{{ year + 1 }} →</a>
     </div>
     {% if current_user.role in ['salarie', 'responsable'] %}
     <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
@@ -26,7 +26,7 @@
 </div>
 
 <!-- Filtres par type (barre horizontale) -->
-<div class="mb-6 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-soft">
+<div class="erp-toolbar-card mb-6">
     <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Filtrer par type</span>
     <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" name="type_filter" value="CP" checked class="rounded border-slate-300 text-erpac-primary focus:ring-erpac-primary">
@@ -63,19 +63,19 @@
 <span id="calendar-year" class="hidden" aria-hidden="true">{{ year }}</span>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     <!-- Calendrier -->
-    <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-soft p-4 md:p-6">
+    <div class="erp-card lg:col-span-2 p-4 md:p-6">
         <div id="calendar-salarie"></div>
     </div>
 
     <!-- Historique, liste et légende -->
     <div class="space-y-6">
         <!-- Liste des congés de l'année -->
-        <div class="bg-white rounded-xl border border-slate-200 shadow-soft p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Liste des congés pour {{ year }}</h2>
+        <div class="erp-card p-6">
+            <h2 class="erp-h3 mb-4">Liste des congés pour {{ year }}</h2>
             {% if events %}
             <div class="max-h-64 overflow-y-auto">
                 <div class="overflow-x-auto">
-<table class="w-full text-sm">
+<table class="erp-table erp-table--hover">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Période</th>
@@ -102,15 +102,15 @@
                             </td>
                             <td class="px-3 py-2">
                                 {% if e.statut == 'valide' or not e.statut %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">Validé</span>
+                                <span class="erp-badge erp-badge--success">Validé</span>
                                 {% elif e.statut == 'en_attente_responsable' %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-orange-100 text-orange-800">En attente responsable</span>
+                                <span class="erp-badge erp-badge--warning">En attente responsable</span>
                                 {% elif e.statut == 'en_attente_rh' %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-amber-100 text-amber-800">En attente RH</span>
+                                <span class="erp-badge erp-badge--warning">En attente RH</span>
                                 {% elif e.statut == 'refuse' %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-red-100 text-red-800">Refusé</span>
+                                <span class="erp-badge erp-badge--danger">Refusé</span>
                                 {% else %}
-                                <span class="px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-800">{{ e.statut }}</span>
+                                <span class="erp-badge erp-badge--neutral">{{ e.statut }}</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -123,42 +123,21 @@
             <p class="text-gray-500 text-sm">Aucun congé enregistré pour cette année.</p>
             {% endif %}
         </div>
-        <div class="bg-white rounded-xl border border-slate-200 shadow-soft p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Légende</h2>
-            <div class="space-y-2 text-sm">
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #008C3A;"></span>
-                    <span>Congés</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #16a34a;"></span>
-                    <span>Ancienneté</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #9333ea;"></span>
-                    <span>RTT (heures)</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #f59e0b;"></span>
-                    <span>Sans solde</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #ef4444;"></span>
-                    <span>Maladie</span>
-                </div>
-                <div class="flex items-center gap-2">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #6366f1;"></span>
-                    <span>Exceptionnel</span>
-                </div>
-                <div class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100">
-                    <span style="display: inline-block; width: 18px; height: 18px; margin-right: 8px; border-radius: 4px; background-color: #fef3c7; border: 2px dashed #f59e0b;"></span>
-                    <span class="text-xs text-gray-500">En attente de validation</span>
-                </div>
+        <div class="erp-card p-6">
+            <h2 class="erp-h3 mb-4">Légende</h2>
+            <div class="erp-calendar-legend space-y-2 text-sm">
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--cp" aria-hidden="true"></span><span>Congés</span></div>
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--anciennete" aria-hidden="true"></span><span>Ancienneté</span></div>
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--rtt" aria-hidden="true"></span><span>RTT (heures)</span></div>
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--sans-solde" aria-hidden="true"></span><span>Sans solde</span></div>
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--maladie" aria-hidden="true"></span><span>Maladie</span></div>
+                <div class="flex items-center gap-2"><span class="erp-calendar-swatch erp-calendar-swatch--exceptionnel" aria-hidden="true"></span><span>Exceptionnel</span></div>
+                <div class="flex items-center gap-2 mt-2 pt-2 border-t border-slate-200"><span class="erp-calendar-swatch erp-calendar-swatch--attente" aria-hidden="true"></span><span class="erp-caption">En attente de validation</span></div>
             </div>
         </div>
 
-        <div class="bg-white rounded-xl border border-slate-200 shadow-soft p-6">
-            <h2 class="text-lg font-semibold text-gray-800 mb-4">Historique par année</h2>
+        <div class="erp-card p-6">
+            <h2 class="erp-h3 mb-4">Historique par année</h2>
             {% if historique %}
             <div class="space-y-2 max-h-64 overflow-y-auto">
                 {% for h in historique %}
@@ -206,14 +185,18 @@
             eventsData = [];
         }
 
+        var calendarStyle = getComputedStyle(document.documentElement);
+        function token(name, fallback) {
+            return calendarStyle.getPropertyValue(name).trim() || fallback;
+        }
         var typeColors = {
-            'CP': '#008C3A',
-            'Anciennete': '#16a34a',
-            'RTT': '#9333ea',
-            'Sans solde': '#f59e0b',
-            'Maladie': '#ef4444',
-            'Absent': '#6b7280',
-            'default': '#6b7280'
+            'CP': token('--erp-green-500', '#008C3A'),
+            'Anciennete': token('--erp-success-500', '#0F7B3D'),
+            'RTT': token('--erp-info-500', '#0B5F8A'),
+            'Sans solde': token('--erp-warning-500', '#8A5A00'),
+            'Maladie': token('--erp-danger-500', '#B42318'),
+            'Absent': token('--erp-neutral-500', '#64706B'),
+            'default': token('--erp-neutral-500', '#64706B')
         };
 
         function filterGroup(type) {
@@ -230,7 +213,7 @@
 
         function colorFor(type) {
             if (typeColors[type]) return typeColors[type];
-            if (type && type.indexOf('EXC:') === 0) return '#6366f1';
+            if (type && type.indexOf('EXC:') === 0) return token('--erp-info-500', '#0B5F8A');
             return typeColors['default'];
         }
 
@@ -282,9 +265,9 @@
                 start: e.start,
                 end: addOneDayISO(e.end),
                 allDay: true,
-                backgroundColor: isEnAttente ? '#fef3c7' : color,
-                borderColor: isEnAttente ? '#f59e0b' : color,
-                textColor: isEnAttente ? '#92400e' : '#ffffff',
+                backgroundColor: isEnAttente ? token('--erp-warning-50', '#FCF3E3') : color,
+                borderColor: isEnAttente ? token('--erp-warning-500', '#8A5A00') : color,
+                textColor: isEnAttente ? token('--erp-warning-500', '#8A5A00') : '#ffffff',
                 extendedProps: {
                     type: e.type,
                     filterGroup: filterGroup(e.type),

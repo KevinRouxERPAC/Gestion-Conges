@@ -23,8 +23,8 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/custom.css') }}">
     <script defer src="{{ url_for('static', filename='vendor/alpine.min.js') }}"></script>
 </head>
-<body class="min-h-screen bg-slate-100 font-sans text-slate-800"
-      {% if current_user.is_authenticated %}x-data="{ mobileOpen: false, collapsed: (localStorage.getItem('erpac.sidebar.collapsed') === '1'), init() { this.$watch('collapsed', v => localStorage.setItem('erpac.sidebar.collapsed', v ? '1' : '0')) } }" :class="{ 'overflow-hidden': mobileOpen }"{% endif %}>
+<body class="erpac-app min-h-screen bg-slate-100 font-sans text-slate-800"
+      {% if current_user.is_authenticated %}x-data="{ mobileOpen: false, collapsed: (localStorage.getItem('erpac.sidebar.collapsed') === '1'), init() { this.$watch('collapsed', v => localStorage.setItem('erpac.sidebar.collapsed', v ? '1' : '0')) } }" :class="{ 'overflow-hidden': mobileOpen }" @keydown.escape.window="mobileOpen = false"{% endif %}>
     <a href="#main-content" class="skip-link">Aller au contenu principal</a>
 
 {# ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@
 --------------------------------------------------------------------------- #}
 {% macro nav_item(endpoint, label) %}
     {% set is_active = (request.endpoint == endpoint) %}
-    <a href="{{ url_for(endpoint) }}"
+    <a href="{{ url_for(endpoint) }}" @click="mobileOpen = false"
        class="relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors {% if is_active %}bg-erpac-50 text-erpac-800 font-semibold{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}"
        :class="{ 'md:justify-center': collapsed }"
        {% if is_active %}aria-current="page"{% endif %}>
@@ -72,7 +72,7 @@
     <div class="flex min-h-screen">
 
         <!-- ===================== SIDEBAR ===================== -->
-        <aside class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 transform border-r border-slate-200 bg-white transition-all duration-200 md:static md:z-auto md:translate-x-0"
+        <aside id="erpac-sidebar" aria-label="Navigation principale" class="fixed inset-y-0 left-0 z-40 w-64 shrink-0 transform border-r border-slate-200 bg-white transition-all duration-200 md:static md:z-auto md:translate-x-0"
                :class="{ '-translate-x-full': !mobileOpen, 'translate-x-0': mobileOpen, 'md:w-[4.5rem]': collapsed, 'md:w-64': !collapsed }">
             <div class="flex h-full flex-col">
 
@@ -82,12 +82,17 @@
                     <img x-show="!collapsed" src="{{ url_for('static', filename='img/logo_complet_vert.png') }}" alt="ERPAC — Gestion des absences" class="h-8 w-auto object-contain">
                 </a>
 
+                <!-- Fermeture mobile -->
+                <button type="button" @click="mobileOpen = false" class="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden" aria-label="Fermer le menu">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+
                 <!-- Navigation -->
                 <nav class="flex-1 space-y-0.5 overflow-y-auto px-3 py-3">
                     {% if role == 'rh' %}
                         {{ section_label('Pilotage') }}
                         {% call nav_item('rh.dashboard', 'Tableau de bord') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z"/></svg>{% endcall %}
-                        {% call nav_item('rh.liste_salaries', 'Salariés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg>{% endcall %}
+                        {% call nav_item('rh.liste_salaries', 'Salariés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>{% endcall %}
                         {{ section_label('Gestion') }}
                         {% call nav_item('rh.parametrage', 'Paramétrage') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.6-1.1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1.1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H10a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1.1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V10a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/></svg>{% endcall %}
                         {% call nav_item('rh.types_exceptionnels', 'Congés exceptionnels') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="m12 3 2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5L12 3Z"/></svg>{% endcall %}
@@ -99,14 +104,14 @@
                     {% elif role == 'responsable' %}
                         {{ section_label('Équipe') }}
                         {% call nav_item('responsable.dashboard', 'Tableau de bord') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 13h6V4H4v9Zm0 7h6v-5H4v5Zm10 0h6V11h-6v9Zm0-16v5h6V4h-6Z"/></svg>{% endcall %}
-                        {% call nav_item('responsable.delegations', 'Délégations') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg>{% endcall %}
+                        {% call nav_item('responsable.delegations', 'Délégations') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3 4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4"/></svg>{% endcall %}
                         {{ section_label('Mon espace') }}
-                        {% call nav_item('salarie.accueil', 'Mes congés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2v20M5 9l7-5 7 5"/></svg>{% endcall %}
+                        {% call nav_item('salarie.accueil', 'Mes congés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect x="2" y="6" width="20" height="14" rx="2"/></svg>{% endcall %}
                         {% call nav_item('salarie.calendrier', 'Calendrier') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>{% endcall %}
                         {% call nav_item('salarie.heures', 'Mes heures') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{% endcall %}
                     {% else %}
                         {{ section_label('Espace') }}
-                        {% call nav_item('salarie.accueil', 'Mes congés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2v20M5 9l7-5 7 5"/></svg>{% endcall %}
+                        {% call nav_item('salarie.accueil', 'Mes congés') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16 20V4a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/><rect x="2" y="6" width="20" height="14" rx="2"/></svg>{% endcall %}
                         {% call nav_item('salarie.calendrier', 'Calendrier') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg>{% endcall %}
                         {% call nav_item('salarie.heures', 'Mes heures') %}<svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>{% endcall %}
                         {{ section_label('Compte') }}
@@ -131,7 +136,7 @@
 
             <!-- Topbar -->
             <header class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/90 px-4 backdrop-blur md:px-6">
-                <button type="button" @click="mobileOpen = true" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden" aria-label="Ouvrir le menu">
+                <button type="button" x-ref="mobileToggle" @click="mobileOpen = true" class="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden" aria-label="Ouvrir le menu" aria-controls="erpac-sidebar" :aria-expanded="mobileOpen.toString()">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
                 </button>
 
@@ -157,9 +162,9 @@
 
                 <!-- Profil -->
                 <div class="relative shrink-0" x-data="{ open: false }">
-                    <button type="button" @click="open = !open" @click.outside="open = false"
+                    <button type="button" x-ref="profile" @click="open = !open" @click.outside="open = false" @keydown.escape.stop="open = false; $refs.profile.focus()"
                             class="flex items-center gap-2 rounded-lg border border-slate-200 py-1 pl-1 pr-2 hover:bg-slate-50"
-                            :aria-expanded="open.toString()" aria-haspopup="true">
+                            :aria-expanded="open.toString()" aria-controls="profile-menu" aria-haspopup="true">
                         <span class="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-erpac-100 text-xs font-bold text-erpac-800">{{ (current_user.prenom[0] if current_user.prenom else '') }}{{ (current_user.nom[0] if current_user.nom else '') }}</span>
                         <span class="hidden text-left leading-tight lg:block">
                             <span class="block text-sm font-semibold text-slate-800">{{ current_user.prenom }} {{ current_user.nom }}</span>
@@ -167,7 +172,7 @@
                         </span>
                         <svg class="hidden h-4 w-4 text-slate-400 transition-transform lg:block" :class="{ 'rotate-180': open }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
-                    <div x-show="open" x-cloak x-transition @click="open = false"
+                    <div id="profile-menu" x-show="open" x-cloak x-transition @click="open = false"
                          class="absolute right-0 mt-2 w-60 rounded-lg border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5">
                         <div class="border-b border-slate-100 px-4 py-2.5">
                             <p class="text-sm font-semibold text-slate-800">{{ current_user.prenom }} {{ current_user.nom }}</p>
@@ -212,6 +217,19 @@
     </main>
     {% endif %}
 
+    <!-- Confirmation ERPAC accessible -->
+    <div id="erpac-confirm" class="erpac-confirm" hidden aria-hidden="true">
+        <div class="erpac-confirm__backdrop" data-confirm-cancel></div>
+        <section class="erpac-confirm__dialog" role="dialog" aria-modal="true" aria-labelledby="erpac-confirm-title" aria-describedby="erpac-confirm-message" tabindex="-1">
+            <h2 id="erpac-confirm-title" class="erp-h3">Confirmer l’action</h2>
+            <p id="erpac-confirm-message" class="erp-lead"></p>
+            <div class="erpac-confirm__actions">
+                <button type="button" class="erp-btn erp-btn--tertiary" data-confirm-cancel>Annuler</button>
+                <button type="button" class="erp-btn erp-btn--danger" data-confirm-ok>Confirmer</button>
+            </div>
+        </section>
+    </div>
+
     <!-- Toast Notifications Container -->
     <div class="fixed bottom-4 right-4 z-50 flex w-full max-w-sm flex-col gap-2 pointer-events-none">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -234,7 +252,7 @@
                             </svg>
                             {% elif category == 'error' %}
                             <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 9.75l4.5 4.5m0-4.5l-4.5 4.5M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             {% elif category == 'warning' %}
                             <svg class="h-6 w-6 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">

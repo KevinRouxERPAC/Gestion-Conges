@@ -14,42 +14,13 @@
     </p>
 </div>
 
-<div class="bg-white rounded-xl shadow p-8 max-w-2xl">
+<div class="erp-card max-w-2xl p-8">
     <form method="POST" enctype="multipart/form-data" class="space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label for="date_debut" class="block text-sm font-medium text-gray-700 mb-1">Date de début</label>
-                <input type="date" id="date_debut" name="date_debut" required
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <label for="demi_journee_debut" class="block text-xs text-gray-500 mt-2 mb-1">Précision début</label>
-                <select id="demi_journee_debut" name="demi_journee_debut" aria-label="Précision début de journée"
-                        class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                    <option value="">Journée complète</option>
-                    <option value="matin">Matin seulement</option>
-                    <option value="apres_midi">Après-midi seulement</option>
-                </select>
-            </div>
-            <div>
-                <label for="date_fin" class="block text-sm font-medium text-gray-700 mb-1">Date de fin</label>
-                <input type="date" id="date_fin" name="date_fin" required
-                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                <label for="demi_journee_fin" class="block text-xs text-gray-500 mt-2 mb-1">Précision fin</label>
-                <select id="demi_journee_fin" name="demi_journee_fin" aria-label="Précision fin de journée"
-                        class="mt-2 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
-                    <option value="">Journée complète</option>
-                    <option value="matin">Matin seulement</option>
-                    <option value="apres_midi">Après-midi seulement</option>
-                </select>
-            </div>
-        </div>
-        <div class="text-sm font-medium hidden" data-conge-jours-ouvrables aria-live="polite"></div>
-        <p class="text-xs text-gray-400">Matin ou après-midi : type RTT obligatoire (les autres types sont désactivés).</p>
 
         <div>
-            <label for="type_conge" class="block text-sm font-medium text-gray-700 mb-1">Type de congé</label>
-            <select id="type_conge" name="type_conge" required
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary">
+            <label for="type_conge" class="erp-label">Type de congé</label>
+            <select id="type_conge" name="type_conge" required class="erp-select">
                 <option value="" disabled selected>-- Sélectionnez un type de congé --</option>
                 <option value="CP">Congés payés (CP)</option>
                 <option value="Anciennete">Congés d'ancienneté</option>
@@ -66,59 +37,80 @@
                 {% endif %}
             </select>
             {% if not types_exceptionnels %}
-            <p class="text-xs text-gray-400 mt-1">
+            <p class="erp-hint mt-1">
                 Aucun congé exceptionnel configuré.
                 <a href="{{ url_for('rh.types_exceptionnels') }}" class="text-erpac-primary hover:text-erpac-dark underline">Gérer les types de congés exceptionnels</a>.
             </p>
             {% endif %}
         </div>
 
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+                <label for="date_debut" class="erp-label">Date de début</label>
+                <input type="date" id="date_debut" name="date_debut" required class="erp-input">
+            </div>
+            <div>
+                <label for="date_fin" class="erp-label">Date de fin</label>
+                <input type="date" id="date_fin" name="date_fin" required class="erp-input">
+            </div>
+            <div>
+                <label for="demi_journee_debut" class="erp-label">Précision début</label>
+                <select id="demi_journee_debut" name="demi_journee_debut" aria-label="Précision début de journée" class="erp-select">
+                    <option value="">Journée complète</option>
+                    <option value="matin">Matin seulement</option>
+                    <option value="apres_midi">Après-midi seulement</option>
+                </select>
+            </div>
+            <div>
+                <label for="demi_journee_fin" class="erp-label">Précision fin</label>
+                <select id="demi_journee_fin" name="demi_journee_fin" aria-label="Précision fin de journée" class="erp-select">
+                    <option value="">Journée complète</option>
+                    <option value="matin">Matin seulement</option>
+                    <option value="apres_midi">Après-midi seulement</option>
+                </select>
+            </div>
+        </div>
+        <div class="text-sm font-semibold text-slate-700 hidden" data-conge-jours-ouvrables aria-live="polite"></div>
+        <p class="erp-hint">Matin ou après-midi : type RTT obligatoire (les autres types sont désactivés).</p>
+
+        <div id="bloc_details_type" class="space-y-4">
+            <div id="bloc_heures_rtt" class="hidden">
+                <label for="nb_heures_rtt" class="erp-label">Heures RTT</label>
+                <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="0.25" step="0.25"
+                       class="erp-input"
+                       placeholder="Nombre d'heures RTT (ex : 5,25)">
+                <p class="erp-hint mt-1">
+                    Indiquez le nombre d'heures consommées par quart d'heure (multiple de 0,25 ; ex. 5,25 h).
+                </p>
+            </div>
+
+            <div id="bloc_heures_exceptionnelles" class="hidden">
+                <label for="nb_heures_exceptionnelles" class="erp-label">Heures (congé exceptionnel)</label>
+                <input type="number" id="nb_heures_exceptionnelles" name="nb_heures_exceptionnelles" min="1"
+                       class="erp-input"
+                       placeholder="Nombre d'heures (ex : 2)">
+            </div>
+
+            <div id="bloc_justificatif" class="hidden">
+                <label for="justificatif" class="erp-label">
+                    Justificatif <span class="text-red-600">*</span>
+                </label>
+                <input type="file" id="justificatif" name="justificatif" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
+                       class="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
+                <p class="erp-hint mt-1">PDF, JPEG ou PNG — 5 Mo max. Donnée sensible : accès RH et salarié concerné.</p>
+            </div>
+        </div>
+
         <div>
-            <label for="nb_heures_rtt" class="block text-sm font-medium text-gray-700 mb-1">
-                Heures RTT (si RTT)
-            </label>
-            <input type="number" id="nb_heures_rtt" name="nb_heures_rtt" min="0.25" step="0.25"
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   placeholder="Nombre d'heures RTT (ex : 5,25)">
-            <p class="text-xs text-gray-400 mt-1">
-                Pour un RTT, indiquez le nombre d'heures consommées par quart d'heure (multiple de 0,25 ; ex. 5,25 h).
-            </p>
-        </div>
-
-        <div id="bloc_heures_exceptionnelles" class="hidden">
-            <label for="nb_heures_exceptionnelles" class="block text-sm font-medium text-gray-700 mb-1">
-                Heures (si congé exceptionnel en heures)
-            </label>
-            <input type="number" id="nb_heures_exceptionnelles" name="nb_heures_exceptionnelles" min="1"
-                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
-                   placeholder="Nombre d'heures (ex : 2)">
-        </div>
-
-        <div id="bloc_justificatif" class="hidden">
-            <label for="justificatif" class="block text-sm font-medium text-gray-700 mb-1">
-                Justificatif <span class="text-red-600">*</span>
-            </label>
-            <input type="file" id="justificatif" name="justificatif" accept=".pdf,.jpg,.jpeg,.png,application/pdf,image/jpeg,image/png"
-                   class="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200">
-            <p class="text-xs text-gray-400 mt-1">PDF, JPEG ou PNG — 5 Mo max. Donnée sensible : accès RH et salarié concerné.</p>
-        </div>
-
-        <div>
-            <label for="commentaire" class="block text-sm font-medium text-gray-700 mb-1">Commentaire (optionnel)</label>
+            <label for="commentaire" class="erp-label">Commentaire (optionnel)</label>
             <textarea id="commentaire" name="commentaire" rows="3"
-                      class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary"
+                      class="erp-input"
                       placeholder="Remarques éventuelles..."></textarea>
         </div>
 
         <div class="flex space-x-4">
-            <button type="submit"
-                    class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition shadow">
-                Ajouter le congé
-            </button>
-            <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}"
-               class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 px-6 rounded-lg transition">
-                Annuler
-            </a>
+            <button type="submit" class="erp-btn erp-btn--primary">Ajouter le congé</button>
+            <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}" class="erp-btn erp-btn--tertiary">Annuler</a>
         </div>
     </form>
 </div>
@@ -127,6 +119,7 @@
 (function(){
   const typeCongeEl = document.getElementById('type_conge');
   const rttHeuresEl = document.getElementById('nb_heures_rtt');
+  const blocRtt = document.getElementById('bloc_heures_rtt');
   const blocHeuresExc = document.getElementById('bloc_heures_exceptionnelles');
   const heuresExcEl = document.getElementById('nb_heures_exceptionnelles');
   const blocJustificatif = document.getElementById('bloc_justificatif');
@@ -139,24 +132,18 @@
     const justifRequis = opt ? opt.getAttribute('data-justificatif-requis') === '1' : false;
 
     const isRTT = val === 'RTT';
-    if (rttHeuresEl && rttHeuresEl.closest('div')) {
-      rttHeuresEl.closest('div').classList.toggle('hidden', !isRTT);
+    if (blocRtt) blocRtt.classList.toggle('hidden', !isRTT);
+    if (rttHeuresEl) {
+      rttHeuresEl.required = isRTT;
+      if (!isRTT) rttHeuresEl.value = '';
     }
 
     const isExcHeures = val.startsWith('EXC:') && unite === 'heures';
-    if (blocHeuresExc) {
-      blocHeuresExc.classList.toggle('hidden', !isExcHeures);
-    }
-    if (heuresExcEl && !isExcHeures) {
-      heuresExcEl.value = '';
-    }
+    if (blocHeuresExc) blocHeuresExc.classList.toggle('hidden', !isExcHeures);
+    if (heuresExcEl && !isExcHeures) heuresExcEl.value = '';
 
-    if (blocJustificatif) {
-      blocJustificatif.classList.toggle('hidden', !justifRequis);
-    }
-    if (justificatifEl) {
-      justificatifEl.required = justifRequis;
-    }
+    if (blocJustificatif) blocJustificatif.classList.toggle('hidden', !justifRequis);
+    if (justificatifEl) justificatifEl.required = justifRequis;
   }
 
   if (typeCongeEl) {
@@ -166,4 +153,3 @@
 })();
 </script>
 {% endblock %}
-

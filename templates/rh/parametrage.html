@@ -7,101 +7,107 @@
 {% if parametrage %}
 <div class="mb-6 flex justify-end">
     <a href="{{ url_for('rh.cloture_exercice') }}"
-       class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-red-700">
+       class="erp-btn erp-btn--danger erp-btn--sm">
         Clôturer l'exercice et reporter
     </a>
 </div>
 {% endif %}
 
 <!-- Parametrage exercice -->
-<div class="bg-white rounded-xl shadow p-6 mb-8">
-    <h2 class="text-lg font-semibold text-gray-800 mb-4">Exercice fiscal</h2>
-    <form method="POST" class="space-y-4">
+<div class="erp-card mb-8 p-6">
+    <h2 class="erp-h3 mb-4">Exercice fiscal</h2>
+    <form method="POST" class="space-y-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="save_parametrage">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Début de l'exercice</label>
-                <input type="date" name="debut_exercice" required
-                       value="{{ parametrage.debut_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Fin de l'exercice</label>
-                <input type="date" name="fin_exercice" required
-                       value="{{ parametrage.fin_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-            </div>
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Jours congés par défaut (CP)</label>
-                <input type="number" name="jours_conges_defaut" min="0" required
-                       value="{{ parametrage.jours_conges_defaut if parametrage else 25 }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-            </div>
-            <div>
-                <label for="rtt_coef_surplus" class="block text-sm text-gray-600 mb-1">Coef. surplus → RTT</label>
-                <input type="number" id="rtt_coef_surplus" name="rtt_coef_surplus" min="0" step="0.01"
-                       value="{{ parametrage.rtt_coef_surplus if parametrage else 0 }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-                <p class="text-xs text-gray-500 mt-1">Multiplicateur du surplus d'heures (1 = une heure au-delà du seuil vaut 1 h RTT). Laisser 0 pour utiliser 1.</p>
+
+        <div>
+            <h3 class="mb-3 text-sm font-semibold text-slate-700">Période et congés</h3>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div>
+                    <label for="debut-exercice" class="erp-label">Début de l'exercice</label>
+                    <input id="debut-exercice" type="date" name="debut_exercice" required
+                           value="{{ parametrage.debut_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="fin-exercice" class="erp-label">Fin de l'exercice</label>
+                    <input id="fin-exercice" type="date" name="fin_exercice" required
+                           value="{{ parametrage.fin_exercice.strftime('%Y-%m-%d') if parametrage else '' }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="jours-conges-defaut" class="erp-label">Jours congés par défaut (CP)</label>
+                    <input id="jours-conges-defaut" type="number" name="jours_conges_defaut" min="0" required
+                           value="{{ parametrage.jours_conges_defaut if parametrage else 25 }}"
+                           class="erp-input">
+                </div>
             </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Seuil hebdomadaire RTT (h)</label>
-                <input type="number" name="rtt_seuil_hebdo" min="0.01" step="0.01" required
-                       value="{{ parametrage.rtt_seuil_hebdo if parametrage else 34.65 }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
+
+        <div>
+            <h3 class="mb-3 text-sm font-semibold text-slate-700">Calcul RTT</h3>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                    <label for="rtt-seuil-hebdo" class="erp-label">Seuil hebdomadaire RTT (h)</label>
+                    <input id="rtt-seuil-hebdo" type="number" name="rtt_seuil_hebdo" min="0.01" step="0.01" required
+                           value="{{ parametrage.rtt_seuil_hebdo if parametrage else 34.65 }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="rtt-heures-absence" class="erp-label">Heures par jour d'absence (h)</label>
+                    <input id="rtt-heures-absence" type="number" name="rtt_heures_par_jour_absence" min="1" required
+                           value="{{ parametrage.rtt_heures_par_jour_absence if parametrage else 7 }}"
+                           class="erp-input">
+                </div>
+                <div>
+                    <label for="rtt_coef_surplus" class="erp-label">Coef. surplus → RTT</label>
+                    <input type="number" id="rtt_coef_surplus" name="rtt_coef_surplus" min="0" step="0.01"
+                           value="{{ parametrage.rtt_coef_surplus if parametrage else 0 }}"
+                           class="erp-input">
+                    <p class="erp-hint mt-1">1 = une heure au-delà du seuil vaut 1 h RTT. Laisser 0 pour utiliser 1.</p>
+                </div>
+                <div>
+                    <label for="rtt-types-exclus" class="erp-label">Types d'absence exclus du seuil RTT</label>
+                    <input id="rtt-types-exclus" type="text" name="rtt_types_absence_exclus" placeholder="Maladie, Sans solde"
+                           value="{{ parametrage.rtt_types_absence_exclus if parametrage else '' }}"
+                           class="erp-input">
+                    <p class="erp-hint mt-1">
+                        Codes séparés par des virgules. Ces absences ne réduisent pas le seuil.
+                        Vide = tous les congés validés réduisent le seuil.
+                    </p>
+                </div>
             </div>
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Heures par jour d'absence (h)</label>
-                <input type="number" name="rtt_heures_par_jour_absence" min="1" required
-                       value="{{ parametrage.rtt_heures_par_jour_absence if parametrage else 7 }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-            </div>
-            <div class="sm:col-span-2">
-                <label class="block text-sm text-gray-600 mb-1">Types d'absence exclus du seuil RTT</label>
-                <input type="text" name="rtt_types_absence_exclus" placeholder="Maladie, Sans solde"
-                       value="{{ parametrage.rtt_types_absence_exclus if parametrage else '' }}"
-                       class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-erpac-primary">
-                <p class="text-xs text-gray-500 mt-1">
-                    Codes séparés par des virgules (ex. « Maladie, Sans solde »).
-                    Ces absences ne réduisent pas le seuil hebdomadaire RTT — un
-                    arrêt maladie ne fait pas perdre de RTT. Vide = tous les congés
-                    validés réduisent le seuil (comportement par défaut).
-                </p>
-            </div>
-            <div>
-                <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white font-medium py-2 px-6 rounded-lg transition w-full">
-                    Enregistrer
-                </button>
-            </div>
+            <p class="mt-3 text-xs text-gray-500">
+                Le RTT est calculé à partir des <strong>heures travaillées</strong> saisies ou importées
+                depuis l'ERP. Seuil par défaut : <strong>34,65 h</strong> (une semaine à 35 h produit 0,35 h de RTT).
+                Après modification, cliquez sur « Générer les allocations CP/RTT » pour appliquer le recalcul.
+            </p>
+        </div>
+
+        <div class="flex justify-end border-t border-slate-100 pt-4">
+            <button type="submit" class="erp-btn erp-btn--primary">
+                Enregistrer
+            </button>
         </div>
     </form>
-    <p class="text-xs text-gray-500 mt-3">
-        Le RTT est calculé uniquement à partir des <strong>heures travaillées</strong> saisies ou importées
-        depuis l'ERP. Seuil par défaut : <strong>34,65 h</strong> (une semaine à 35 h produit 0,35 h de RTT).
-        Le seuil est réduit au prorata des jours d'absence pour ne pas pénaliser le salarié.
-        Après modification, cliquez sur « Générer les allocations CP/RTT » pour appliquer le recalcul.
-    </p>
 </div>
 
 <!-- Jours feries -->
-<div class="bg-white rounded-xl shadow p-6">
+<div class="erp-card p-6">
     <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
         <h2 class="text-lg font-semibold text-gray-800">Jours fériés</h2>
         <div class="flex flex-wrap gap-2">
             <form method="POST" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="charger_feries">
-                <button type="submit" class="bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+                <button type="submit" class="erp-btn erp-btn--secondary erp-btn--sm">
                     Charger les jours fériés français
                 </button>
             </form>
             <form method="POST" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="generer_allocations">
-                <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+                <button type="submit" class="erp-btn erp-btn--primary erp-btn--sm">
                     Générer les allocations CP/RTT
                 </button>
             </form>
@@ -109,19 +115,19 @@
     </div>
 
     <!-- Add custom holiday -->
-    <form method="POST" class="flex flex-wrap gap-4 mb-6 p-4 bg-gray-50 rounded-lg">
+    <form method="POST" class="erp-toolbar-card mb-6">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="ajouter_ferie">
         <div>
-            <label class="block text-xs text-gray-500 mb-1">Date</label>
-            <input type="date" name="date_ferie" required class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
+            <label for="date-ferie" class="erp-label erp-caption mb-1">Date</label>
+            <input id="date-ferie" type="date" name="date_ferie" required class="erp-input text-sm">
         </div>
         <div>
-            <label class="block text-xs text-gray-500 mb-1">Libellé</label>
-            <input type="text" name="libelle_ferie" placeholder="Ex: Pont" class="px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-erpac-primary">
+            <label for="libelle-ferie" class="erp-label erp-caption mb-1">Libellé</label>
+            <input id="libelle-ferie" type="text" name="libelle_ferie" placeholder="Ex: Pont" class="erp-input text-sm">
         </div>
         <div class="flex items-end">
-            <button type="submit" class="bg-erpac-primary hover:bg-erpac-dark text-white text-sm font-medium py-2 px-4 rounded-lg transition">
+            <button type="submit" class="erp-btn erp-btn--primary erp-btn--sm">
                 Ajouter
             </button>
         </div>
@@ -129,7 +135,7 @@
 
     {% if jours_feries %}
     <div class="overflow-x-auto">
-<table class="w-full">
+<table class="erp-table erp-table--hover">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
@@ -149,7 +155,7 @@
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="supprimer_ferie">
                         <input type="hidden" name="ferie_id" value="{{ jf.id }}">
-                        <button type="submit" class="text-red-600 hover:text-red-800 text-sm">Supprimer</button>
+                        <button type="submit" class="erp-btn erp-btn--danger erp-btn--sm">Supprimer</button>
                     </form>
                 </td>
             </tr>

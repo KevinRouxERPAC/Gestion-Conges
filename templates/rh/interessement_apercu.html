@@ -7,7 +7,7 @@
 <div class="mb-6 flex flex-wrap items-center gap-4">
     <a href="{{ url_for('rh.interessement') }}" class="btn-retour">&larr; Retour</a>
     <a href="{{ url_for('rh.export_interessement', periode_id=periode.id, include_inactifs='1' if include_inactifs else '0') }}"
-       class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition">
+       class="erp-btn erp-btn--primary erp-btn--sm">
         Exporter Excel
     </a>
     <form method="GET" class="ml-auto flex items-center gap-2 text-sm text-gray-600">
@@ -21,28 +21,28 @@
     </form>
 </div>
 
-<div class="bg-white rounded-xl shadow p-6 mb-6 text-sm text-gray-600">
+<div class="erp-card mb-6 p-6 text-sm">
     <p>
         Période : <strong>{{ periode.date_debut.strftime('%d/%m/%Y') }} &rarr; {{ periode.date_fin.strftime('%d/%m/%Y') }}</strong>
         &middot; Montant à partager :
         <strong>{% if periode.montant_total_euros %}{{ '%.2f'|format(periode.montant_total_euros) }} €{% else %}non renseigné{% endif %}</strong>
         &middot; Malus maladie : <strong>{{ periode.malus_maladie_par_jour if periode.malus_maladie_par_jour is defined else 5 }} pts/jour</strong>
     </p>
-    <p class="text-xs text-gray-500 mt-2">Seuls les arrêts maladie validés impactent le calcul. Base : 100 points par salarié.</p>
+    <p class="erp-hint mt-2">Seuls les arrêts maladie validés impactent le calcul. Base : 100 points par salarié.</p>
     {% if nb_inactifs_masques %}
     <p class="text-xs text-amber-700 mt-2">{{ nb_inactifs_masques }} salarié(s) inactif(s) masqué(s). Cochez « Inclure les inactifs » pour les afficher.</p>
     {% endif %}
 </div>
 
 {% if not periode.montant_total_euros %}
-<div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+<div class="erp-alert erp-alert--warning mb-4">
     Renseignez le montant à partager sur la page Intéressement pour calculer les primes en euros.
 </div>
 {% endif %}
 
-<div class="bg-white rounded-xl shadow overflow-hidden">
+<div class="erp-card overflow-hidden p-0">
     <div class="overflow-x-auto">
-<table class="w-full">
+<table class="erp-table erp-table--hover">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Salarié</th>

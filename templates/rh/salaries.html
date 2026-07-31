@@ -1,27 +1,27 @@
 {% extends "base.html" %}
 {% block title %}Salariés{% endblock %}
 {% block page_title %}Gestion des salariés{% endblock %}
-{% block page_subtitle %}Créer, modifier et activer/désactiver les comptes salariés{% endblock %}
+{% block page_subtitle %}Créer, modifier et activer ou désactiver les comptes salariés{% endblock %}
 
 {% block content %}
 <div class="mb-6 flex flex-wrap items-center justify-end gap-2">
     <a href="{{ url_for('rh.importer_salaries') }}"
-       class="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-slate-50">
+       class="erp-btn erp-btn--tertiary erp-btn--sm">
         Importer (CSV / Excel)
     </a>
     <a href="{{ url_for('rh.creer_salarie') }}"
-       class="rounded-lg bg-erpac-primary px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:bg-erpac-dark">
+       class="erp-btn erp-btn--primary erp-btn--sm">
         + Nouveau salarié
     </a>
 </div>
 
-<div class="bg-white rounded-xl shadow overflow-hidden" x-data="{ search: '' }">
+<div class="erp-card overflow-hidden p-0" x-data="{ search: '' }">
     <div class="px-6 py-4 border-b">
         <input type="text" x-model="search" placeholder="Rechercher (nom, prénom, identifiant, matricule)..."
-               class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-erpac-primary focus:border-erpac-primary text-sm">
+               class="erp-input w-full md:w-96 text-sm">
     </div>
     <div class="overflow-x-auto">
-<table class="w-full">
+<table class="erp-table erp-table--hover">
         <thead class="bg-gray-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Salarié</th>
@@ -35,13 +35,11 @@
         </thead>
         <tbody class="divide-y divide-gray-200">
             {% for salarie in salaries %}
-            <tr class="hover:bg-gray-50 transition cursor-pointer"
+            <tr class="hover:bg-gray-50 transition"
                 x-show='search === "" || {{ (salarie.nom ~ " " ~ salarie.prenom ~ " " ~ salarie.identifiant ~ " " ~ (salarie.matricule or ""))|lower|tojson }}.includes(search.toLowerCase())'
-                role="button"
-                tabindex="0"
-                data-row-href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}">
+>
                 <td class="px-6 py-4">
-                    <div class="font-medium text-gray-900">{{ salarie.nom }} {{ salarie.prenom }}</div>
+                    <a href="{{ url_for('rh.salarie_detail', user_id=salarie.id) }}" class="font-medium text-erpac-primary hover:text-erpac-dark">{{ salarie.nom }} {{ salarie.prenom }}</a>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-700">
                     {{ salarie.identifiant }}
@@ -54,9 +52,7 @@
                     {% endif %}
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-700">
-                    <span class="px-2 py-1 rounded-full text-xs font-semibold
-                        {% if salarie.role == 'rh' %}bg-purple-100 text-purple-800
-                        {% else %}bg-erpac-100 text-erpac-800{% endif %}">
+                    <span class="erp-badge {% if salarie.role == 'rh' %}erp-badge--info{% else %}erp-badge--brand{% endif %}">
                         {{ salarie.role|upper }}
                     </span>
                 </td>
@@ -69,14 +65,14 @@
                 </td>
                 <td class="px-6 py-4">
                     {% if salarie.actif %}
-                        <span class="bg-green-100 text-green-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Actif</span>
+                        <span class="erp-badge erp-badge--success">Actif</span>
                     {% else %}
-                        <span class="bg-red-100 text-red-800 text-xs font-medium px-2.5 py-0.5 rounded-full">Inactif</span>
+                        <span class="erp-badge erp-badge--danger">Inactif</span>
                     {% endif %}
                 </td>
                 <td class="px-6 py-4 text-right space-x-2">
                     <a href="{{ url_for('rh.modifier_salarie', user_id=salarie.id) }}"
-                       class="text-gray-700 hover:text-gray-900 text-sm font-medium">Modifier</a>
+                       class="erp-link">Modifier</a>
                 </td>
             </tr>
             {% else %}

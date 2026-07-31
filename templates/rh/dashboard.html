@@ -18,7 +18,7 @@
         <button type="button" @click="open = !open" @click.outside="open = false"
                 class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-soft transition hover:bg-slate-50"
                 :aria-expanded="open.toString()">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14"/></svg>
             Exporter
             <svg class="h-4 w-4 text-slate-400 transition-transform" :class="{ 'rotate-180': open }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
         </button>
@@ -44,7 +44,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Total salariés</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 11a4 4 0 1 0-4-4M3 21c0-3.3 3.1-5 7-5M16 14c3.9 0 7 1.7 7 5"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-slate-800">{{ total_salaries }}</div>
         <div class="mt-1 text-xs text-slate-400">salariés actifs</div>
@@ -53,7 +53,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">En congé aujourd'hui</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-orange-50 text-orange-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-orange-50 text-orange-500"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12a10.06 10.06 0 0 0-20 0Z"/><path d="M12 12v8a2 2 0 0 0 4 0"/><path d="M12 2v1"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-orange-500">{{ total_en_conge }}</div>
         <div class="mt-1 text-xs text-slate-400">{{ ((total_en_conge / total_salaries * 100) | round | int) if total_salaries else 0 }} % de l'effectif</div>
@@ -63,7 +63,7 @@
     <a href="#file-validation" class="group rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-soft ring-1 ring-amber-100 transition hover:ring-amber-300">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-amber-800">À valider</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-amber-100 text-amber-700"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-amber-700">{{ demandes_attente|length }}</div>
         <div class="mt-1 flex items-center gap-1 text-xs font-medium text-amber-600">Traiter les demandes <svg class="h-3 w-3 transition group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg></div>
@@ -72,7 +72,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">À valider</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-erpac-50 text-erpac-primary"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold text-slate-800">0</div>
         <div class="mt-1 text-xs text-slate-400">aucune demande en attente</div>
@@ -82,7 +82,7 @@
     <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-soft">
         <div class="flex items-center justify-between">
             <span class="text-sm font-medium text-slate-500">Soldes à risque</span>
-            <span class="grid h-8 w-8 place-items-center rounded-lg bg-rose-50 text-rose-500"><svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
+            <span class="grid h-8 w-8 place-items-center rounded-lg bg-rose-50 text-rose-500"><svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
         </div>
         <div class="mt-2 text-3xl font-bold {{ 'text-rose-500' if a_risque else 'text-slate-800' }}">{{ a_risque|length if a_risque else 0 }}</div>
         <div class="mt-1 text-xs text-slate-400">CP élevés en fin d'exercice</div>
@@ -94,7 +94,7 @@
 <div id="file-validation" class="mt-6 overflow-hidden rounded-xl border border-amber-200 bg-white shadow-soft" x-data="bulkConges()">
     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-amber-100 bg-amber-50 px-6 py-4">
         <h2 class="flex items-center gap-2 text-sm font-semibold text-amber-900">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+            <svg aria-hidden="true" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 9v4m0 4h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
             Demandes en attente de validation ({{ demandes_attente|length }})
         </h2>
         <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -115,7 +115,7 @@
         </div>
     </div>
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="erp-table erp-table--hover">
             <thead class="bg-slate-50">
                 <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
                     <th class="w-10 px-6 py-3">
@@ -242,7 +242,7 @@ function bulkConges() {
         <h2 class="mb-4 text-sm font-semibold text-slate-700">Congés de l'exercice actif</h2>
         {% if conges_exercice_rows %}
         <div class="max-h-[28rem] overflow-y-auto">
-            <table class="w-full text-sm">
+            <table class="erp-table erp-table--hover">
                 <thead class="bg-slate-50">
                     <tr class="text-left text-xs uppercase tracking-wider text-slate-400">
                         <th class="px-3 py-2 font-medium">Salarié</th>
@@ -271,9 +271,9 @@ function bulkConges() {
 <!-- Salariés (onglets actifs / inactifs + recherche) -->
 <div class="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-soft" x-data="{ tab: 'actifs', search: '' }">
     <div class="flex flex-col gap-3 border-b border-slate-200 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm">
-            <button @click="tab = 'actifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'actifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Actifs <span class="text-slate-400">{{ salaries_data|length }}</span></button>
-            <button @click="tab = 'inactifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'inactifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Inactifs <span class="text-slate-400">{{ salaries_data_inactifs|length }}</span></button>
+        <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-sm" role="tablist" aria-label="Filtrer les salariés" @keydown.right.prevent="$refs.tabInactifs.focus(); tab = 'inactifs'" @keydown.left.prevent="$refs.tabActifs.focus(); tab = 'actifs'">
+            <button type="button" x-ref="tabActifs" id="tab-actifs" role="tab" aria-controls="panel-actifs" :aria-selected="(tab === 'actifs').toString()" @click="tab = 'actifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'actifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Actifs <span class="text-slate-400">{{ salaries_data|length }}</span></button>
+            <button type="button" x-ref="tabInactifs" id="tab-inactifs" role="tab" aria-controls="panel-inactifs" :aria-selected="(tab === 'inactifs').toString()" @click="tab = 'inactifs'" class="rounded-md px-3 py-1.5 font-medium transition" :class="tab === 'inactifs' ? 'bg-white text-slate-900 shadow-soft' : 'text-slate-500 hover:text-slate-800'">Inactifs <span class="text-slate-400">{{ salaries_data_inactifs|length }}</span></button>
         </div>
         <div class="relative">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
@@ -282,8 +282,8 @@ function bulkConges() {
     </div>
 
     <!-- Actifs -->
-    <div x-show="tab === 'actifs'" class="overflow-x-auto">
-    <table class="w-full">
+    <div id="panel-actifs" role="tabpanel" aria-labelledby="tab-actifs" x-show="tab === 'actifs'" class="overflow-x-auto">
+    <table class="erp-table erp-table--hover">
         <thead class="bg-slate-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Salarié</th>
@@ -296,12 +296,11 @@ function bulkConges() {
         </thead>
         <tbody class="divide-y divide-slate-100">
             {% for data in salaries_data %}
-            <tr class="cursor-pointer transition hover:bg-slate-50"
+            <tr class="transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
-                role="button" tabindex="0"
-                data-row-href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}">
+>
                 <td class="px-6 py-4">
-                    <div class="font-medium text-slate-900">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <a href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}" class="font-medium text-erpac-primary hover:text-erpac-dark">{{ data.user.nom }} {{ data.user.prenom }}</a>
                     <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
                 </td>
                 <td class="px-6 py-4">
@@ -318,9 +317,9 @@ function bulkConges() {
                 <td class="px-6 py-4 text-slate-600">{{ data.solde.total_consomme }}</td>
                 <td class="px-6 py-4">
                     {% if data.conges_en_cours > 0 %}
-                        <span class="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-medium text-orange-700">En congé</span>
+                        <span class="erp-badge erp-badge--warning">En congé</span>
                     {% else %}
-                        <span class="rounded-full bg-erpac-50 px-2.5 py-0.5 text-xs font-medium text-erpac-800">Présent</span>
+                        <span class="erp-badge erp-badge--brand">Présent</span>
                     {% endif %}
                 </td>
                 <td class="px-6 py-4 text-right">
@@ -333,8 +332,8 @@ function bulkConges() {
     </div>
 
     <!-- Inactifs -->
-    <div x-show="tab === 'inactifs'" x-cloak class="overflow-x-auto">
-    <table class="w-full">
+    <div id="panel-inactifs" role="tabpanel" aria-labelledby="tab-inactifs" x-show="tab === 'inactifs'" x-cloak class="overflow-x-auto">
+    <table class="erp-table erp-table--hover">
         <thead class="bg-slate-50">
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-400">Salarié</th>
@@ -347,12 +346,11 @@ function bulkConges() {
         </thead>
         <tbody class="divide-y divide-slate-100">
             {% for data in salaries_data_inactifs %}
-            <tr class="cursor-pointer transition hover:bg-slate-50"
+            <tr class="transition hover:bg-slate-50"
                 x-show='search === "" || {{ (data.user.nom ~ " " ~ data.user.prenom)|lower|tojson }}.includes(search.toLowerCase())'
-                role="button" tabindex="0"
-                data-row-href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}">
+>
                 <td class="px-6 py-4">
-                    <div class="font-medium text-slate-700">{{ data.user.nom }} {{ data.user.prenom }}</div>
+                    <a href="{{ url_for('rh.salarie_detail', user_id=data.user.id) }}" class="font-medium text-erpac-primary hover:text-erpac-dark">{{ data.user.nom }} {{ data.user.prenom }}</a>
                     <div class="text-xs text-slate-400">{{ data.user.role|upper }}</div>
                 </td>
                 <td class="px-6 py-4">
